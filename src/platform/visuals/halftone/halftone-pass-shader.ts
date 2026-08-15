@@ -54,17 +54,6 @@ export const HALFTONE_PASS_SHADER = {
     return distToSegment - halfThickness;
   }
 
-  vec3 palette(in float t, in vec3 baseColor) {
-    vec3 a = baseColor;
-    // How much the color varies around the base color
-    vec3 b = vec3(0.4, 0.4, 0.4); 
-    // Frequency of the color shift
-    vec3 c = vec3(1.0, 1.0, 1.0); 
-    // Phase shift for R, G, B to create varied hues instead of just brightness
-    vec3 d = vec3(0.0, 0.33, 0.67); 
-    return a + b * cos(6.28318 * (c * t + d));
-  }
-
   void main() {
     if (cropToBounds > 0.5) {
       vec4 boundsCheck = texture2D(tScene, vUv);
@@ -154,42 +143,20 @@ export const HALFTONE_PASS_SHADER = {
     // Preserve the pre-toneTarget light-mode response by keeping the power
     // bias inside the averaged tone calculation.
     float powerBias = localPower * length(vec2(0.5)) * (1.0 / 3.0);
-    float toneLevel = clamp(
+    float bandRadius = clamp(
       max(toneValue + powerBias + lightLift, minimumTone),
       0.0,
       1.0
-    );
+    ) * 1.86 * 0.5;
 
     float alpha = 0.0;
-    float stepTone = floor(toneLevel * 5.99); // Maps 0.0-1.0 to 0, 1, 2, 3, 4, 5
-    float d = 1.0; // Distance field value
-    vec2 p = cellUv - 0.5; // Center the cell
-
-    // Select shape based on brightness step (like ASCII characters)
-    if (stepTone < 1.0) {
-      d = 1.0; // Blank space
-    } else if (stepTone < 2.0) {
-      d = length(p) - 0.25; // Small circle
-    } else if (stepTone < 3.0) {
-      d = abs(p.x) + abs(p.y) - 0.35; // Diamond
-    } else if (stepTone < 4.0) {
-      d = max(abs(p.x) - 0.15, abs(p.y) - 0.45); // Vertical line
-    } else if (stepTone < 5.0) {
-      d = length(p) - 0.45; // Large circle
-    } else {
-      float box = max(abs(p.x), abs(p.y)) - 0.48;
-      float hole = length(p) - 0.25;
-      d = max(box, -hole); // Square with a hole
-    }
-
-    if (toneLevel > 0.0001) {
+    if (bandRadius > 0.0001) {
+      float signedDistance = lineSimpleEt(cellUv, bandRadius, localWidth);
       float edge = 0.02;
-      alpha = (1.0 - smoothstep(0.0, edge, d)) * mask;
+      alpha = (1.0 - smoothstep(0.0, edge, signedDistance)) * mask;
     }
 
-    float colorT = (effectCoord.x + effectCoord.y) * 0.0005 + toneValue * 0.3 + time * 0.2;
-    vec3 genColor = palette(colorT, dashColor);
-    vec3 activeDashColor = mix(genColor, vec3(0.0, 0.0, 1.0), hoverHalftoneMask);
+    vec3 activeDashColor = mix(dashColor, vec3(0.0, 0.0, 1.0), hoverHalftoneMask);
     vec3 finalColor = mix(bgColor, activeDashColor, alpha);
 
     gl_FragColor = vec4(finalColor, 1.0);
