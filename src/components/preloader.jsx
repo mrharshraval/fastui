@@ -1,0 +1,37 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+export function Preloader() {
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Simulate loading time
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!loading) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background pointer-events-none transition-opacity duration-700">
+      <div className="relative w-16 h-16 md:w-24 md:h-24 flex items-center justify-center">
+        {/* Background track (semi-transparent outline of the mark) */}
+        <div className="absolute inset-0 opacity-20">
+          <svg viewBox="0 0 371 232" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full text-foreground">
+            <path d="M285.994 133.594L342.622 124.568C352.711 122.96 352.711 108.454 342.622 106.846L285.994 97.8196C280.361 96.9218 276.982 91.0744 279.02 85.7521L299.51 32.2439C303.16 22.7109 290.586 15.4577 284.147 23.3827L247.574 68.3998C244.125 72.6451 237.71 72.8482 233.999 68.8296L207.446 40.0757C200.951 33.0426 189.42 39.6937 192.269 48.8297L203.627 85.2471C205.351 90.776 201.46 96.4645 195.677 96.8678L27.7181 108.582C19.0684 109.205 16.823 122.051 25.4727 122.676L195.953 134.565C201.641 134.962 205.542 140.486 203.986 145.967L192.219 187.402C189.56 196.768 201.641 203.069 207.812 195.533L234.056 163.487C237.659 159.088 244.396 159.101 247.981 163.515L284.147 208.031C290.586 215.956 303.16 208.703 299.51 199.17L279.02 145.662C276.982 140.339 280.361 134.492 285.994 133.594Z" fill="currentColor"/>
+          </svg>
+        </div>
+        
+        {/* Fill layer (animated clip-path from bottom up) */}
+        <div className="absolute inset-0 animate-fill">
+          <svg viewBox="0 0 371 232" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full text-foreground">
+            <path d="M285.994 133.594L342.622 124.568C352.711 122.96 352.711 108.454 342.622 106.846L285.994 97.8196C280.361 96.9218 276.982 91.0744 279.02 85.7521L299.51 32.2439C303.16 22.7109 290.586 15.4577 284.147 23.3827L247.574 68.3998C244.125 72.6451 237.71 72.8482 233.999 68.8296L207.446 40.0757C200.951 33.0426 189.42 39.6937 192.269 48.8297L203.627 85.2471C205.351 90.776 201.46 96.4645 195.677 96.8678L27.7181 108.582C19.0684 109.205 16.823 122.051 25.4727 122.676L195.953 134.565C201.641 134.962 205.542 140.486 203.986 145.967L192.219 187.402C189.56 196.768 201.641 203.069 207.812 195.533L234.056 163.487C237.659 159.088 244.396 159.101 247.981 163.515L284.147 208.031C290.586 215.956 303.16 208.703 299.51 199.17L279.02 145.662C276.982 140.339 280.361 134.492 285.994 133.594Z" fill="currentColor"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+  );
+}
