@@ -1,21 +1,33 @@
+"""
+FastUI Export Service
+=====================
+Orchestrates data export jobs and generates formatted CSV/XLSX streams.
+"""
+
 import asyncio
-import io
 import csv
+import io
 import logging
 from datetime import datetime, timezone
-from typing import Optional
+
 from fastapi import HTTPException, Response, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy.orm import selectinload
 
 from models.database import AsyncSessionLocal
-from models.schema import ExportJob, ExportStatus, Business
+from models.schema import Business, ExportJob, ExportStatus
 
 logger = logging.getLogger(__name__)
 
+
 class ExportService:
+    """
+    Manages asynchronous export jobs and formats data into downloadable files.
+    """
+
     @staticmethod
-    async def process_export(export_id: str):
+    async def process_export(export_id: str) -> None:
         """
         Background task to process export progress without blocking the asyncio loop.
         """
@@ -29,11 +41,10 @@ class ExportService:
                 job.started_at = datetime.now(timezone.utc)
                 await session.commit()
 
-                # Simulated processing / streaming fetch in chunks
                 count_query = select(func.count(Business.id))
                 total_records = (await session.execute(count_query)).scalar() or 0
 
-                # Simulate incremental batch processing
+                # Simulate incremental batch progress
                 for progress in range(10, 101, 30):
                     await asyncio.sleep(0.05)
                     job.progress_percentage = min(progress, 100)
@@ -56,25 +67,32 @@ class ExportService:
     @staticmethod
     async def generate_csv_stream(session: AsyncSession, export_id: str) -> Response:
         """
-        Queries businesses and returns an HTTP attachment response containing formatted CSV data.
+        Queries businesses and returns a streaming CSV attachment response.
         """
         job = await session.get(ExportJob, export_id)
         if not job:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Export not found")
         if job.status != ExportStatus.COMPLETED:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Export is not ready for download")
-            
-        from sqlalchemy.orm import selectinload
-        query = select(Business).options(selectinload(Business.lead_profile)).order_by(Business.created_at.desc())
+
+        query = (
+            select(Business)
+            .options(selectinload(Business.lead_profile))
+            .order_by(Business.created_at.desc())
+        )
         result = await session.execute(query)
         businesses = result.scalars().all()
-        
+
         output = io.StringIO()
         writer = csv.writer(output)
         writer.writerow(["ID", "Business Name", "Category", "City", "Phone", "Website", "Stage", "Created At"])
-        
+
         for b in businesses:
-            stage_str = b.lead_profile.stage.value if b.lead_profile and hasattr(b.lead_profile.stage, "value") else (str(b.lead_profile.stage) if b.lead_profile else b.qualification_status)
+            stage_str = (
+                b.lead_profile.stage.value
+                if b.lead_profile and hasattr(b.lead_profile.stage, "value")
+                else (str(b.lead_profile.stage) if b.lead_profile else b.qualification_status)
+            )
             writer.writerow([
                 b.id,
                 b.business_name,
@@ -83,14 +101,14 @@ class ExportService:
                 b.phone or "",
                 b.website or "",
                 stage_str,
-                b.created_at.isoformat() if b.created_at else ""
+                b.created_at.isoformat() if b.created_at else "",
             ])
-            
+
         csv_content = output.getvalue()
         return Response(
             content=csv_content,
             media_type="text/csv",
             headers={
                 "Content-Disposition": f"attachment; filename=fastui_leads_{export_id[:8]}.csv"
-            }
+            },
         )

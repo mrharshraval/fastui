@@ -1,25 +1,39 @@
+"""
+FastUI Playwright Scraper Base
+==============================
+Deterministic browser lifecycle manager and abstract scraping template.
+"""
+
 import asyncio
 import logging
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from playwright.async_api import async_playwright, Browser, Page, Playwright
-from worker.contracts import DiscoverySearchParams, DiscoveredLead
+from playwright.async_api import Browser, Page, Playwright, async_playwright
+from worker.contracts import DiscoveredLead, DiscoverySearchParams
+from worker.core.constants import (
+    DEFAULT_USER_AGENT,
+    DEFAULT_VIEWPORT_HEIGHT,
+    DEFAULT_VIEWPORT_WIDTH,
+)
+from worker.core.exceptions import BrowserInitializationError
 from .base import DiscoverySourceAdapter
 
 logger = logging.getLogger(__name__)
 
+
 class PlaywrightScraper(DiscoverySourceAdapter, ABC):
     """
-    Base class for Playwright-based discovery workers with deterministic lifecycle management.
+    Abstract base class providing deterministic headless Chromium browser lifecycle management.
     """
-    
+
     def __init__(self, headless: bool = True):
         self.headless = headless
         self.browser: Optional[Browser] = None
         self.playwright: Optional[Playwright] = None
 
-    async def _init_browser(self):
+    async def _init_browser(self) -> None:
+        """Launches headless Chromium with container-safe arguments."""
         try:
             self.playwright = await async_playwright().start()
             self.browser = await self.playwright.chromium.launch(
@@ -27,14 +41,15 @@ class PlaywrightScraper(DiscoverySourceAdapter, ABC):
                 args=[
                     "--disable-blink-features=AutomationControlled",
                     "--no-sandbox",
-                    "--disable-dev-shm-usage"
-                ]
+                    "--disable-dev-shm-usage",
+                ],
             )
         except Exception as e:
             await self._close_browser()
-            raise e
+            raise BrowserInitializationError(f"Failed to launch browser: {e}") from e
 
-    async def _close_browser(self):
+    async def _close_browser(self) -> None:
+        """Deterministically terminates browser and playwright instances."""
         if self.browser:
             try:
                 await self.browser.close()
@@ -53,36 +68,29 @@ class PlaywrightScraper(DiscoverySourceAdapter, ABC):
 
     @abstractmethod
     async def extract_leads(self, page: Page, params: DiscoverySearchParams) -> List[DiscoveredLead]:
-        """
-        Subclasses must implement the page extraction logic.
-        """
+        """Subclasses extract leads from the loaded page."""
         pass
 
     async def discover(self, params: DiscoverySearchParams) -> List[DiscoveredLead]:
         """
-        Main entry point for discovery. Guarantees deterministic browser cleanup.
+        Executes discovery workflow with guaranteed browser lifecycle cleanup.
         """
         try:
             await self._init_browser()
             if not self.browser:
-                raise RuntimeError("Browser failed to initialize.")
-                
+                raise BrowserInitializationError("Browser failed to initialize.")
+
             context = await self.browser.new_context(
-                viewport={"width": 1280, "height": 800},
-                user_agent=(
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/124.0.0.0 Safari/537.36"
-                )
+                viewport={"width": DEFAULT_VIEWPORT_WIDTH, "height": DEFAULT_VIEWPORT_HEIGHT},
+                user_agent=DEFAULT_USER_AGENT,
             )
             page = await context.new_page()
-            
+
             logger.info(f"Starting discovery for '{params.target_audience}' in '{params.location}'")
-            results = await self.extract_leads(page, params)
-            return results
-            
+            return await self.extract_leads(page, params)
+
         except Exception as e:
             logger.error(f"Playwright discovery failed: {e}", exc_info=True)
-            raise e
+            raise
         finally:
             await self._close_browser()

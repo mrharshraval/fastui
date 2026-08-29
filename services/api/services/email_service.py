@@ -91,9 +91,9 @@ class ResendEmailProvider(BaseEmailProvider):
     def _sync_send(self, payload: EmailPayload) -> EmailResult:
         self.resend.api_key = self.api_key
         
-        # Build standard From header (e.g., "fastui <team@fastui.in>")
-        from_name = payload.from_name or settings.EMAIL_FROM_NAME
-        from_email = payload.from_email or settings.EMAIL_FROM_ADDRESS
+        # Build standard From header (e.g., "fastui <team@yourdomain.com>")
+        from_name = payload.from_name or settings.EMAIL_FROM_NAME or "FastUI"
+        from_email = payload.from_email or settings.EMAIL_FROM_ADDRESS or "onboarding@resend.dev"
         from_header = f"{from_name} <{from_email}>" if from_name else from_email
         
         recipients = [payload.to] if isinstance(payload.to, str) else list(payload.to)
