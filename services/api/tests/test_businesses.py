@@ -2,7 +2,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models.schema import Business, PipelineStage
+from models.schema import Business, Lead, PipelineStage
 
 @pytest.mark.asyncio
 async def test_list_businesses_empty(auth_client: AsyncClient):
@@ -12,11 +12,20 @@ async def test_list_businesses_empty(auth_client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_search_and_filter_businesses(auth_client: AsyncClient, db_session: AsyncSession):
-    # Seed businesses
-    b1 = Business(business_name="Smile Dental Clinic", category="Dentist", city="Ahmedabad", pipeline_stage=PipelineStage.LEAD)
-    b2 = Business(business_name="Ahmedabad Eye Care", category="Optometrist", city="Ahmedabad", pipeline_stage=PipelineStage.CONTACTED)
-    b3 = Business(business_name="Mumbai Ortho Center", category="Orthopedics", city="Mumbai", pipeline_stage=PipelineStage.LEAD)
+    # Seed businesses with leads
+    b1 = Business(business_name="Smile Dental Clinic", category="Dentist", city="Ahmedabad")
+    b2 = Business(business_name="Ahmedabad Eye Care", category="Optometrist", city="Ahmedabad")
+    b3 = Business(business_name="Mumbai Ortho Center", category="Orthopedics", city="Mumbai")
     db_session.add_all([b1, b2, b3])
+    await db_session.commit()
+    await db_session.refresh(b1)
+    await db_session.refresh(b2)
+    await db_session.refresh(b3)
+
+    l1 = Lead(business_id=b1.id, stage=PipelineStage.LEAD)
+    l2 = Lead(business_id=b2.id, stage=PipelineStage.CONTACTED)
+    l3 = Lead(business_id=b3.id, stage=PipelineStage.LEAD)
+    db_session.add_all([l1, l2, l3])
     await db_session.commit()
 
     # 1. Test search
@@ -38,10 +47,14 @@ async def test_search_and_filter_businesses(auth_client: AsyncClient, db_session
 
 @pytest.mark.asyncio
 async def test_update_pipeline_stage(auth_client: AsyncClient, db_session: AsyncSession):
-    b = Business(business_name="Apex Dental", category="Dentist", city="Ahmedabad", pipeline_stage=PipelineStage.LEAD)
+    b = Business(business_name="Apex Dental", category="Dentist", city="Ahmedabad")
     db_session.add(b)
     await db_session.commit()
     await db_session.refresh(b)
+
+    l = Lead(business_id=b.id, stage=PipelineStage.LEAD)
+    db_session.add(l)
+    await db_session.commit()
 
     res = await auth_client.patch(f"/businesses/{b.id}/stage", json={"stage": "proposal"})
     assert res.status_code == 200

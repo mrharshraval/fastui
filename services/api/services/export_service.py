@@ -64,14 +64,17 @@ class ExportService:
         if job.status != ExportStatus.COMPLETED:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Export is not ready for download")
             
-        result = await session.execute(select(Business).order_by(Business.created_at.desc()))
+        from sqlalchemy.orm import selectinload
+        query = select(Business).options(selectinload(Business.lead_profile)).order_by(Business.created_at.desc())
+        result = await session.execute(query)
         businesses = result.scalars().all()
         
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(["ID", "Business Name", "Category", "City", "Phone", "Website", "Pipeline Stage", "Created At"])
+        writer.writerow(["ID", "Business Name", "Category", "City", "Phone", "Website", "Stage", "Created At"])
         
         for b in businesses:
+            stage_str = b.lead_profile.stage.value if b.lead_profile and hasattr(b.lead_profile.stage, "value") else (str(b.lead_profile.stage) if b.lead_profile else b.qualification_status)
             writer.writerow([
                 b.id,
                 b.business_name,
@@ -79,7 +82,7 @@ class ExportService:
                 b.city or "",
                 b.phone or "",
                 b.website or "",
-                b.pipeline_stage,
+                stage_str,
                 b.created_at.isoformat() if b.created_at else ""
             ])
             

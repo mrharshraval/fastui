@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
-import { Menu, Plus, Clock, Check, ChevronDown, MoreHorizontal, ArrowLeft, X } from "lucide-react"
+import { Menu, Plus, ChevronDown, MoreHorizontal, ArrowLeft, X, UserPlus, Check } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useSidebar } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
@@ -16,7 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-interface BusinessDetail {
+export interface BusinessDetail {
   id: string
   business_name: string
   category?: string
@@ -30,6 +30,9 @@ interface BusinessDetail {
   email?: string
   whatsapp?: string
   created_at: string
+  is_lead?: boolean
+  qualification_status?: string
+  stage?: string
 }
 
 interface ActivityItem {
@@ -65,6 +68,7 @@ const MOCK_BUSINESSES: Record<string, BusinessDetail> = {
     email: "sarah.chen@acmecloud.io",
     whatsapp: "+14158901234",
     created_at: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
+    is_lead: true,
   },
   "lead-2": {
     id: "lead-2",
@@ -80,6 +84,7 @@ const MOCK_BUSINESSES: Record<string, BusinessDetail> = {
     email: "alex.rivas@mindrift.ai",
     whatsapp: "+442079460912",
     created_at: new Date(Date.now() - 24 * 3600 * 1000).toISOString(),
+    is_lead: true,
   },
   "lead-3": {
     id: "lead-3",
@@ -95,6 +100,7 @@ const MOCK_BUSINESSES: Record<string, BusinessDetail> = {
     email: "marcus.vance@apexlogistics.com",
     whatsapp: "+12125550198",
     created_at: new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString(),
+    is_lead: true,
   },
   "lead-4": {
     id: "lead-4",
@@ -110,6 +116,7 @@ const MOCK_BUSINESSES: Record<string, BusinessDetail> = {
     email: "patrick.collins@stripe-partner.com",
     whatsapp: "+35314960123",
     created_at: new Date(Date.now() - 4 * 24 * 3600 * 1000).toISOString(),
+    is_lead: true,
   },
   "lead-5": {
     id: "lead-5",
@@ -125,6 +132,7 @@ const MOCK_BUSINESSES: Record<string, BusinessDetail> = {
     email: "elena.rostova@dentalsolutions.org",
     whatsapp: "+15124442390",
     created_at: new Date(Date.now() - 6 * 24 * 3600 * 1000).toISOString(),
+    is_lead: false,
   },
   "lead-6": {
     id: "lead-6",
@@ -140,6 +148,7 @@ const MOCK_BUSINESSES: Record<string, BusinessDetail> = {
     email: "david.kim@saascrm.dev",
     whatsapp: "+918041234567",
     created_at: new Date(Date.now() - 8 * 24 * 3600 * 1000).toISOString(),
+    is_lead: false,
   },
   "lead-7": {
     id: "lead-7",
@@ -155,6 +164,7 @@ const MOCK_BUSINESSES: Record<string, BusinessDetail> = {
     email: "jordan.taylor@hyperscale.net",
     whatsapp: "+14167890123",
     created_at: new Date(Date.now() - 12 * 24 * 3600 * 1000).toISOString(),
+    is_lead: true,
   },
   "lead-8": {
     id: "lead-8",
@@ -170,6 +180,7 @@ const MOCK_BUSINESSES: Record<string, BusinessDetail> = {
     email: "guillermo.dev@edge-stack.com",
     whatsapp: "+14155550143",
     created_at: new Date(Date.now() - 15 * 24 * 3600 * 1000).toISOString(),
+    is_lead: true,
   }
 }
 
@@ -185,6 +196,7 @@ function formatActivityAction(type?: string, fallback?: string): string {
   if (t === "status_changed") return "Stage changed"
   if (t === "proposal_sent") return "Proposal sent"
   if (t === "business_discovered" || t === "discover") return "Discovered lead"
+  if (t === "added_to_leads") return "Added to Leads"
   return fallback || type
 }
 
@@ -192,7 +204,7 @@ function formatRelativeTimestamp(date: Date): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
 }
 
-export default function LeadDetailPage() {
+export function BusinessProfileView() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const { toggleSidebar } = useSidebar()
@@ -212,8 +224,10 @@ export default function LeadDetailPage() {
   ])
   const [activeTab, setActiveTab] = React.useState<"activity" | "reminders" | "details">("activity")
   const [loading, setLoading] = React.useState(true)
+  const [addingToLeads, setAddingToLeads] = React.useState(false)
   const [showBusinessDetails, setShowBusinessDetails] = React.useState(false)
   const [showContactDetails, setShowContactDetails] = React.useState(false)
+  
   // Shared bottom sheet state
   const [activeSheet, setActiveSheet] = React.useState<"note" | "reminder" | null>(null)
   const [keyboardHeight, setKeyboardHeight] = React.useState(0)
@@ -279,7 +293,7 @@ export default function LeadDetailPage() {
     }
   }, [reminderPickerMode, resetPickerTimer])
 
-  // Next 14 days generator for inline scheduling (single-line labels, no separate rows)
+  // Next 14 days generator for inline scheduling
   const NEXT_DAYS = React.useMemo(() => {
     const days: { dateStr: string; label: string }[] = []
     const now = new Date()
@@ -373,7 +387,10 @@ export default function LeadDetailPage() {
               phone: comp.phone || undefined,
               email: comp.email || undefined,
               whatsapp: comp.phone ? comp.phone.replace(/[^0-9]/g, "") : undefined,
-              created_at: comp.created_at || new Date().toISOString()
+              created_at: comp.created_at || new Date().toISOString(),
+              is_lead: comp.is_lead,
+              qualification_status: comp.qualification_status,
+              stage: comp.pipeline_stage || comp.stage
             })
 
             // Fetch activities
@@ -397,7 +414,7 @@ export default function LeadDetailPage() {
       }
 
       // Mock Fallback
-      const fallback = MOCK_BUSINESSES[id] || {
+      const fallback: BusinessDetail = MOCK_BUSINESSES[id] || {
         id,
         business_name: "Smile Dental Care",
         category: "Dentist",
@@ -410,7 +427,8 @@ export default function LeadDetailPage() {
         phone: "+1 (512) 555-0140",
         email: "hello@smiledentalcare.example.com",
         whatsapp: "+15125550140",
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        is_lead: true
       }
       setBusiness(fallback)
 
@@ -442,6 +460,39 @@ export default function LeadDetailPage() {
 
     fetchBackend().finally(() => setLoading(false))
   }, [id])
+
+  // Normal browser/router history back navigation
+  const handleBack = () => {
+    router.back()
+  }
+
+  // Handle promoting prospect to lead
+  const handleAddToLeads = async () => {
+    if (!business || addingToLeads) return
+    setAddingToLeads(true)
+
+    const numericId = parseInt(business.id.replace(/[^0-9]/g, ""), 10)
+    try {
+      if (!isNaN(numericId) && numericId > 0) {
+        await api.post(`/prospects/${numericId}/add-to-leads`, {})
+      }
+      setBusiness((prev) => prev ? { ...prev, is_lead: true } : null)
+      
+      const newActivity: ActivityItem = {
+        id: `act-promote-${Date.now()}`,
+        user_name: "Harsh",
+        action: "Added to Leads",
+        notes: "Promoted to sales pipeline",
+        timestamp: formatRelativeTimestamp(new Date())
+      }
+      setActivities((prev) => [newActivity, ...prev])
+      toast.success("Added to Leads", { description: `${business.business_name} is now in your pipeline.` })
+    } catch (e: any) {
+      toast.error("Failed to add to leads", { description: e.message || "Please try again." })
+    } finally {
+      setAddingToLeads(false)
+    }
+  }
 
   // Handle contact actions
   const handleAction = async (
@@ -667,13 +718,14 @@ export default function LeadDetailPage() {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] gap-3">
         <p className="text-sm text-muted-foreground">Business not found</p>
-        <Link
-          href="/leads"
-          className="h-9 px-4 rounded-full bg-accent hover:bg-accent/80 text-foreground text-sm font-medium inline-flex items-center gap-1.5 transition-colors"
+        <button
+          type="button"
+          onClick={handleBack}
+          className="h-9 px-4 rounded-full bg-accent hover:bg-accent/80 text-foreground text-sm font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer"
         >
           <ArrowLeft size={16} />
-          <span>Back to Leads</span>
-        </Link>
+          <span>Back</span>
+        </button>
       </div>
     )
   }
@@ -767,7 +819,7 @@ export default function LeadDetailPage() {
 
         <button
           type="button"
-          onClick={() => router.push("/leads")}
+          onClick={handleBack}
           className="h-8 px-3 rounded-full bg-accent/60 hover:bg-accent text-foreground text-xs font-medium transition-colors cursor-pointer shrink-0"
         >
           Back
@@ -780,7 +832,7 @@ export default function LeadDetailPage() {
         <div className="hidden md:flex items-center justify-end mb-8">
           <button
             type="button"
-            onClick={() => router.push("/leads")}
+            onClick={handleBack}
             className="h-9 px-4 rounded-full bg-accent/60 hover:bg-accent text-foreground text-sm font-medium transition-colors cursor-pointer"
           >
             Back
@@ -809,7 +861,7 @@ export default function LeadDetailPage() {
           )}
 
           {/* ─────────────────────────────────────────────────────────────
-              3. CONTACT ACTIONS (Pills)
+              3. CONTACT ACTIONS (Pills) & CONTEXTUAL LIFECYCLE ACTION
              ───────────────────────────────────────────────────────────── */}
           <div className="flex items-center justify-center gap-2 mt-6 md:mt-7 flex-wrap">
             {business.website && (
@@ -851,11 +903,24 @@ export default function LeadDetailPage() {
                 WhatsApp
               </button>
             )}
+
+            {/* Contextual Action: Add to Leads (for unconverted prospects) */}
+            {!business.is_lead && (
+              <button
+                type="button"
+                onClick={handleAddToLeads}
+                disabled={addingToLeads}
+                className="h-8 px-4 rounded-full bg-[#007AFF] hover:bg-[#0062CC] text-white text-sm font-medium transition-all active:scale-[0.98] cursor-pointer inline-flex items-center gap-1.5 shadow-xs disabled:opacity-50"
+              >
+                <UserPlus size={14} />
+                <span>{addingToLeads ? "Adding…" : "Add to Leads"}</span>
+              </button>
+            )}
           </div>
         </div>
 
         {/* ─────────────────────────────────────────────────────────────
-            TABS BAR (Leads Filter Row Visual Treatment: Activity, Reminders, Details, + Contextual Action)
+            TABS BAR (Activity, Reminders, Details, + Contextual Action)
            ───────────────────────────────────────────────────────────── */}
         <div className="w-full max-w-[540px] mx-auto mt-7 mb-6 pb-2.5 border-b border-border/30 flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 min-w-0">
@@ -1222,7 +1287,7 @@ export default function LeadDetailPage() {
                   className="w-full max-h-[96px] overflow-y-auto p-0 bg-transparent border-0 focus:outline-none focus:ring-0 text-sm text-foreground placeholder:text-muted-foreground/50 resize-none leading-relaxed overscroll-contain apple-scrollbar"
                 />
 
-                {/* Inline Date Picker (Single-line pills, no separate weekday/date rows, no icons, no dots) */}
+                {/* Inline Date Picker */}
                 {reminderPickerMode === "date" && (
                   <div
                     ref={pickerRef}
@@ -1258,7 +1323,7 @@ export default function LeadDetailPage() {
                   </div>
                 )}
 
-                {/* Inline Time Picker (Only when Time is tapped) */}
+                {/* Inline Time Picker */}
                 {reminderPickerMode === "time" && (
                   <div
                     ref={pickerRef}

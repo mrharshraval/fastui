@@ -622,7 +622,7 @@ export default function LeadsPage() {
             filteredItems.map((lead) => (
               <div
                 key={lead.id}
-                onClick={() => router.push(`/leads/${lead.id}`)}
+                onClick={() => router.push(`/business/${lead.id}`)}
                 className="flex flex-col gap-2 py-3.5 px-4 active:bg-accent/40 transition-colors cursor-pointer"
               >
                 <div className="flex items-start justify-between">
@@ -1026,7 +1026,7 @@ export default function LeadsPage() {
                       {/* 1. Business */}
                       <div className="flex items-center min-w-0">
                         <Link 
-                          href={`/leads/${lead.id}`}
+                          href={`/business/${lead.id}`}
                           onClick={(e) => e.stopPropagation()} 
                           className="font-medium text-foreground hover:text-primary transition-colors truncate"
                           title={lead.business_name}

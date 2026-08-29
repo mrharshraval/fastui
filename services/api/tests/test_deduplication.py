@@ -2,7 +2,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from worker.deduplication import normalize_phone, normalize_website, is_duplicate
-from models.schema import Business, PipelineStage
+from models.schema import Business
 
 def test_normalize_phone():
     assert normalize_phone("+91 98765 43210") == "+919876543210"
@@ -25,8 +25,7 @@ async def test_is_duplicate(db_session: AsyncSession):
         phone="+919876500001",
         website="https://unique-dental.com",
         normalized_phone="+919876500001",
-        normalized_website="unique-dental.com",
-        pipeline_stage=PipelineStage.LEAD
+        normalized_website="unique-dental.com"
     )
     db_session.add(business)
     await db_session.commit()

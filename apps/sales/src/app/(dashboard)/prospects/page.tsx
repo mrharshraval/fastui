@@ -548,7 +548,7 @@ export default function ProspectsPage() {
             filteredItems.map((prospect) => (
               <div
                 key={prospect.id}
-                onClick={() => router.push(`/leads/${prospect.id}`)}
+                onClick={() => router.push(`/business/${prospect.id}`)}
                 className="flex flex-col gap-2 py-3.5 px-4 active:bg-accent/40 transition-colors cursor-pointer"
               >
                 <div className="flex items-start justify-between">
@@ -912,7 +912,7 @@ export default function ProspectsPage() {
                       {/* 1. Business */}
                       <div className="flex items-center min-w-0">
                         <Link 
-                          href={`/leads/${prospect.id}`}
+                          href={`/business/${prospect.id}`}
                           onClick={(e) => e.stopPropagation()} 
                           className="font-medium text-foreground hover:text-primary transition-colors truncate"
                           title={prospect.business_name}
