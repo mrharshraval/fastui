@@ -37,69 +37,6 @@ export interface Prospect {
   created_at: string
 }
 
-const FAKE_PROSPECTS: Prospect[] = [
-  {
-    id: "prospect-1",
-    business_name: "Austin Smile Studio",
-    location: "Austin, TX, United States",
-    website: "https://austinsmile.example.com",
-    phone: "+1 (512) 555-0199",
-    email: "contact@austinsmile.example.com",
-    whatsapp: "+15125550199",
-    qualification_status: "unqualified",
-    source: "discover",
-    created_at: new Date(Date.now() - 1 * 3600 * 1000).toISOString(),
-  },
-  {
-    id: "prospect-2",
-    business_name: "Metropolis Dental Care",
-    location: "Dallas, TX, United States",
-    website: "https://metropolisdental.example.com",
-    phone: "+1 (214) 555-0142",
-    email: "info@metropolisdental.example.com",
-    whatsapp: "+12145550142",
-    qualification_status: "reviewing",
-    source: "discover",
-    created_at: new Date(Date.now() - 4 * 3600 * 1000).toISOString(),
-  },
-  {
-    id: "prospect-3",
-    business_name: "Apex Orthodontics Group",
-    location: "Houston, TX, United States",
-    website: "https://apexortho.example.com",
-    phone: "+1 (713) 555-0188",
-    email: "hello@apexortho.example.com",
-    whatsapp: "+17135550188",
-    qualification_status: "qualified",
-    source: "discover",
-    created_at: new Date(Date.now() - 12 * 3600 * 1000).toISOString(),
-  },
-  {
-    id: "prospect-4",
-    business_name: "Lakeview Family Dentistry",
-    location: "Chicago, IL, United States",
-    website: "https://lakeviewdental.example.com",
-    phone: "+1 (312) 555-0177",
-    email: "frontdesk@lakeviewdental.example.com",
-    whatsapp: "+13125550177",
-    qualification_status: "unqualified",
-    source: "discover",
-    created_at: new Date(Date.now() - 24 * 3600 * 1000).toISOString(),
-  },
-  {
-    id: "prospect-5",
-    business_name: "Beacon Pediatric Dental",
-    location: "Boston, MA, United States",
-    website: "https://beacondental.example.com",
-    phone: "+1 (617) 555-0166",
-    email: "office@beacondental.example.com",
-    whatsapp: "+16175550166",
-    qualification_status: "disqualified",
-    source: "discover",
-    created_at: new Date(Date.now() - 48 * 3600 * 1000).toISOString(),
-  }
-]
-
 function formatLocation(b: any): string {
   if (!b) return "—"
   if (b.city && b.state && b.country) {
@@ -153,7 +90,7 @@ export default function ProspectsPage() {
         setProspects([])
       }
     } catch {
-      setProspects(FAKE_PROSPECTS)
+      setProspects([])
     } finally {
       setLoading(false)
     }

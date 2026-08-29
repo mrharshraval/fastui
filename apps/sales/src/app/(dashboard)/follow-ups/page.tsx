@@ -31,15 +31,6 @@ const STATUS_COLOR: Record<string, "default" | "secondary" | "outline" | "destru
   overdue: "destructive" 
 }
 
-const FAKE_FOLLOW_UPS: FollowUp[] = [
-  { id: "fu-1", lead_name: "Acme Cloud Corp", note: "Send updated security proposal", due_date: "Today, 4:00 PM", status: "pending" },
-  { id: "fu-2", lead_name: "Mindrift AI", note: "Confirm product demo with CTO", due_date: "Tomorrow, 11:00 AM", status: "pending" },
-  { id: "fu-3", lead_name: "Stripe Integrations Ltd", note: "Follow up on signed MSA contract", due_date: "Yesterday", status: "overdue" },
-  { id: "fu-4", lead_name: "Apex Global Logistics", note: "Review quarterly SLA metrics", due_date: "In 3 days", status: "pending" },
-  { id: "fu-5", lead_name: "Dental Clinic Solutions", note: "Onboarding kick-off meeting", due_date: "Completed", status: "done" },
-  { id: "fu-6", lead_name: "HyperScale Networks", note: "Check on renewal timeline", due_date: "Next week", status: "pending" },
-]
-
 export default function FollowUpsPage() {
   const { toggleSidebar } = useSidebar()
   const [items, setItems] = React.useState<FollowUp[]>([])
@@ -51,13 +42,13 @@ export default function FollowUpsPage() {
   React.useEffect(() => { 
     api.get<FollowUp[]>("/follow-ups")
       .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           setItems(data)
         } else {
-          setItems(FAKE_FOLLOW_UPS)
+          setItems([])
         }
       })
-      .catch(() => setItems(FAKE_FOLLOW_UPS))
+      .catch(() => setItems([]))
       .finally(() => setLoading(false)) 
   }, [])
 

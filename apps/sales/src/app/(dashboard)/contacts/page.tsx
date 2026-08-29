@@ -23,17 +23,6 @@ interface Contact {
  role?: string
 }
 
-const FAKE_CONTACTS: Contact[] = [
- { id: "cont-1", name: "Patrick Collison", email: "patrick@stripe.com", phone: "+1 (555) 234-5678", company: "Stripe, Inc.", role: "CEO" },
- { id: "cont-2", name: "Karri Saarinen", email: "karri@linear.app", phone: "+1 (555) 345-6789", company: "Linear Orbit", role: "Head of Product" },
- { id: "cont-3", name: "Guillermo Rauch", email: "guillermo@vercel.com", phone: "+1 (555) 456-7890", company: "Vercel Systems", role: "CEO & Founder" },
- { id: "cont-4", name: "Paul Copplestone", email: "paul@supabase.com", phone: "+1 (555) 567-8901", company: "Supabase Data", role: "CEO" },
- { id: "cont-5", name: "Thomas Paul Mann", email: "thomas@raycast.com", phone: "+1 (555) 678-9012", company: "Raycast Technologies", role: "Co-Founder" },
- { id: "cont-6", name: "Dylan Field", email: "dylan@figma.com", phone: "+1 (555) 789-0123", company: "Figma Cloud", role: "Chief Executive" },
- { id: "cont-7", name: "David Hsu", email: "david@retool.com", phone: "+1 (555) 890-1234", company: "Retool Tools", role: "Founder" },
- { id: "cont-8", name: "Ivan Zhao", email: "ivan@makenotion.com", phone: "+1 (555) 901-2345", company: "Notion Labs", role: "Co-Founder" },
-]
-
 export default function ContactsPage() {
  const { toggleSidebar } = useSidebar()
  const [contacts, setContacts] = React.useState<Contact[]>([])
@@ -44,13 +33,13 @@ export default function ContactsPage() {
  React.useEffect(() => {
  api.get<Contact[]>("/contacts")
  .then((data) => {
- if (Array.isArray(data) && data.length> 0) {
+ if (Array.isArray(data)) {
  setContacts(data)
  } else {
- setContacts(FAKE_CONTACTS)
+ setContacts([])
  }
  })
- .catch(() => setContacts(FAKE_CONTACTS))
+ .catch(() => setContacts([]))
  .finally(() => setLoading(false))
  }, [])
 

@@ -23,17 +23,6 @@ interface Company {
  leads_count?: number
 }
 
-const FAKE_COMPANIES: Company[] = [
- { id: "comp-1", name: "Stripe, Inc.", domain: "stripe.com", industry: "Fintech & Payments", status: "active", leads_count: 14 },
- { id: "comp-2", name: "Linear Orbit", domain: "linear.app", industry: "Developer Tools", status: "active", leads_count: 8 },
- { id: "comp-3", name: "Vercel Systems", domain: "vercel.com", industry: "Cloud Infrastructure", status: "active", leads_count: 19 },
- { id: "comp-4", name: "Supabase Data", domain: "supabase.com", industry: "Database & Backend", status: "active", leads_count: 6 },
- { id: "comp-5", name: "Raycast Technologies", domain: "raycast.com", industry: "Productivity", status: "prospect", leads_count: 3 },
- { id: "comp-6", name: "Figma Cloud", domain: "figma.com", industry: "Design Collaboration", status: "active", leads_count: 22 },
- { id: "comp-7", name: "Retool Tools", domain: "retool.com", industry: "Internal Software", status: "prospect", leads_count: 5 },
- { id: "comp-8", name: "Notion Labs", domain: "makenotion.com", industry: "Workspace & Notes", status: "inactive", leads_count: 2 },
-]
-
 export default function CompaniesPage() {
  const { toggleSidebar } = useSidebar()
  const [companies, setCompanies] = React.useState<Company[]>([])
@@ -44,13 +33,13 @@ export default function CompaniesPage() {
  React.useEffect(() => {
  api.get<Company[]>("/businesses")
  .then((data) => {
- if (Array.isArray(data) && data.length> 0) {
+ if (Array.isArray(data)) {
  setCompanies(data)
  } else {
- setCompanies(FAKE_COMPANIES)
+ setCompanies([])
  }
  })
- .catch(() => setCompanies(FAKE_COMPANIES))
+ .catch(() => setCompanies([]))
  .finally(() => setLoading(false))
  }, [])
 

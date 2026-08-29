@@ -53,137 +53,6 @@ interface ReminderItem {
   timestamp?: string
 }
 
-const MOCK_BUSINESSES: Record<string, BusinessDetail> = {
-  "lead-1": {
-    id: "lead-1",
-    business_name: "Acme Cloud Corp",
-    category: "Cloud Infrastructure",
-    address: "500 Howard Street, Suite 400",
-    city: "San Francisco",
-    state: "CA",
-    country: "United States",
-    location: "San Francisco, CA, United States",
-    website: "https://acmecloud.io",
-    phone: "+1 (415) 890-1234",
-    email: "sarah.chen@acmecloud.io",
-    whatsapp: "+14158901234",
-    created_at: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
-    is_lead: true,
-  },
-  "lead-2": {
-    id: "lead-2",
-    business_name: "Mindrift AI",
-    category: "Artificial Intelligence",
-    address: "10 Finsbury Square",
-    city: "London",
-    state: "England",
-    country: "United Kingdom",
-    location: "London, England, United Kingdom",
-    website: "https://mindrift.ai",
-    phone: "+44 20 7946 0912",
-    email: "alex.rivas@mindrift.ai",
-    whatsapp: "+442079460912",
-    created_at: new Date(Date.now() - 24 * 3600 * 1000).toISOString(),
-    is_lead: true,
-  },
-  "lead-3": {
-    id: "lead-3",
-    business_name: "Apex Global Logistics",
-    category: "Freight & Logistics",
-    address: "350 5th Ave",
-    city: "New York",
-    state: "NY",
-    country: "United States",
-    location: "New York, NY, United States",
-    website: "https://apexlogistics.com",
-    phone: "+1 (212) 555-0198",
-    email: "marcus.vance@apexlogistics.com",
-    whatsapp: "+12125550198",
-    created_at: new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString(),
-    is_lead: true,
-  },
-  "lead-4": {
-    id: "lead-4",
-    business_name: "Stripe Integrations Ltd",
-    category: "Fintech Solutions",
-    address: "Grand Canal Dock",
-    city: "Dublin",
-    state: "Leinster",
-    country: "Ireland",
-    location: "Dublin, Ireland",
-    website: "https://stripe-partner.com",
-    phone: "+353 1 496 0123",
-    email: "patrick.collins@stripe-partner.com",
-    whatsapp: "+35314960123",
-    created_at: new Date(Date.now() - 4 * 24 * 3600 * 1000).toISOString(),
-    is_lead: true,
-  },
-  "lead-5": {
-    id: "lead-5",
-    business_name: "Dental Clinic Solutions",
-    category: "Dentist",
-    address: "1200 S Congress Ave",
-    city: "Austin",
-    state: "TX",
-    country: "United States",
-    location: "Austin, TX, United States",
-    website: "https://dentalsolutions.org",
-    phone: "+1 (512) 444-2390",
-    email: "elena.rostova@dentalsolutions.org",
-    whatsapp: "+15124442390",
-    created_at: new Date(Date.now() - 6 * 24 * 3600 * 1000).toISOString(),
-    is_lead: false,
-  },
-  "lead-6": {
-    id: "lead-6",
-    business_name: "SaaS CRM Dashboard Pro",
-    category: "Software Development",
-    address: "Indiranagar 100ft Road",
-    city: "Bengaluru",
-    state: "Karnataka",
-    country: "India",
-    location: "Bengaluru, Karnataka, India",
-    website: "https://saascrm.dev",
-    phone: "+91 80 4123 4567",
-    email: "david.kim@saascrm.dev",
-    whatsapp: "+918041234567",
-    created_at: new Date(Date.now() - 8 * 24 * 3600 * 1000).toISOString(),
-    is_lead: false,
-  },
-  "lead-7": {
-    id: "lead-7",
-    business_name: "HyperScale Networks",
-    category: "Telecommunications",
-    address: "100 King St W",
-    city: "Toronto",
-    state: "Ontario",
-    country: "Canada",
-    location: "Toronto, Ontario, Canada",
-    website: "https://hyperscale.net",
-    phone: "+1 (416) 789-0123",
-    email: "jordan.taylor@hyperscale.net",
-    whatsapp: "+14167890123",
-    created_at: new Date(Date.now() - 12 * 24 * 3600 * 1000).toISOString(),
-    is_lead: true,
-  },
-  "lead-8": {
-    id: "lead-8",
-    business_name: "Vercel Enterprise Edge",
-    category: "Web Infrastructure",
-    address: "440 N Barranca Ave",
-    city: "San Francisco",
-    state: "CA",
-    country: "United States",
-    location: "San Francisco, CA, United States",
-    website: "https://edge-stack.com",
-    phone: "+1 (415) 555-0143",
-    email: "guillermo.dev@edge-stack.com",
-    whatsapp: "+14155550143",
-    created_at: new Date(Date.now() - 15 * 24 * 3600 * 1000).toISOString(),
-    is_lead: true,
-  }
-}
-
 function formatActivityAction(type?: string, fallback?: string): string {
   if (!type) return fallback || "Activity logged"
   const t = type.toLowerCase()
@@ -200,8 +69,107 @@ function formatActivityAction(type?: string, fallback?: string): string {
   return fallback || type
 }
 
-function formatRelativeTimestamp(date: Date): string {
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+function formatActivityTimestamp(dateInput?: string | Date): string {
+  if (!dateInput) {
+    const d = new Date()
+    return `${d.getDate()} ${d.toLocaleDateString("en-US", { month: "short" })}`
+  }
+  const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput
+  if (isNaN(date.getTime())) {
+    const d = new Date()
+    return `${d.getDate()} ${d.toLocaleDateString("en-US", { month: "short" })}`
+  }
+  const day = date.getDate()
+  const month = date.toLocaleDateString("en-US", { month: "short" })
+  return `${day} ${month}`
+}
+
+function ActivityItemRow({
+  act,
+  onDelete,
+}: {
+  act: ActivityItem
+  onDelete: () => void
+}) {
+  const [isExpanded, setIsExpanded] = React.useState(false)
+  const notes = act.notes?.trim()
+  const MAX_CHARS = 8
+  const isLong = Boolean(notes && notes.length > MAX_CHARS)
+
+  return (
+    <div className="flex flex-col py-1.5 first:pt-0 last:pb-0">
+      {/* 1. Top Row: Title on Left, Date + Overflow Menu on Right */}
+      <div className="flex items-start justify-between gap-3 w-full">
+        <span className="text-[13.5px] font-[500] text-foreground leading-snug min-w-0 flex-1 break-words">
+          {act.action}
+        </span>
+
+        <div className="flex items-center gap-2 shrink-0 ml-auto pt-0.5">
+          <span className="text-xs text-muted-foreground tabular-nums font-normal select-none">
+            {act.timestamp}
+          </span>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="flex items-center justify-center size-6 rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-accent/60 active:scale-95 transition-all cursor-pointer shrink-0 -mr-1"
+                aria-label="Activity options"
+              >
+                <MoreHorizontal size={14} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-32 p-1.5 rounded-2xl border border-border/40 shadow-xl bg-background">
+              <DropdownMenuItem
+                onClick={onDelete}
+                className="min-h-8 px-2.5 rounded-xl cursor-pointer text-xs font-medium text-destructive focus:text-destructive"
+              >
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      {/* 2. Additional detail line only when note/context exists */}
+      {notes && (
+        <div className="text-xs text-muted-foreground/90 mt-0.5 leading-relaxed break-words">
+          {isLong && !isExpanded ? (
+            <span>
+              {notes.slice(0, MAX_CHARS).trim()}{" "}
+              <span className="text-muted-foreground/50 select-none">·</span>{" "}
+              <button
+                type="button"
+                onClick={() => setIsExpanded(true)}
+                className="inline text-foreground font-medium hover:underline text-xs cursor-pointer"
+              >
+                Read more
+              </button>
+            </span>
+          ) : isLong && isExpanded ? (
+            <span>
+              {notes}{" "}
+              <span className="text-muted-foreground/50 select-none">·</span>{" "}
+              <button
+                type="button"
+                onClick={() => setIsExpanded(false)}
+                className="inline text-muted-foreground hover:text-foreground font-medium hover:underline text-xs cursor-pointer"
+              >
+                Show less
+              </button>
+            </span>
+          ) : (
+            <span>{notes}</span>
+          )}
+        </div>
+      )}
+
+      {/* 3. Actor / User on its own line at the bottom */}
+      <div className="text-xs text-muted-foreground font-normal mt-0.5">
+        {act.user_name || "Harsh"}
+      </div>
+    </div>
+  )
 }
 
 export function BusinessProfileView() {
@@ -211,17 +179,7 @@ export function BusinessProfileView() {
 
   const [business, setBusiness] = React.useState<BusinessDetail | null>(null)
   const [activities, setActivities] = React.useState<ActivityItem[]>([])
-  const [reminders, setReminders] = React.useState<ReminderItem[]>([
-    {
-      id: "rem-1",
-      title: "Follow-up",
-      due_date: "Tomorrow",
-      notes: "Follow up on proposal feedback",
-      status: "pending",
-      user_name: "Harsh",
-      timestamp: "Aug 28"
-    }
-  ])
+  const [reminders, setReminders] = React.useState<ReminderItem[]>([])
   const [activeTab, setActiveTab] = React.useState<"activity" | "reminders" | "details">("activity")
   const [loading, setLoading] = React.useState(true)
   const [addingToLeads, setAddingToLeads] = React.useState(false)
@@ -394,68 +352,56 @@ export function BusinessProfileView() {
             })
 
             // Fetch activities
-            const acts = await api.get<any[]>(`/businesses/${numericId}/activities`)
-            if (Array.isArray(acts) && acts.length > 0) {
-              setActivities(
-                acts.map((a: any) => ({
-                  id: String(a.id),
-                  user_name: "Harsh",
-                  action: formatActivityAction(a.type, a.outcome),
-                  notes: a.notes || undefined,
-                  timestamp: a.created_at ? formatRelativeTimestamp(new Date(a.created_at)) : formatRelativeTimestamp(new Date())
-                }))
-              )
-              return
+            try {
+              const acts = await api.get<any[]>(`/businesses/${numericId}/activities`)
+              if (Array.isArray(acts)) {
+                setActivities(
+                  acts.map((a: any) => ({
+                    id: String(a.id),
+                    user_name: "Harsh",
+                    action: formatActivityAction(a.type, a.outcome),
+                    notes: a.notes || undefined,
+                    timestamp: formatActivityTimestamp(a.created_at ? new Date(a.created_at) : new Date())
+                  }))
+                )
+              } else {
+                setActivities([])
+              }
+            } catch {
+              setActivities([])
             }
+
+            // Fetch reminders
+            try {
+              const rems = await api.get<any[]>(`/businesses/${numericId}/reminders`)
+              if (Array.isArray(rems)) {
+                setReminders(
+                  rems.map((r: any) => ({
+                    id: String(r.id),
+                    title: r.title,
+                    due_date: r.due_at ? formatActivityTimestamp(new Date(r.due_at)) : "No date",
+                    notes: r.notes || undefined,
+                    status: r.status || "pending",
+                    user_name: "Harsh",
+                    timestamp: formatActivityTimestamp(r.created_at ? new Date(r.created_at) : new Date())
+                  }))
+                )
+              } else {
+                setReminders([])
+              }
+            } catch {
+              setReminders([])
+            }
+            return
           }
         }
       } catch {
-        // Fallback to mock
+        // Business not found
       }
 
-      // Mock Fallback
-      const fallback: BusinessDetail = MOCK_BUSINESSES[id] || {
-        id,
-        business_name: "Smile Dental Care",
-        category: "Dentist",
-        address: "1200 S Congress Ave",
-        city: "Austin",
-        state: "TX",
-        country: "United States",
-        location: "Austin, TX",
-        website: "https://smiledentalcare.example.com",
-        phone: "+1 (512) 555-0140",
-        email: "hello@smiledentalcare.example.com",
-        whatsapp: "+15125550140",
-        created_at: new Date().toISOString(),
-        is_lead: true
-      }
-      setBusiness(fallback)
-
-      // Initial starter activity timeline
-      setActivities([
-        {
-          id: "act-1",
-          user_name: "Harsh",
-          action: "Call initiated",
-          notes: "+1 (512) 555-0140",
-          timestamp: formatRelativeTimestamp(new Date(Date.now() - 45 * 60 * 1000))
-        },
-        {
-          id: "act-2",
-          user_name: "Harsh",
-          action: "WhatsApp opened",
-          notes: "+1 (512) 555-0140",
-          timestamp: formatRelativeTimestamp(new Date(Date.now() - 32 * 60 * 1000))
-        },
-        {
-          id: "act-3",
-          user_name: "Harsh",
-          action: "Note added",
-          notes: "Receptionist asked us to call Tuesday.",
-          timestamp: formatRelativeTimestamp(new Date(Date.now() - 15 * 60 * 1000))
-        }
-      ])
+      setBusiness(null)
+      setActivities([])
+      setReminders([])
     }
 
     fetchBackend().finally(() => setLoading(false))
@@ -481,9 +427,9 @@ export function BusinessProfileView() {
       const newActivity: ActivityItem = {
         id: `act-promote-${Date.now()}`,
         user_name: "Harsh",
-        action: "Added to Leads",
+        action: "Approved",
         notes: "Promoted to sales pipeline",
-        timestamp: formatRelativeTimestamp(new Date())
+        timestamp: formatActivityTimestamp(new Date())
       }
       setActivities((prev) => [newActivity, ...prev])
       toast.success("Approved", { description: `${business.business_name} is now in your pipeline.` })
@@ -529,7 +475,7 @@ export function BusinessProfileView() {
       user_name: "Harsh",
       action: actionLabel,
       notes: targetValue,
-      timestamp: formatRelativeTimestamp(new Date())
+      timestamp: formatActivityTimestamp(new Date())
     }
 
     setActivities((prev) => [newActivity, ...prev])
@@ -571,7 +517,7 @@ export function BusinessProfileView() {
       user_name: "Harsh",
       action: "Note added",
       notes: noteText,
-      timestamp: formatRelativeTimestamp(new Date())
+      timestamp: formatActivityTimestamp(new Date())
     }
 
     setActivities((prev) => [newActivity, ...prev])
@@ -622,7 +568,7 @@ export function BusinessProfileView() {
       notes: reminderContact ? `Contact: ${reminderContact}` : undefined,
       status: "pending",
       user_name: "Harsh",
-      timestamp: formatRelativeTimestamp(new Date())
+      timestamp: formatActivityTimestamp(new Date())
     }
 
     setReminders((prev) => [newReminder, ...prev])
@@ -632,7 +578,7 @@ export function BusinessProfileView() {
       user_name: "Harsh",
       action: "Reminder set",
       notes: `${text} (${formattedDue})${reminderContact ? ` · Contact: ${reminderContact}` : ""}`,
-      timestamp: formatRelativeTimestamp(new Date())
+      timestamp: formatActivityTimestamp(new Date())
     }
 
     setActivities((prev) => [newActivity, ...prev])
@@ -979,63 +925,24 @@ export function BusinessProfileView() {
            ───────────────────────────────────────────────────────────── */}
         {activeTab === "activity" && (
           <div className="w-full max-w-[540px] mx-auto pb-8 animate-in fade-in duration-150">
-            {/* Chronological List */}
-            <div className="flex flex-col divide-y divide-border/20">
-              {activities.length === 0 ? (
-                <p className="text-left text-xs text-muted-foreground py-2">
-                  No activity recorded yet.
-                </p>
-              ) : (
-                activities.map((act) => (
-                  <div key={act.id} className="flex flex-col py-3 first:pt-0 last:pb-0">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-[14px] font-medium text-foreground leading-snug">
-                        {act.action}
-                      </span>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-xs text-muted-foreground/70 font-normal">
-                          {act.timestamp}
-                        </span>
-
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <button
-                              type="button"
-                              className="flex items-center justify-center size-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent/60 active:scale-95 transition-all cursor-pointer shrink-0"
-                              aria-label="Activity options"
-                            >
-                              <MoreHorizontal size={16} />
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-36 p-1.5 rounded-2xl border border-border/40 shadow-xl bg-background">
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setActivities((prev) => prev.filter((a) => a.id !== act.id))
-                                toast.success("Activity removed")
-                              }}
-                              className="min-h-8 px-2.5 rounded-xl cursor-pointer text-xs font-medium text-destructive focus:text-destructive"
-                            >
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </div>
-
-                    <span className="text-xs text-muted-foreground mt-0.5 font-normal">
-                      {act.user_name || "Harsh"}
-                    </span>
-
-                    {act.notes && (
-                      <p className="text-[13px] text-muted-foreground/90 mt-1 leading-relaxed break-words">
-                        {act.notes}
-                      </p>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
+            {activities.length === 0 ? (
+              <p className="text-left text-xs text-muted-foreground py-2">
+                No activity recorded yet.
+              </p>
+            ) : (
+              <div className="flex flex-col space-y-4">
+                {activities.map((act) => (
+                  <ActivityItemRow
+                    key={act.id}
+                    act={act}
+                    onDelete={() => {
+                      setActivities((prev) => prev.filter((a) => a.id !== act.id))
+                      toast.success("Activity removed")
+                    }}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
 

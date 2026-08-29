@@ -24,15 +24,6 @@ interface Deal {
  probability?: number 
 }
 
-const FAKE_DEALS: Deal[] = [
- { id: "deal-1", business_name: "Acme Cloud Corp", value: 45000, stage: "Proposal", probability: 80 },
- { id: "deal-2", business_name: "Mindrift AI", value: 28000, stage: "Demo", probability: 60 },
- { id: "deal-3", business_name: "Stripe Integrations Ltd", value: 110000, stage: "Negotiation", probability: 90 },
- { id: "deal-4", business_name: "Apex Global Logistics", value: 65000, stage: "Qualification", probability: 30 },
- { id: "deal-5", business_name: "Dental Clinic Solutions", value: 15000, stage: "Closed Won", probability: 100 },
- { id: "deal-6", business_name: "HyperScale Networks", value: 85000, stage: "Demo", probability: 50 },
-]
-
 export default function PipelinePage() {
  const { toggleSidebar } = useSidebar()
  const [deals, setDeals] = React.useState<Deal[]>([])
@@ -43,13 +34,13 @@ export default function PipelinePage() {
  React.useEffect(() => { 
  api.get<Deal[]>("/pipeline")
  .then((data) => {
- if (Array.isArray(data) && data.length> 0) {
+ if (Array.isArray(data)) {
   setDeals(data)
  } else {
-  setDeals(FAKE_DEALS)
+  setDeals([])
  }
  })
- .catch(() => setDeals(FAKE_DEALS))
+ .catch(() => setDeals([]))
  .finally(() => setLoading(false)) 
  }, [])
 

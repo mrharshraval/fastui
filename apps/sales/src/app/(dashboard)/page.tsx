@@ -72,177 +72,99 @@ interface FollowUpAction {
  dealValue?: string;
 }
 
-const INITIAL_FOLLOW_UPS: FollowUpAction[] = [
- {
- id: "act-1",
- contactName: "Sarah Jenkins",
- company: "Acme Corp",
- lastInteraction: "Pricing proposal sent • 3d ago",
- nextAction: "Review contract redlines & finalize procurement",
- dueDate: "Overdue (Yesterday)",
- bucket: "overdue",
- done: false,
- dealValue: "$52,000",
- },
- {
- id: "act-2",
- contactName: "Liam Vance",
- company: "TechFlow",
- lastInteraction: "Demo call completed • Yesterday",
- nextAction: "Send SOC2 security report & enterprise tier SLA",
- dueDate: "Due Today • 3:00 PM",
- bucket: "due_today",
- done: false,
- dealValue: "$28,000",
- },
- {
- id: "act-3",
- contactName: "Elena Rostova",
- company: "Linear",
- lastInteraction: "Intro email opened • 4h ago",
- nextAction: "Schedule 20-min discovery demo with VP of Sales",
- dueDate: "Due Today • 5:30 PM",
- bucket: "due_today",
- done: false,
- dealValue: "$42,000",
- },
- {
- id: "act-4",
- contactName: "Priya Sharma",
- company: "Supabase",
- lastInteraction: "Call scheduled • Tomorrow",
- nextAction: "Executive pricing negotiation meeting",
- dueDate: "In 2 days",
- bucket: "upcoming",
- done: false,
- dealValue: "$85,000",
- },
- {
- id: "act-5",
- contactName: "Alex Rivera",
- company: "Stripe",
- lastInteraction: "Sent technical specs • 2d ago",
- nextAction: "Follow up on engineering feedback",
- dueDate: "In 3 days",
- bucket: "waiting",
- done: false,
- dealValue: "$110,000",
- },
- {
- id: "act-6",
- contactName: "Marcus Webb",
- company: "Vercel",
- lastInteraction: "Initial outreach • 8d ago",
- nextAction: "Re-engage with tailored case study & product update",
- dueDate: "No activity 8d",
- bucket: "inactive",
- done: false,
- dealValue: "$18,500",
- },
-];
-
 interface ActivityItem {
- id: string;
- action: string;
- type: "calls" | "emails";
- lead: string;
- company: string;
- time: string;
+  id: string;
+  action: string;
+  type: "calls" | "emails";
+  lead: string;
+  company: string;
+  time: string;
 }
 
-const INITIAL_ACTIVITIES: ActivityItem[] = [
- { id: "act-item-1", action: "Intro email opened", type: "emails", lead: "Elena Rostova", company: "Linear", time: "2 hours ago" },
- { id: "act-item-2", action: "Demo call completed", type: "calls", lead: "Liam Vance", company: "TechFlow", time: "Yesterday" },
- { id: "act-item-3", action: "Pricing proposal sent", type: "emails", lead: "Sarah Jenkins", company: "Acme Corp", time: "3 days ago" },
- { id: "act-item-4", action: "Call scheduled", type: "calls", lead: "Priya Sharma", company: "Supabase", time: "4 days ago" },
- { id: "act-item-5", action: "Follow-up email sent", type: "emails", lead: "Alex Rivera", company: "Stripe", time: "5 days ago" },
-];
-
 function Sparkline({
- data,
- isPositive,
+  data,
+  isPositive,
 }: {
- data: number[];
- isPositive: boolean;
+  data: number[];
+  isPositive: boolean;
 }) {
- const min = Math.min(...data);
- const max = Math.max(...data);
- const range = max - min || 1;
- const width = 64;
- const height = 24;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const width = 64;
+  const height = 24;
 
- const points = data
- .map((val, idx) => {
- const x = (idx / (data.length - 1)) * width;
- const y = height - ((val - min) / range) * (height - 4) - 2;
- return `${x},${y}`;
- })
- .join(" ");
+  const points = data
+    .map((val, idx) => {
+      const x = (idx / (data.length - 1)) * width;
+      const y = height - ((val - min) / range) * (height - 4) - 2;
+      return `${x},${y}`;
+    })
+    .join(" ");
 
- const color = isPositive ? "#34C759" : "#FF3B30";
+  const color = isPositive ? "#34C759" : "#FF3B30";
 
- return (
- <svg width={width} height={height} className="overflow-visible">
- <polyline
- fill="none"
- stroke={color}
- strokeWidth="2"
- strokeLinecap="round"
- strokeLinejoin="round"
- points={points}
- />
- </svg>
- );
+  return (
+    <svg width={width} height={height} className="overflow-visible">
+      <polyline
+        fill="none"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        points={points}
+      />
+    </svg>
+  );
 }
 
 export default function DashboardPage() {
- const router = useRouter();
- const { toggleSidebar } = useSidebar();
- const [stats, setStats] = React.useState<Stats>({
- total_leads: 1248,
- pipeline_value: 319500,
- active_companies: 184,
- conversion_rate: 34.2,
- });
+  const router = useRouter();
+  const { toggleSidebar } = useSidebar();
+  const [stats, setStats] = React.useState<Stats>({
+    total_leads: 0,
+    pipeline_value: 0,
+    active_companies: 0,
+    conversion_rate: 0,
+  });
 
- // Mobile View State
- const [mobileTab, setMobileTab] = React.useState<"reminder" | "activity">("reminder");
- const [mobileSearch, setMobileSearch] = React.useState("");
+  // Mobile View State
+  const [mobileTab, setMobileTab] = React.useState<"reminder" | "activity">("reminder");
+  const [mobileSearch, setMobileSearch] = React.useState("");
 
- // Desktop Individual Searches
- const [reminderSearch, setReminderSearch] = React.useState("");
- const [activitySearch, setActivitySearch] = React.useState("");
+  // Desktop Individual Searches
+  const [reminderSearch, setReminderSearch] = React.useState("");
+  const [activitySearch, setActivitySearch] = React.useState("");
 
- // Sub-filter tabs
- const [remindersTab, setRemindersTab] = React.useState<"all" | "pending" | "upcoming">("all");
- const [activityTab, setActivityTab] = React.useState<"all" | "calls" | "emails">("all");
+  // Sub-filter tabs
+  const [remindersTab, setRemindersTab] = React.useState<"all" | "pending" | "upcoming">("all");
+  const [activityTab, setActivityTab] = React.useState<"all" | "calls" | "emails">("all");
 
- // Selection states
- const [selectedReminders, setSelectedReminders] = React.useState<Set<string>>(new Set());
- const [selectedActivities, setSelectedActivities] = React.useState<Set<string>>(new Set());
+  // Selection states
+  const [selectedReminders, setSelectedReminders] = React.useState<Set<string>>(new Set());
+  const [selectedActivities, setSelectedActivities] = React.useState<Set<string>>(new Set());
 
- // Data State
- const [followUps, setFollowUps] = React.useState<FollowUpAction[]>(INITIAL_FOLLOW_UPS);
- const [activities, setActivities] = React.useState<ActivityItem[]>(INITIAL_ACTIVITIES);
+  // Data State
+  const [followUps, setFollowUps] = React.useState<FollowUpAction[]>([]);
+  const [activities, setActivities] = React.useState<ActivityItem[]>([]);
 
- // Touchpoint Modal State
- const [selectedAction, setSelectedAction] = React.useState<FollowUpAction | null>(null);
- const [logOutcome, setLogOutcome] = React.useState("");
- const [nextFollowUpDate, setNextFollowUpDate] = React.useState("Tomorrow");
- const [touchpointType, setTouchpointType] = React.useState<"call" | "email" | "meeting" | "note">("call");
+  // Touchpoint Modal State
+  const [selectedAction, setSelectedAction] = React.useState<FollowUpAction | null>(null);
+  const [logOutcome, setLogOutcome] = React.useState("");
+  const [nextFollowUpDate, setNextFollowUpDate] = React.useState("Tomorrow");
+  const [touchpointType, setTouchpointType] = React.useState<"call" | "email" | "meeting" | "note">("call");
 
   React.useEffect(() => {
     api
       .get<any>("/stats")
       .then((res) => {
         if (res && typeof res === "object") {
-          setStats((prev) => ({
-            ...prev,
-            total_leads: res.new_leads ?? prev.total_leads,
-            pipeline_value: (res.proposals_sent ? res.proposals_sent * 45000 : 0) || prev.pipeline_value,
-            active_companies: (res.follow_ups ? res.follow_ups * 12 : 0) || prev.active_companies,
-            conversion_rate: prev.conversion_rate,
-          }));
+          setStats({
+            total_leads: res.new_leads ?? 0,
+            pipeline_value: (res.proposals_sent ? res.proposals_sent * 45000 : 0),
+            active_companies: (res.follow_ups ? res.follow_ups * 12 : 0),
+            conversion_rate: res.conversion_rate ?? 0,
+          });
 
           if (Array.isArray(res.recent_activities) && res.recent_activities.length > 0) {
             const mappedActs: ActivityItem[] = res.recent_activities.map((a: any, idx: number) => ({
@@ -254,10 +176,34 @@ export default function DashboardPage() {
               time: a.time || "Recently",
             }));
             setActivities(mappedActs);
+          } else {
+            setActivities([]);
           }
         }
       })
       .catch(() => {});
+
+    api
+      .get<any[]>("/follow-ups")
+      .then((res) => {
+        if (Array.isArray(res)) {
+          const mapped: FollowUpAction[] = res.map((f: any) => ({
+            id: String(f.id),
+            contactName: f.lead_name || "Contact",
+            company: f.company || "Company",
+            lastInteraction: f.note || "Pending touchpoint",
+            nextAction: f.note || "Follow up",
+            dueDate: f.due_date || "Upcoming",
+            bucket: (f.status === "overdue" ? "overdue" : f.status === "done" ? "waiting" : "due_today"),
+            done: f.status === "done",
+            dealValue: undefined,
+          }));
+          setFollowUps(mapped);
+        } else {
+          setFollowUps([]);
+        }
+      })
+      .catch(() => setFollowUps([]));
   }, []);
 
  const handleSaveTouchpoint = (e: React.FormEvent) => {

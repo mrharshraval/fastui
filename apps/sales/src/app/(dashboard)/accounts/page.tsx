@@ -33,28 +33,6 @@ interface Contact {
  role?: string
 }
 
-const FAKE_COMPANIES: Company[] = [
- { id: "comp-1", name: "Stripe, Inc.", domain: "stripe.com", industry: "Fintech & Payments", status: "active", leads_count: 14 },
- { id: "comp-2", name: "Linear Orbit", domain: "linear.app", industry: "Developer Tools", status: "active", leads_count: 8 },
- { id: "comp-3", name: "Vercel Systems", domain: "vercel.com", industry: "Cloud Infrastructure", status: "active", leads_count: 19 },
- { id: "comp-4", name: "Supabase Data", domain: "supabase.com", industry: "Database & Backend", status: "active", leads_count: 6 },
- { id: "comp-5", name: "Raycast Technologies", domain: "raycast.com", industry: "Productivity", status: "prospect", leads_count: 3 },
- { id: "comp-6", name: "Figma Cloud", domain: "figma.com", industry: "Design Collaboration", status: "active", leads_count: 22 },
- { id: "comp-7", name: "Retool Tools", domain: "retool.com", industry: "Internal Software", status: "prospect", leads_count: 5 },
- { id: "comp-8", name: "Notion Labs", domain: "makenotion.com", industry: "Workspace & Notes", status: "inactive", leads_count: 2 },
-]
-
-const FAKE_CONTACTS: Contact[] = [
- { id: "cont-1", name: "Patrick Collison", email: "patrick@stripe.com", phone: "+1 (555) 234-5678", company: "Stripe, Inc.", role: "CEO" },
- { id: "cont-2", name: "Karri Saarinen", email: "karri@linear.app", phone: "+1 (555) 345-6789", company: "Linear Orbit", role: "Head of Product" },
- { id: "cont-3", name: "Guillermo Rauch", email: "guillermo@vercel.com", phone: "+1 (555) 456-7890", company: "Vercel Systems", role: "CEO & Founder" },
- { id: "cont-4", name: "Paul Copplestone", email: "paul@supabase.com", phone: "+1 (555) 567-8901", company: "Supabase Data", role: "CEO" },
- { id: "cont-5", name: "Thomas Paul Mann", email: "thomas@raycast.com", phone: "+1 (555) 678-9012", company: "Raycast Technologies", role: "Co-Founder" },
- { id: "cont-6", name: "Dylan Field", email: "dylan@figma.com", phone: "+1 (555) 789-0123", company: "Figma Cloud", role: "Chief Executive" },
- { id: "cont-7", name: "David Hsu", email: "david@retool.com", phone: "+1 (555) 890-1234", company: "Retool Tools", role: "Founder" },
- { id: "cont-8", name: "Ivan Zhao", email: "ivan@makenotion.com", phone: "+1 (555) 901-2345", company: "Notion Labs", role: "Co-Founder" },
-]
-
 export default function AccountsPage() {
  const { toggleSidebar } = useSidebar()
  const [activeTab, setActiveTab] = React.useState<"companies" | "contacts">("companies")
@@ -74,27 +52,27 @@ export default function AccountsPage() {
  const [selectedContacts, setSelectedContacts] = React.useState<Set<string>>(new Set())
 
  React.useEffect(() => {
- api.get<Company[]>("/businesses")
- .then((data) => {
- if (Array.isArray(data) && data.length> 0) {
- setCompanies(data)
- } else {
- setCompanies(FAKE_COMPANIES)
- }
- })
- .catch(() => setCompanies(FAKE_COMPANIES))
- .finally(() => setLoadingCompanies(false))
+  api.get<Company[]>("/businesses")
+    .then((data) => {
+      if (Array.isArray(data)) {
+        setCompanies(data)
+      } else {
+        setCompanies([])
+      }
+    })
+    .catch(() => setCompanies([]))
+    .finally(() => setLoadingCompanies(false))
 
- api.get<Contact[]>("/contacts")
- .then((data) => {
- if (Array.isArray(data) && data.length> 0) {
- setContacts(data)
- } else {
- setContacts(FAKE_CONTACTS)
- }
- })
- .catch(() => setContacts(FAKE_CONTACTS))
- .finally(() => setLoadingContacts(false))
+  api.get<Contact[]>("/contacts")
+    .then((data) => {
+      if (Array.isArray(data)) {
+        setContacts(data)
+      } else {
+        setContacts([])
+      }
+    })
+    .catch(() => setContacts([]))
+    .finally(() => setLoadingContacts(false))
  }, [])
 
  const filteredCompanies = companies.filter((c) =>
