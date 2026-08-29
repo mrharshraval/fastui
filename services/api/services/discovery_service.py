@@ -22,6 +22,7 @@ from models.schema import (
 )
 from worker.contracts import DiscoverySearchParams
 from worker.deduplication import LeadDeduplicator
+from worker.normalizers import BusinessNameNormalizer
 from worker.sources.aggregator import MultiSourceDiscoveryAggregator
 
 logger = logging.getLogger(__name__)
@@ -156,6 +157,7 @@ class DiscoveryService:
                             loc_country = parts[2]
 
                     for i, lead in enumerate(raw_leads):
+                        name_norm = BusinessNameNormalizer.normalize(lead.name)
                         norm_phone = LeadDeduplicator.normalize_phone(lead.phone)
                         norm_web = LeadDeduplicator.normalize_website(lead.website)
 
@@ -163,7 +165,7 @@ class DiscoveryService:
                             session,
                             norm_phone,
                             norm_web,
-                            lead.name,
+                            name_norm.display_name,
                             loc_city or lead.city,
                         )
 
@@ -172,7 +174,9 @@ class DiscoveryService:
                         else:
                             web_status = WebsiteStatus.WEBSITE_FOUND if lead.website else WebsiteStatus.NO_WEBSITE
                             new_business = Business(
-                                business_name=lead.name.strip(),
+                                business_name=name_norm.display_name,
+                                raw_business_name=name_norm.raw_name,
+                                normalized_business_name=name_norm.normalized_name,
                                 category=lead.category or target_audience,
                                 address=getattr(lead, "address", None) or location_str,
                                 city=loc_city or getattr(lead, "city", None) or location_str,

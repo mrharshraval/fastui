@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
-import { Menu, Plus, ChevronDown, MoreHorizontal, ArrowLeft, X, UserPlus, Check } from "lucide-react"
+import { Menu, Plus, ChevronDown, MoreHorizontal, ArrowLeft, X, Check } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useSidebar } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
@@ -486,9 +486,9 @@ export function BusinessProfileView() {
         timestamp: formatRelativeTimestamp(new Date())
       }
       setActivities((prev) => [newActivity, ...prev])
-      toast.success("Added to Leads", { description: `${business.business_name} is now in your pipeline.` })
+      toast.success("Approved", { description: `${business.business_name} is now in your pipeline.` })
     } catch (e: any) {
-      toast.error("Failed to add to leads", { description: e.message || "Please try again." })
+      toast.error("Failed to approve", { description: e.message || "Please try again." })
     } finally {
       setAddingToLeads(false)
     }
@@ -904,16 +904,15 @@ export function BusinessProfileView() {
               </button>
             )}
 
-            {/* Contextual Action: Add to Leads (for unconverted prospects) */}
+            {/* Contextual Action: Approve (for unconverted prospects) */}
             {!business.is_lead && (
               <button
                 type="button"
                 onClick={handleAddToLeads}
                 disabled={addingToLeads}
-                className="h-8 px-4 rounded-full bg-[#007AFF] hover:bg-[#0062CC] text-white text-sm font-medium transition-all active:scale-[0.98] cursor-pointer inline-flex items-center gap-1.5 shadow-xs disabled:opacity-50"
+                className="h-8 px-4 rounded-full bg-[#007AFF] hover:bg-[#0062CC] text-white text-sm font-medium transition-all active:scale-[0.98] cursor-pointer inline-flex items-center justify-center shadow-xs disabled:opacity-50"
               >
-                <UserPlus size={14} />
-                <span>{addingToLeads ? "Adding…" : "Add to Leads"}</span>
+                <span>{addingToLeads ? "Approving…" : "Approve"}</span>
               </button>
             )}
           </div>

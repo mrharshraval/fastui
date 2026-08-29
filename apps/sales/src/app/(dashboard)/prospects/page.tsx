@@ -4,7 +4,7 @@ import * as React from "react"
 import { 
   Plus, Search, ListFilter, Check,
   CircleDashed, Activity, User, Calendar, Database, X,
-  Menu, MoreHorizontal, UserPlus, Globe
+  Menu, MoreHorizontal, Globe
 } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -211,7 +211,7 @@ export default function ProspectsPage() {
     selectedProspects.delete(prospect.id)
     setSelectedProspects(new Set(selectedProspects))
 
-    toast.success("Added to Leads", {
+    toast.success("Approved", {
       description: `${prospect.business_name} moved to active sales pipeline.`
     })
 
@@ -234,7 +234,7 @@ export default function ProspectsPage() {
     setProspects(prev => prev.filter(p => !selectedProspects.has(p.id)))
     setSelectedProspects(new Set())
 
-    toast.success(`Added ${count} ${count === 1 ? 'prospect' : 'prospects'} to Leads`, {
+    toast.success(`Approved ${count} ${count === 1 ? 'prospect' : 'prospects'}`, {
       description: "Moved to active sales pipeline."
     })
 
@@ -584,10 +584,9 @@ export default function ProspectsPage() {
                           <div className="flex flex-col gap-1">
                             <DropdownMenuItem
                               onClick={() => handleSingleAddToLeads(prospect)}
-                              className="flex items-center gap-2 min-h-9 px-2.5 rounded-xl cursor-pointer text-[13px] font-[500] text-primary"
+                              className="flex items-center min-h-9 px-2.5 rounded-xl cursor-pointer text-[13px] font-[500] text-primary"
                             >
-                              <UserPlus className="size-4" />
-                              <span>Add to Leads</span>
+                              <span>Approve</span>
                             </DropdownMenuItem>
 
                             <DropdownMenuSub>
@@ -742,14 +741,13 @@ export default function ProspectsPage() {
           ) : (
             <div className="flex items-center justify-between w-full animate-in fade-in duration-150">
               <div className="flex items-center gap-2">
-                {/* Primary Add to Leads Button */}
+                {/* Primary Approve Button */}
                 <button
                   type="button"
                   onClick={handleBulkAddToLeads}
-                  className="flex items-center gap-1.5 h-9 px-4 rounded-full bg-[#007AFF] text-white hover:bg-[#0055CC] active:scale-95 text-sm font-medium transition-all shadow-xs cursor-pointer"
+                  className="flex items-center justify-center h-9 px-4 rounded-full bg-[#007AFF] text-white hover:bg-[#0055CC] active:scale-95 text-sm font-medium transition-all shadow-xs cursor-pointer"
                 >
-                  <UserPlus className="size-4" />
-                  <span>Add to Leads</span>
+                  <span>Approve</span>
                 </button>
 
                 {/* Qualify Dropdown */}

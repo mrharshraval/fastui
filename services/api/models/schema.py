@@ -153,7 +153,9 @@ class Business(Base):
     __tablename__ = "businesses"
     
     id = Column(Integer, primary_key=True, index=True)
-    business_name = Column(String(255), index=True, nullable=False)
+    business_name = Column(String(255), index=True, nullable=False) # Clean display name
+    raw_business_name = Column(String(500), nullable=True)          # Exact untouched scraped name
+    normalized_business_name = Column(String(255), index=True, nullable=True) # Canonical search key
     category = Column(String(255), index=True, nullable=True)
     
     # Normalization & Deduplication signals
