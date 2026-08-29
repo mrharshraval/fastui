@@ -55,6 +55,11 @@ class ScraperWorkerDaemon:
     async def run(self) -> None:
         """Starts worker listener / health daemon."""
         logger.info("FastUI Scraper Worker daemon initialized and ready.")
+        try:
+            while True:
+                await asyncio.sleep(3600)
+        except (asyncio.CancelledError, KeyboardInterrupt):
+            logger.info("FastUI Scraper Worker daemon shutting down cleanly.")
 
 
 async def main():
