@@ -88,21 +88,6 @@ async def get_current_user(
             token = auth_header.split(" ")[1]
             
     if not token:
-        if settings.ENVIRONMENT.lower() == "development":
-            result = await db.execute(select(User).where(User.email == "test@fastui.in"))
-            dev_user = result.scalar_one_or_none()
-            if not dev_user:
-                dev_user = User(
-                    email="test@fastui.in",
-                    hashed_password=get_password_hash("password"),
-                    role=UserRole.ADMIN,
-                    is_active=True
-                )
-                db.add(dev_user)
-                await db.commit()
-                await db.refresh(dev_user)
-            role_str = dev_user.role.value if hasattr(dev_user.role, 'value') else str(dev_user.role)
-            return TokenData(user_id=dev_user.id, email=dev_user.email, role=role_str)
         raise credentials_exception
         
     try:

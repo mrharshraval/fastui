@@ -176,22 +176,6 @@ async def login(
     """
     user = await authenticate_user(db, req.email, req.password)
     
-    # Auto-seed first admin account if table is empty in local dev
-    if not user:
-        count_res = await db.execute(select(func.count(User.id)))
-        user_count = count_res.scalar() or 0
-        if user_count == 0 and req.email == "test@fastui.in" and req.password == "password":
-            dev_user = User(
-                email="test@fastui.in",
-                hashed_password=get_password_hash("password"),
-                role=UserRole.ADMIN,
-                is_active=True
-            )
-            db.add(dev_user)
-            await db.commit()
-            await db.refresh(dev_user)
-            user = dev_user
-
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

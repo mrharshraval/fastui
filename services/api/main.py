@@ -10,15 +10,8 @@ if sys.platform == "win32":
     except Exception:
         pass
 
-# Ensure root and service-level .env resolution
-from dotenv import load_dotenv
 root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 service_dir = os.path.abspath(os.path.dirname(__file__))
-
-# Load root .env then service .env (service overrides root)
-load_dotenv(os.path.join(root_dir, ".env"))
-load_dotenv(os.path.join(service_dir, ".env"), override=True)
-
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 sys.path.insert(0, service_dir)
 
@@ -63,10 +56,10 @@ app = FastAPI(
 app.add_middleware(RequestCorrelationMiddleware)
 
 # CORS Configuration
-origins = list({
-    settings.FRONTEND_URL,
-    *settings.CORS_ALLOWED_ORIGINS
-})
+configured_origins = [settings.FRONTEND_URL, *settings.CORS_ALLOWED_ORIGINS]
+origins = list({o.strip() for o in configured_origins if o and isinstance(o, str) and o.strip()})
+if not origins:
+    origins = ["*"]
 
 app.add_middleware(
     CORSMiddleware,

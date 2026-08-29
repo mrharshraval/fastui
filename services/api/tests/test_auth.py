@@ -1,6 +1,8 @@
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from models.schema import User, UserRole
 from services.auth_service import get_password_hash, verify_password
 
 def test_password_hashing():
@@ -16,8 +18,16 @@ async def test_unauthenticated_request_rejected(client: AsyncClient):
     assert "detail" in res.json() or "error" in res.json()
 
 @pytest.mark.asyncio
-async def test_login_success_and_me(client: AsyncClient):
-    # Fresh DB auto-seeds default test@fastui.in / password
+async def test_login_success_and_me(client: AsyncClient, db_session: AsyncSession):
+    user = User(
+        email="test@fastui.in",
+        hashed_password=get_password_hash("password"),
+        role=UserRole.ADMIN,
+        is_active=True
+    )
+    db_session.add(user)
+    await db_session.commit()
+
     res = await client.post("/auth/login", json={
         "email": "test@fastui.in",
         "password": "password"
