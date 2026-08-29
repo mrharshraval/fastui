@@ -54,7 +54,6 @@ const NAV_ITEMS = [
   { id: "discover",  label: "Discover",  icon: Compass,         href: "/discover" },
   { id: "prospects", label: "Prospects", icon: UserSearch,      href: "/prospects" },
   { id: "leads",     label: "Leads",     icon: Users,           href: "/leads" },
-  { id: "accounts",  label: "Accounts",  icon: Building2,       href: "/accounts" },
 ]
 
 function getUserInitials(name?: string | null, email?: string | null) {
