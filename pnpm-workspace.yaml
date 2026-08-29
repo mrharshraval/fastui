@@ -1,2 +1,5 @@
-minimumReleaseAgeExclude:
-  - shadcn@4.17.0
+packages:
+  - "apps/*"
+  - "packages/*"
+  - "services/*"
+  - "tooling/*"

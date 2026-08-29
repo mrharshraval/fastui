@@ -1,0 +1,541 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --font-heading: 'Polymath', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-sans: 'Polymath', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+    /* Typography Scale - Mobbin reference */
+    --text-caption: 12px;
+    --text-body-sm: 14px;
+    --text-body: 16px;
+    --text-subheading: 20px;
+    --text-heading: 32px;
+    --text-heading-lg: 56px;
+    --text-display: 80px;
+
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+
+    /* Semantic extension tokens */
+    --color-success: var(--success);
+    --color-success-foreground: var(--success-foreground);
+    --color-warning: var(--warning);
+    --color-warning-foreground: var(--warning-foreground);
+
+    /* Mobbin Border Radius */
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius); /* 8px */
+    --radius-xl: calc(var(--radius) * 1.5); /* 12px */
+    --radius-2xl: calc(var(--radius) * 2); /* 16px */
+    --radius-3xl: calc(var(--radius) * 3); /* 24px */
+    --radius-full: 9999px;
+}
+
+/* ── LIGHT MODE ─────────────────────────────────────────────
+ * Color palette: Mobbin Achromatic System
+ * ─────────────────────────────────────────────────────────── */
+:root {
+    color-scheme: light;
+
+    /* Mobbin Core Colors */
+    --color-midnight-ink: #141414;
+    --color-pure-canvas: #ffffff;
+    --color-graphite: #707070;
+    --color-ash: #adadad;
+    --color-fog: #ededed;
+    --color-mist: #f2f2f2;
+    --color-silver: #c2c2c2;
+
+    /* Surfaces */
+    --background: var(--color-pure-canvas);
+    --foreground: var(--color-midnight-ink);
+    --card: var(--color-pure-canvas);
+    --card-foreground: var(--color-midnight-ink);
+    --popover: var(--color-pure-canvas);
+    --popover-foreground: var(--color-midnight-ink);
+
+    /* Brand - Achromatic */
+    --primary: var(--color-midnight-ink);
+    --primary-foreground: var(--color-pure-canvas);
+
+    /* Secondary surface — used for chips, tags, secondary buttons */
+    --secondary: var(--color-mist);
+    --secondary-foreground: var(--color-midnight-ink);
+
+    /* Muted surfaces and secondary text */
+    --muted: var(--color-mist);
+    --muted-foreground: var(--color-graphite);
+
+    /* Accent — used for hover states on menus, ghost buttons, etc. */
+    --accent: var(--color-mist);
+    --accent-foreground: var(--color-midnight-ink);
+
+    /* Semantic meaning tokens - All achromatic per Mobbin spec */
+    --destructive: var(--color-midnight-ink);
+    --success: var(--color-midnight-ink);
+    --success-foreground: var(--color-pure-canvas);
+    --warning: var(--color-midnight-ink);
+    --warning-foreground: var(--color-pure-canvas);
+
+    /* Structural */
+    --border: var(--color-fog);
+    --input: var(--color-mist);
+    --ring: var(--color-midnight-ink);
+    --radius: 0.5rem; /* 8px */
+
+    /* Data visualization - Grayscale */
+    --chart-1: #141414;
+    --chart-2: #707070;
+    --chart-3: #adadad;
+    --chart-4: #c2c2c2;
+    --chart-5: #e0e0e0;
+
+    /* Sidebar */
+    --sidebar: var(--color-pure-canvas);
+    --sidebar-foreground: var(--color-midnight-ink);
+    --sidebar-primary: var(--color-midnight-ink);
+    --sidebar-primary-foreground: var(--color-pure-canvas);
+    --sidebar-accent: var(--color-mist);
+    --sidebar-accent-foreground: var(--color-midnight-ink);
+    --sidebar-border: var(--color-fog);
+    --sidebar-ring: var(--color-midnight-ink);
+
+    /* Dropdown / Popover Elevation Shadows (ChatGPT inspired) */
+    --popover-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04), 0 12px 24px rgba(0, 0, 0, 0.08);
+}
+
+/* ── DARK MODE ──────────────────────────────────────────────
+ * Dark mode: Inverted Achromatic Palette
+ * ─────────────────────────────────────────────────────────── */
+.dark {
+    color-scheme: dark;
+
+    --color-midnight-ink: #ffffff;
+    --color-pure-canvas: #0a0a0a;
+    --color-graphite: #a3a3a3;
+    --color-ash: #737373;
+    --color-fog: #262626;
+    --color-mist: #171717;
+    --color-silver: #404040;
+
+    /* Surfaces */
+    --background: var(--color-pure-canvas);
+    --foreground: var(--color-midnight-ink);
+    --card: var(--color-pure-canvas);
+    --card-foreground: var(--color-midnight-ink);
+    --popover: var(--color-pure-canvas);
+    --popover-foreground: var(--color-midnight-ink);
+
+    /* Brand */
+    --primary: var(--color-midnight-ink);
+    --primary-foreground: var(--color-pure-canvas);
+
+    /* Secondary surface */
+    --secondary: var(--color-mist);
+    --secondary-foreground: var(--color-midnight-ink);
+
+    /* Muted surfaces and secondary text */
+    --muted: var(--color-mist);
+    --muted-foreground: var(--color-graphite);
+
+    /* Accent */
+    --accent: var(--color-mist);
+    --accent-foreground: var(--color-midnight-ink);
+
+    /* Semantic meaning tokens */
+    --destructive: var(--color-midnight-ink);
+    --success: var(--color-midnight-ink);
+    --success-foreground: var(--color-pure-canvas);
+    --warning: var(--color-midnight-ink);
+    --warning-foreground: var(--color-pure-canvas);
+
+    /* Structural */
+    --border: var(--color-fog);
+    --input: var(--color-mist);
+    --ring: var(--color-midnight-ink);
+
+    /* Data visualization */
+    --chart-1: #ffffff;
+    --chart-2: #a3a3a3;
+    --chart-3: #737373;
+    --chart-4: #404040;
+    --chart-5: #262626;
+
+    /* Sidebar */
+    --sidebar: var(--color-pure-canvas);
+    --sidebar-foreground: var(--color-midnight-ink);
+    --sidebar-primary: var(--color-midnight-ink);
+    --sidebar-primary-foreground: var(--color-pure-canvas);
+    --sidebar-accent: var(--color-mist);
+    --sidebar-accent-foreground: var(--color-midnight-ink);
+    --sidebar-border: var(--color-fog);
+    --sidebar-ring: var(--color-midnight-ink);
+
+    /* Dropdown / Popover Elevation Shadows (ChatGPT inspired) */
+    --popover-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12), 0 16px 36px -4px rgba(0, 0, 0, 0.85), 0 6px 16px -2px rgba(0, 0, 0, 0.65), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+@layer base {
+    * {
+        @apply border-border outline-ring/50;
+    }
+
+    html {
+        @apply font-sans;
+    }
+
+    body {
+        @apply bg-background text-foreground font-medium;
+        font-weight: 500;
+    }
+
+    /* Input styling for better legibility */
+    input,
+    textarea,
+    select {
+        @apply bg-input text-foreground placeholder-muted-foreground;
+    }
+
+    input::placeholder,
+    textarea::placeholder {
+        @apply text-muted-foreground opacity-100;
+    }
+
+    /* Dark mode input adjustments */
+    .dark input,
+    .dark textarea,
+    .dark select {
+        @apply bg-input text-foreground;
+    }
+
+    /* Message input specific styling */
+    [role="textbox"],
+    .message-input,
+    .chat-input {
+        @apply bg-input text-foreground placeholder-muted-foreground border-border;
+    }
+
+    [role="textbox"]::placeholder,
+    .message-input::placeholder,
+    .chat-input::placeholder {
+        @apply text-muted-foreground opacity-100;
+    }
+
+    /* Icon styling in inputs */
+    .input-icon,
+    .message-icon {
+        @apply text-muted-foreground hover:text-foreground transition-colors;
+    }
+
+    .dark .input-icon,
+    .dark .message-icon {
+        @apply text-muted-foreground hover:text-foreground;
+    }
+
+    /* Typography & Font Sizing Hierarchy */
+    h1 {
+        @apply text-3xl font-bold leading-tight tracking-tight;
+    }
+
+    h2 {
+        @apply text-2xl font-semibold leading-snug tracking-tight;
+    }
+
+    h3 {
+        @apply text-xl font-semibold leading-snug;
+    }
+
+    h4 {
+        @apply text-lg font-semibold;
+    }
+
+    h5 {
+        @apply text-base font-semibold;
+    }
+
+    h6 {
+        @apply text-sm font-semibold;
+    }
+
+    p {
+        @apply text-base leading-relaxed;
+    }
+
+    small {
+        @apply text-sm leading-normal;
+    }
+
+    label {
+        @apply text-sm font-medium leading-normal;
+    }
+
+    /* Input & Textarea Font Sizing */
+    input,
+    textarea,
+    select {
+        @apply text-base font-normal;
+    }
+
+    /* Message Input/Composer Specific */
+    .message-input,
+    .chat-input,
+    [role="textbox"] {
+        @apply text-base font-normal leading-relaxed px-4 py-3;
+        min-height: 2.75rem;
+    }
+
+    .message-input::placeholder,
+    .chat-input::placeholder,
+    [role="textbox"]::placeholder {
+        @apply text-base;
+    }
+
+    /* Icon sizing in message composer */
+    .message-icon,
+    .input-icon {
+        @apply w-5 h-5;
+    }
+
+    .message-icon-lg,
+    .input-icon-lg {
+        @apply w-6 h-6;
+    }
+
+    .message-icon-sm,
+    .input-icon-sm {
+        @apply w-4 h-4;
+    }
+
+    /* Button base styles */
+    button:not(.icon-btn) {
+        @apply text-sm font-medium;
+    }
+
+    button.btn-lg {
+        @apply text-base;
+    }
+
+    button.btn-sm {
+        @apply text-xs;
+    }
+
+    /* Code blocks */
+    code {
+        @apply text-xs font-mono;
+    }
+
+    pre {
+        @apply text-xs font-mono leading-relaxed;
+    }
+}
+
+/* ── Utilities ─────────────────────────────────────────── */
+/* Allow 16px search icons if explicitly styled */
+svg.lucide.lucide-search.size-4 {
+    width: 16px !important;
+    height: 16px !important;
+    stroke-width: 2px !important;
+}
+
+@layer components {
+    .text-link {
+        @apply underline-offset-4 hover:underline text-primary cursor-pointer;
+    }
+
+    /* ChatGPT-style elevation shadow applied exclusively to dropdowns and popups */
+    [data-slot="popover-content"],
+    [data-slot="dropdown-menu-content"],
+    [data-slot="dropdown-menu-sub-content"],
+    [data-slot="select-content"],
+    [data-slot="context-menu-content"],
+    [data-slot="context-menu-sub-content"],
+    [data-slot="menubar-content"],
+    [data-slot="menubar-sub-content"],
+    [data-slot="hover-card-content"],
+    .popover-shadow {
+        box-shadow: var(--popover-shadow) !important;
+    }
+}
+
+.scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+    display: none;
+}
+
+.delay-75 { animation-delay: 75ms; }
+.delay-150 { animation-delay: 150ms; }
+.delay-225 { animation-delay: 225ms; }
+
+/* Custom premium scrollbar styling */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px !important;
+    height: 6px !important;
+}
+
+.custom-scrollbar::-webkit-scrollbar-button {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent !important;
+    margin-top: 12px !important;
+    margin-bottom: 4px !important;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(128, 128, 128, 0.3) !important;
+    border-radius: 9999px !important;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(128, 128, 128, 0.5) !important;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+    .custom-scrollbar {
+        scrollbar-width: thin !important;
+        scrollbar-color: rgba(128, 128, 128, 0.3) transparent !important;
+    }
+}
+
+@keyframes progress-slide {
+    0% { left: -40%; width: 40%; }
+    50% { left: 20%; width: 60%; }
+    100% { left: 100%; width: 40%; }
+}
+
+.animate-progress-slide {
+    position: absolute;
+    height: 100%;
+    background-color: var(--primary);
+    animation: progress-slide 2s infinite ease-in-out;
+}
+
+@keyframes reply-flash {
+    0% { background-color: transparent; }
+    20% { background-color: color-mix(in srgb, var(--primary) 15%, transparent); }
+    80% { background-color: color-mix(in srgb, var(--primary) 15%, transparent); }
+    100% { background-color: transparent; }
+}
+
+.reply-highlight {
+    animation: reply-flash 1.4s ease-in-out forwards;
+    border-radius: 1rem;
+}
+
+/* Fast UI Legacy Typography Scale Preserved */
+.fast-type-12 {
+    font-size: 0.75rem;
+    line-height: 1rem;
+}
+
+.fast-type-14 {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+}
+
+.fast-type-16 {
+    font-size: 1rem;
+    line-height: 1.5rem;
+}
+
+.fast-type-18 {
+    font-size: 1.125rem;
+    line-height: 1.5rem;
+}
+
+.fast-type-20 {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+}
+
+.fast-type-24 {
+    font-size: 1.5rem;
+    line-height: 2rem;
+}
+
+.fast-weight-regular {
+    font-weight: 400;
+}
+
+.fast-weight-medium {
+    font-weight: 500;
+}
+
+.fast-weight-semibold {
+    font-weight: 600;
+}
+
+.fast-weight-bold {
+    font-weight: 700;
+}
+
+/* Apple-inspired slim scrollbar: hidden track, rounded thumb, no buttons */
+.apple-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(150, 150, 150, 0.4) transparent;
+}
+
+.apple-scrollbar::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+}
+
+.apple-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.apple-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(150, 150, 150, 0.35);
+    border-radius: 9999px;
+}
+
+.apple-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(120, 120, 120, 0.6);
+}
+
+.apple-scrollbar::-webkit-scrollbar-button {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}

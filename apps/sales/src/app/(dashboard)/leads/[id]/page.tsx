@@ -1,0 +1,1 @@
+export { default } from "./lead_detail_page"
