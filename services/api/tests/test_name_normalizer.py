@@ -5,7 +5,7 @@ Validates conservative business name normalization, noise stripping, and casing 
 """
 
 import pytest
-from worker.normalizers.business_name_normalizer import BusinessNameNormalizer, NormalizedBusinessName
+from services.business_name_normalizer import BusinessNameNormalizer, NormalizedBusinessName
 
 
 class TestBusinessNameNormalizer:

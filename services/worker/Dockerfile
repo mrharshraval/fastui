@@ -1,18 +1,21 @@
 # ─────────────────────────────────────────────────────────────
-# FastUI API Dockerfile (FastAPI — Render)
+# FastUI Worker Dockerfile — Cloud Run (Playwright + Chromium)
 # ─────────────────────────────────────────────────────────────
-# Lean image — no Playwright/Chromium. Scraping is handled by
-# the separate FastUI Worker service on Cloud Run.
+# Uses python:3.11-slim with the Playwright browser install baked in.
+# Deployed as a private, IAM-authenticated Google Cloud Run service.
 FROM python:3.11-slim
 
 # Prevent Python from writing .pyc files and enable unbuffered logging
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PORT=8000
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
+    PORT=8001 \
+    ENVIRONMENT=production \
+    HEADLESS_BROWSER=true
 
 WORKDIR /app
 
-# Install system utilities needed for building C-extensions (asyncpg, psycopg2)
+# Install system dependencies required by Playwright Chromium
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
@@ -24,11 +27,15 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
+# Install Playwright Chromium and all Linux system libraries
+RUN playwright install --with-deps chromium
+
 # Copy application source code
 COPY . .
 
-# Expose standard container port
-EXPOSE 8000
+# Expose the worker port
+EXPOSE 8001
 
-# Run database migrations and start production ASGI server
-CMD ["sh", "-c", "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 2"]
+# Start the FastAPI worker with a single worker process
+# Cloud Run scales by spinning up more container instances
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8001} --workers 1"]

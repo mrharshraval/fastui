@@ -1,22 +1,17 @@
 """
 FastUI Multi-Source Discovery Aggregator
 ========================================
-Combines Google Maps, Web Search, and directory sources with in-memory entity resolution.
+Combines Google Maps and Web Search with in-memory entity resolution.
 """
 
-import asyncio
 import logging
 from typing import List
 
-try:
-    from worker.contracts import DiscoveredLead, DiscoverySearchParams
-    from worker.deduplication import LeadDeduplicator
-except ImportError:
-    from contracts import DiscoveredLead, DiscoverySearchParams
-    from deduplication import LeadDeduplicator
-from .base import DiscoverySourceAdapter
-from .google_maps import GoogleMapsScraper
-from .web_search import WebSearchScraper
+from contracts import DiscoveredLead, DiscoverySearchParams
+from deduplication import LeadDeduplicator
+from sources.base import DiscoverySourceAdapter
+from sources.google_maps import GoogleMapsScraper
+from sources.web_search import WebSearchScraper
 
 logger = logging.getLogger(__name__)
 
@@ -24,10 +19,10 @@ logger = logging.getLogger(__name__)
 class MultiSourceDiscoveryAggregator(DiscoverySourceAdapter):
     """
     Orchestrates discovery across Google Maps and Web Search,
-    merging records and enriching contact details across sources.
+    merging and enriching contact details across sources.
     """
 
-    def __init__(self, headless: bool = True):
+    def __init__(self, headless: bool = True) -> None:
         self.google_maps = GoogleMapsScraper(headless=headless)
         self.web_search = WebSearchScraper(headless=headless)
 
@@ -54,7 +49,7 @@ class MultiSourceDiscoveryAggregator(DiscoverySourceAdapter):
 
         # 3. In-memory deduplication and cross-source field enrichment
         merged_leads: List[DiscoveredLead] = []
-        seen_keys = set()
+        seen_keys: set = set()
 
         for lead in all_leads:
             norm_web = LeadDeduplicator.normalize_website(lead.website)
@@ -66,6 +61,7 @@ class MultiSourceDiscoveryAggregator(DiscoverySourceAdapter):
                 continue
 
             if dedup_key in seen_keys:
+                # Enrich the existing record with any new contact signals
                 for existing in merged_leads:
                     existing_key = (
                         LeadDeduplicator.normalize_website(existing.website)
@@ -85,10 +81,6 @@ class MultiSourceDiscoveryAggregator(DiscoverySourceAdapter):
                 merged_leads.append(lead)
 
         logger.info(
-            f"MultiSource Aggregator: Merged {len(merged_leads)} unique businesses from {len(all_leads)} raw results."
+            f"MultiSource Aggregator: {len(merged_leads)} unique businesses from {len(all_leads)} raw results."
         )
         return merged_leads
-
-
-# Canonical clean alias
-MultiSourceScraper = MultiSourceDiscoveryAggregator

@@ -4,30 +4,20 @@ FastUI Playwright Scraper Base
 Deterministic browser lifecycle manager and abstract scraping template.
 """
 
-import asyncio
 import logging
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
 from playwright.async_api import Browser, Page, Playwright, async_playwright
 
-try:
-    from worker.contracts import DiscoveredLead, DiscoverySearchParams
-    from worker.core.constants import (
-        DEFAULT_USER_AGENT,
-        DEFAULT_VIEWPORT_HEIGHT,
-        DEFAULT_VIEWPORT_WIDTH,
-    )
-    from worker.core.exceptions import BrowserInitializationError
-except ImportError:
-    from contracts import DiscoveredLead, DiscoverySearchParams
-    from core.constants import (
-        DEFAULT_USER_AGENT,
-        DEFAULT_VIEWPORT_HEIGHT,
-        DEFAULT_VIEWPORT_WIDTH,
-    )
-    from core.exceptions import BrowserInitializationError
-from .base import DiscoverySourceAdapter
+from contracts import DiscoveredLead, DiscoverySearchParams
+from core.constants import (
+    DEFAULT_USER_AGENT,
+    DEFAULT_VIEWPORT_HEIGHT,
+    DEFAULT_VIEWPORT_WIDTH,
+)
+from core.exceptions import BrowserInitializationError
+from sources.base import DiscoverySourceAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +27,7 @@ class PlaywrightScraper(DiscoverySourceAdapter, ABC):
     Abstract base class providing deterministic headless Chromium browser lifecycle management.
     """
 
-    def __init__(self, headless: bool = True):
+    def __init__(self, headless: bool = True) -> None:
         self.headless = headless
         self.browser: Optional[Browser] = None
         self.playwright: Optional[Playwright] = None

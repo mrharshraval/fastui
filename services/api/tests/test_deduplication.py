@@ -1,7 +1,7 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from worker.deduplication import normalize_phone, normalize_website, is_duplicate
+from services.deduplication import normalize_phone, normalize_website, is_duplicate
 from models.schema import Business
 
 def test_normalize_phone():

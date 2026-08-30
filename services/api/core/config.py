@@ -129,9 +129,16 @@ class Settings(BaseSettings):
     SMTP_USE_TLS: bool = True
 
     # ─────────────────────────────────────────────────────────────
-    # Worker & Scraper Concurrency Limits
+    # Worker & Scraper
     # ─────────────────────────────────────────────────────────────
     MAX_CONCURRENT_SCRAPERS: int = 3
+
+    # URL of the Cloud Run Worker service.
+    WORKER_URL: Optional[str] = None
+
+    # Google Cloud Service Account credentials JSON string (or file path).
+    # Used by the Render API to sign and generate Google OIDC ID tokens for private Cloud Run Worker calls.
+    GCP_SERVICE_ACCOUNT_KEY: Optional[str] = None
 
     # Pydantic v2 Config: Cascading file resolution, highest precedence to OS environment
     model_config = SettingsConfigDict(

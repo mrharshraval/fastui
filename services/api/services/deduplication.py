@@ -1,6 +1,6 @@
 """
-FastUI Lead Deduplication & Normalization Service
-=================================================
+FastUI Lead Deduplication Service
+=================================
 High-precision entity resolution and normalization rules for discovered business records.
 """
 
@@ -9,6 +9,7 @@ from typing import Optional
 from urllib.parse import urlparse
 
 from sqlalchemy import and_, func, or_, select
+from models.schema import Business
 
 
 class LeadDeduplicator:
@@ -76,11 +77,6 @@ class LeadDeduplicator:
         2. Exact normalized phone
         3. Exact business name + city (case-insensitive match)
         """
-        try:
-            from models.schema import Business
-        except ImportError:
-            from api.models.schema import Business
-
         conditions = []
 
         if normalized_website:
@@ -112,7 +108,7 @@ class LeadDeduplicator:
         return duplicate_id is not None
 
 
-# Module-level convenience functions for backward compatibility
+# Module-level convenience functions
 normalize_phone = LeadDeduplicator.normalize_phone
 normalize_website = LeadDeduplicator.normalize_website
 is_duplicate = LeadDeduplicator.is_duplicate

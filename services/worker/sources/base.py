@@ -1,16 +1,14 @@
 from abc import ABC, abstractmethod
 from typing import List
 
-try:
-    from worker.contracts import DiscoverySearchParams, DiscoveredLead
-except ImportError:
-    from contracts import DiscoverySearchParams, DiscoveredLead
+from contracts import DiscoverySearchParams, DiscoveredLead
+
 
 class DiscoverySourceAdapter(ABC):
     """
-    Abstract interface for all Lead Discovery source adapters (Google Maps, Apollo, etc.).
+    Abstract interface for all Lead Discovery source adapters (Google Maps, web search, etc.).
     """
-    
+
     @abstractmethod
     async def discover(self, params: DiscoverySearchParams) -> List[DiscoveredLead]:
         """

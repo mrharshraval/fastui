@@ -4,6 +4,7 @@ FastUI Worker Exceptions
 Domain exceptions for scraper and extraction workflows.
 """
 
+
 class WorkerException(Exception):
     """Base exception for all worker failures."""
     pass

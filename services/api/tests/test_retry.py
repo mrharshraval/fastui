@@ -1,5 +1,5 @@
 import pytest
-from worker.utils.retry import retry_async
+from core.retry import retry_async
 
 @pytest.mark.asyncio
 async def test_retry_success_after_failure():

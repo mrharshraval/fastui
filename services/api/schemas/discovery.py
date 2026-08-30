@@ -1,7 +1,7 @@
 """
-FastUI Worker Contracts
-=======================
-Data transfer objects and contract definitions for scraping and lead discovery.
+FastUI Discovery & Lead Prospecting Schemas
+===========================================
+Data transfer objects for lead discovery queries and extracted business leads.
 """
 
 from typing import Optional
@@ -9,14 +9,14 @@ from pydantic import BaseModel, Field
 
 
 class DiscoverySearchParams(BaseModel):
-    """Normalized search query parameters passed to source adapters."""
-    target_audience: str = Field(..., description="Target business profession/category, e.g. 'Dentist'")
+    """Normalized search query parameters passed to the Cloud Run Worker."""
+    target_audience: str = Field(..., description="Target business category, e.g. 'Dentist'")
     location: str = Field(..., description="Target geographical location, e.g. 'Ahmedabad, Gujarat, India'")
     limit: int = Field(default=20, ge=1, le=100, description="Max leads to fetch")
 
 
 class DiscoveredLead(BaseModel):
-    """Contract for a business lead discovered by any scraping source adapter."""
+    """Business lead returned by the Cloud Run discovery worker."""
     name: str = Field(..., min_length=1, description="Clean human-readable display name")
     raw_name: Optional[str] = Field(default=None, description="Exact untouched name received from scraper")
     normalized_name: Optional[str] = Field(default=None, description="Canonical search/matching key")
@@ -30,3 +30,5 @@ class DiscoveredLead(BaseModel):
     website: Optional[str] = None
     source_platform: str = Field(default="google_maps")
     source_url: Optional[str] = None
+    rating: Optional[float] = None
+    reviews_count: Optional[int] = None

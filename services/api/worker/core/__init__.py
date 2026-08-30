@@ -1,3 +1,0 @@
-"""
-FastUI Worker Core Module
-"""
