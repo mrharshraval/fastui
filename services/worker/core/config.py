@@ -7,7 +7,7 @@ All values are resolved from environment variables — zero hardcoded secrets.
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -26,9 +26,10 @@ class WorkerSettings(BaseSettings):
     LOG_LEVEL: str = "INFO"
 
     # ─────────────────────────────────────────────────────────────
-    # Server
+    # Server & Security
     # ─────────────────────────────────────────────────────────────
     PORT: int = 8001
+    WORKER_TOKEN: Optional[str] = None
 
     # ─────────────────────────────────────────────────────────────
     # Concurrency & Browser

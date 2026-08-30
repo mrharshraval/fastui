@@ -136,6 +136,9 @@ class Settings(BaseSettings):
     # URL of the Cloud Run Worker service.
     WORKER_URL: Optional[str] = None
 
+    # Secret token sent in the X-Worker-Token header for Worker application-level authentication.
+    WORKER_TOKEN: Optional[str] = None
+
     # Google Cloud Service Account credentials JSON string (or file path).
     # Used by the Render API to sign and generate Google OIDC ID tokens for private Cloud Run Worker calls.
     GCP_SERVICE_ACCOUNT_KEY: Optional[str] = None

@@ -24,7 +24,8 @@ async def test_worker_client_success():
         source_platform="google_maps",
     )
 
-    with patch("services.worker_client.settings.WORKER_URL", "http://worker:8001"):
+    with patch("services.worker_client.settings.WORKER_URL", "http://worker:8001"), \
+         patch("services.worker_client.settings.WORKER_TOKEN", "secret-token-123"):
         with patch("services.worker_client.httpx.AsyncClient.post") as mock_post:
             mock_post.return_value = AsyncMock(
                 status_code=200,
@@ -38,3 +39,7 @@ async def test_worker_client_success():
             assert len(leads) == 1
             assert leads[0].name == "Test Dental Clinic"
             assert leads[0].phone == "+919876500000"
+
+            # Check that X-Worker-Token was passed in headers
+            call_kwargs = mock_post.call_args.kwargs
+            assert call_kwargs["headers"].get("X-Worker-Token") == "secret-token-123"

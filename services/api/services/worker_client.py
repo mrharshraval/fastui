@@ -111,6 +111,10 @@ class WorkerClient:
 
         headers = {"Content-Type": "application/json"}
 
+        # Attach application-level worker authentication token if configured
+        if settings.WORKER_TOKEN:
+            headers["X-Worker-Token"] = settings.WORKER_TOKEN
+
         # Generate Google OIDC token if calling a remote HTTPS Cloud Run URL
         if worker_url.startswith("https://"):
             oidc_token = await _fetch_oidc_token(audience=worker_url)

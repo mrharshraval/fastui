@@ -1,28 +1,29 @@
 """
 FastUI Discovery Worker
 =======================
-Standalone FastAPI service exposing a single authenticated HTTP endpoint.
-Deployed as a private Google Cloud Run service (IAM-authenticated, no public access).
+Standalone FastAPI service exposing lead discovery endpoints.
+Deployed as a private Google Cloud Run service with application-level token authentication.
 
 Endpoints:
-  GET  /health   — liveness probe
-  POST /discover — runs MultiSource Playwright scraping and returns discovered leads
+  GET  /health   — unauthenticated liveness probe
+  POST /discover — authenticated MultiSource Playwright scraping pipeline (requires X-Worker-Token)
 """
 
 import logging
+import os
 import sys
 
 # Ensure the worker root is on sys.path so all local modules resolve correctly
-import os
 sys.path.insert(0, os.path.dirname(__file__))
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 
 from contracts import DiscoverResponse, DiscoverySearchParams
 from core.config import settings
+from core.security import verify_worker_token
 from sources.aggregator import MultiSourceDiscoveryAggregator
 
 logging.basicConfig(
@@ -54,6 +55,15 @@ app = FastAPI(
 )
 
 
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+    """Pass-through for standard HTTP exceptions like 401 Unauthorized."""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+    )
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     logger.error(f"Unhandled exception: {exc}", exc_info=True)
@@ -65,16 +75,20 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 
 @app.get("/health", tags=["system"])
 async def health() -> dict:
-    """Liveness probe for Cloud Run and load balancers."""
+    """Unauthenticated liveness probe for Cloud Run and health checks."""
     return {"status": "ok", "service": "fastui-worker"}
 
 
-@app.post("/discover", response_model=DiscoverResponse, tags=["discovery"])
+@app.post(
+    "/discover",
+    response_model=DiscoverResponse,
+    tags=["discovery"],
+    dependencies=[Depends(verify_worker_token)],
+)
 async def discover(params: DiscoverySearchParams) -> DiscoverResponse:
     """
     Runs multi-source Playwright scraping and returns discovered business leads.
-    Authentication is enforced at the Cloud Run IAM layer — this endpoint trusts
-    any request that reaches it.
+    Requires a valid 'X-Worker-Token' authentication header.
     """
     logger.info(
         f"Received discover request: audience='{params.target_audience}' "
