@@ -8,8 +8,12 @@ import asyncio
 import logging
 from typing import List
 
-from worker.contracts import DiscoveredLead, DiscoverySearchParams
-from worker.deduplication import LeadDeduplicator
+try:
+    from worker.contracts import DiscoveredLead, DiscoverySearchParams
+    from worker.deduplication import LeadDeduplicator
+except ImportError:
+    from contracts import DiscoveredLead, DiscoverySearchParams
+    from deduplication import LeadDeduplicator
 from .base import DiscoverySourceAdapter
 from .google_maps import GoogleMapsScraper
 from .web_search import WebSearchScraper

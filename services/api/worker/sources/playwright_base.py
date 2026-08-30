@@ -9,14 +9,22 @@ import logging
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from playwright.async_api import Browser, Page, Playwright, async_playwright
-from worker.contracts import DiscoveredLead, DiscoverySearchParams
-from worker.core.constants import (
-    DEFAULT_USER_AGENT,
-    DEFAULT_VIEWPORT_HEIGHT,
-    DEFAULT_VIEWPORT_WIDTH,
-)
-from worker.core.exceptions import BrowserInitializationError
+try:
+    from worker.contracts import DiscoveredLead, DiscoverySearchParams
+    from worker.core.constants import (
+        DEFAULT_USER_AGENT,
+        DEFAULT_VIEWPORT_HEIGHT,
+        DEFAULT_VIEWPORT_WIDTH,
+    )
+    from worker.core.exceptions import BrowserInitializationError
+except ImportError:
+    from contracts import DiscoveredLead, DiscoverySearchParams
+    from core.constants import (
+        DEFAULT_USER_AGENT,
+        DEFAULT_VIEWPORT_HEIGHT,
+        DEFAULT_VIEWPORT_WIDTH,
+    )
+    from core.exceptions import BrowserInitializationError
 from .base import DiscoverySourceAdapter
 
 logger = logging.getLogger(__name__)

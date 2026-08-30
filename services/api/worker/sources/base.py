@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import List
-from worker.contracts import DiscoverySearchParams, DiscoveredLead
+try:
+    from worker.contracts import DiscoverySearchParams, DiscoveredLead
+except ImportError:
+    from contracts import DiscoverySearchParams, DiscoveredLead
 
 class DiscoverySourceAdapter(ABC):
     """

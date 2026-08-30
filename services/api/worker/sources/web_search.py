@@ -5,7 +5,10 @@ from typing import List, Optional
 from urllib.parse import quote_plus
 from playwright.async_api import Page
 
-from worker.contracts import DiscoverySearchParams, DiscoveredLead
+try:
+    from worker.contracts import DiscoverySearchParams, DiscoveredLead
+except ImportError:
+    from contracts import DiscoverySearchParams, DiscoveredLead
 from .playwright_base import PlaywrightScraper
 
 logger = logging.getLogger(__name__)
