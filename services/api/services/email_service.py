@@ -193,7 +193,7 @@ class EmailService:
     """
 
     def get_provider(self) -> BaseEmailProvider:
-        provider_name = settings.EMAIL_PROVIDER.lower()
+        provider_name = settings.EMAIL_PROVIDER.lower() if settings.EMAIL_PROVIDER else ""
         resend_key = (
             settings.RESEND_API_KEY 
             or settings.EMAIL_API_KEY 
@@ -201,12 +201,7 @@ class EmailService:
             or os.getenv("EMAIL_API_KEY")
         )
 
-        if provider_name == "resend":
-            if not resend_key:
-                logger.warning("[EMAIL:CONFIG] ⚠️ EMAIL_PROVIDER is 'resend' but RESEND_API_KEY / EMAIL_API_KEY is not set. Falling back to Mock.")
-                return MockEmailProvider()
-            return ResendEmailProvider(api_key=resend_key)
-        elif provider_name == "smtp":
+        if provider_name == "smtp":
             return SMTPEmailProvider(
                 host=settings.SMTP_HOST,
                 port=settings.SMTP_PORT,
@@ -214,6 +209,13 @@ class EmailService:
                 password=settings.SMTP_PASSWORD,
                 use_tls=settings.SMTP_USE_TLS
             )
+        elif resend_key:
+            return ResendEmailProvider(api_key=resend_key)
+        elif provider_name == "resend":
+            logger.warning("[EMAIL:CONFIG] ⚠️ EMAIL_PROVIDER is 'resend' but RESEND_API_KEY is not set in environment. Falling back to Mock.")
+            return MockEmailProvider()
+
+        logger.info("[EMAIL:CONFIG] No email provider configured or keys found. Using MockEmailProvider.")
         return MockEmailProvider()
 
     async def _execute_background_send(self, payload: EmailPayload):

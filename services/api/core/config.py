@@ -79,8 +79,13 @@ class Settings(BaseSettings):
     # ─────────────────────────────────────────────────────────────
     # Networking & CORS
     # ─────────────────────────────────────────────────────────────
-    FRONTEND_URL: Optional[str] = None
-    CORS_ALLOWED_ORIGINS: List[str] = []
+    FRONTEND_URL: Optional[str] = "https://sales.fastui.in"
+    CORS_ALLOWED_ORIGINS: List[str] = [
+        "https://sales.fastui.in",
+        "https://fastui.in",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000"
+    ]
 
     @field_validator("CORS_ALLOWED_ORIGINS", mode="before")
     @classmethod

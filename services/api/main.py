@@ -56,14 +56,20 @@ app = FastAPI(
 app.add_middleware(RequestCorrelationMiddleware)
 
 # CORS Configuration
-configured_origins = [settings.FRONTEND_URL, *settings.CORS_ALLOWED_ORIGINS]
+configured_origins = [
+    settings.FRONTEND_URL,
+    *settings.CORS_ALLOWED_ORIGINS,
+    "https://sales.fastui.in",
+    "https://fastui.in",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
 origins = list({o.strip() for o in configured_origins if o and isinstance(o, str) and o.strip()})
-if not origins:
-    origins = ["*"]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=r"^https:\/\/([a-zA-Z0-9_-]+\.)?fastui\.in$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
