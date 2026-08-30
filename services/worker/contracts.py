@@ -15,7 +15,7 @@ class DiscoverySearchParams(BaseModel):
 
     target_audience: str = Field(..., description="Target business category, e.g. 'Dentist'")
     location: str = Field(..., description="Target geographical location, e.g. 'Ahmedabad, Gujarat, India'")
-    limit: int = Field(default=20, ge=1, le=100, description="Max leads to return")
+    limit: int = Field(default=100, ge=1, le=1000, description="Max leads to return")
 
 
 class DiscoveredLead(BaseModel):

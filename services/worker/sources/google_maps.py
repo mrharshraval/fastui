@@ -42,6 +42,7 @@ def extract_phone_number(text: str) -> Optional[str]:
 class GoogleMapsScraper(PlaywrightScraper):
     """
     Scrapes Google Maps for business listings based on target audience and location.
+    Auto-scrolls to load all available results without artificial caps.
     """
 
     async def extract_leads(self, page: Page, params: DiscoverySearchParams) -> List[DiscoveredLead]:
@@ -82,25 +83,51 @@ class GoogleMapsScraper(PlaywrightScraper):
                 logger.warning(f"No listings rendered for query '{search_query}'.")
                 return []
 
-        # Smooth scroll to load search items
-        try:
-            await page.evaluate(f'''
-                const feed = document.querySelector('{feed_selector}');
-                if (feed) {{
-                    feed.scrollTop = feed.scrollHeight;
-                }}
-            ''')
-            await asyncio.sleep(1.5)
-        except Exception:
-            pass
+        # Target limit requested (default to full depth)
+        target_limit = params.limit if params.limit and params.limit > 0 else 100
+
+        # Auto-scroll loop to load as many listings as Google Maps provides
+        previous_count = 0
+        scroll_attempts = 0
+        max_scroll_attempts = 20
+
+        for _ in range(max_scroll_attempts):
+            articles = await page.query_selector_all('div[role="article"], div.Nv2PK')
+            current_count = len(articles)
+
+            if current_count >= target_limit:
+                break
+
+            if current_count == previous_count:
+                scroll_attempts += 1
+                if scroll_attempts >= 3:
+                    # Feed has stopped loading more results
+                    break
+            else:
+                scroll_attempts = 0
+
+            previous_count = current_count
+
+            # Check if Google reached end of list
+            end_indicator = await page.query_selector("span.HlvSq, div.fontTitleSmall:has-text('reached the end')")
+            if end_indicator:
+                break
+
+            try:
+                await page.evaluate(f'''
+                    const feed = document.querySelector('{feed_selector}');
+                    if (feed) {{
+                        feed.scrollTop = feed.scrollHeight;
+                    }}
+                ''')
+                await asyncio.sleep(1.2)
+            except Exception:
+                break
 
         leads: List[DiscoveredLead] = []
-        articles = await page.query_selector_all('div[role="article"]')
-        if not articles:
-            articles = await page.query_selector_all('div.Nv2PK')
+        articles = await page.query_selector_all('div[role="article"], div.Nv2PK')
 
-        max_items = min(params.limit, 25)
-        for article in articles[:max_items]:
+        for article in articles[:target_limit]:
             try:
                 name_element = await article.query_selector('div.fontHeadlineSmall, div.qBF1Pd, .qBF1Pd')
                 if not name_element:
@@ -128,7 +155,7 @@ class GoogleMapsScraper(PlaywrightScraper):
                     try:
                         if not phone or not website:
                             await link_el.click()
-                            await asyncio.sleep(1.2)
+                            await asyncio.sleep(1.0)
 
                             if not phone:
                                 phone_el = await page.query_selector(

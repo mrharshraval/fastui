@@ -51,7 +51,8 @@ class WebSearchScraper(PlaywrightScraper):
             if not results:
                 results = await page.query_selector_all('a.result__url, a.result__snippet')
 
-            for res in results[:min(params.limit, 20)]:
+            target_limit = params.limit if params.limit and params.limit > 0 else 100
+            for res in results[:target_limit]:
                 try:
                     title_el = await res.query_selector('a.result__a, h2 a, a')
                     if not title_el:

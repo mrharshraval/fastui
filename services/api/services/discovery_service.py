@@ -96,7 +96,7 @@ class DiscoveryService:
                     or query_dict.get("business_type")
                     or "Businesses"
                 )
-                limit_count = query_dict.get("limit") or 20
+                limit_count = query_dict.get("limit") or 100
 
                 search_params = DiscoverySearchParams(
                     target_audience=target_audience,
