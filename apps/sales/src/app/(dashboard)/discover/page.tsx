@@ -94,10 +94,13 @@ export default function DiscoverPage() {
     const startTime = Date.now()
 
     const interval = setInterval(async () => {
-      // Safety timeout after 25s
-      if (Date.now() - startTime > 25000) {
+      // Extended safety timeout after 180s (3 minutes) for live web scraping
+      if (Date.now() - startTime > 180000) {
         clearInterval(interval)
-        if (isSubscribed) router.push("/prospects")
+        if (isSubscribed) {
+          router.push("/prospects")
+          router.refresh()
+        }
         return
       }
 
@@ -110,13 +113,16 @@ export default function DiscoverPage() {
         if (job && (job.status === "completed" || job.status === "failed")) {
           clearInterval(interval)
           setTimeout(() => {
-            if (isSubscribed) router.push("/prospects")
-          }, 500)
+            if (isSubscribed) {
+              router.push("/prospects")
+              router.refresh()
+            }
+          }, 600)
         }
       } catch {
         // Continue polling until timeout
       }
-    }, 1000)
+    }, 1500)
 
     return () => {
       isSubscribed = false

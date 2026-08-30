@@ -42,8 +42,15 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={cn("antialiased", fontMono.variable, "font-sans", polymath.variable)}
+      className={cn("dark antialiased", fontMono.variable, "font-sans", polymath.variable)}
     >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var s=localStorage.getItem("theme")||"dark";var r=s==="system"?(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):s;var d=document.documentElement;d.classList.remove("light","dark");d.classList.add(r);d.style.colorScheme=r;}catch(e){}})()`,
+          }}
+        />
+      </head>
       <body>
         <ThemeProvider>
           <TooltipProvider delayDuration={300}>
