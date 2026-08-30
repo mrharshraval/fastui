@@ -9,6 +9,8 @@ import logging
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
+from playwright.async_api import Browser, Page, Playwright, async_playwright
+
 try:
     from worker.contracts import DiscoveredLead, DiscoverySearchParams
     from worker.core.constants import (
