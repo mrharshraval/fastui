@@ -1,4 +1,6 @@
 from abc import ABC, abstractmethod
+from typing import List
+
 try:
     from worker.contracts import DiscoverySearchParams, DiscoveredLead
 except ImportError:
