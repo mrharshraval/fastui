@@ -210,8 +210,25 @@ async def login(
 
 @router.post("/logout")
 async def logout(response: Response):
-    """Clears access token cookie."""
-    response.delete_cookie("access_token")
+    """Clears access token cookie with exact matching production security parameters."""
+    is_production = settings.ENVIRONMENT.lower() == "production"
+    response.delete_cookie(
+        key="access_token",
+        path="/",
+        httponly=True,
+        secure=is_production,
+        samesite="lax"
+    )
+    response.set_cookie(
+        key="access_token",
+        value="",
+        max_age=0,
+        expires=0,
+        path="/",
+        httponly=True,
+        secure=is_production,
+        samesite="lax"
+    )
     return {"status": "logged out"}
 
 @router.get("/me", response_model=TokenData)
