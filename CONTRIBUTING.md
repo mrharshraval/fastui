@@ -6,7 +6,7 @@ Thank you for contributing to the FastUI Monorepo! To maintain code quality and 
 
 ## 🌿 Git Branching Model
 
-* **`master`**: Production-ready code. Directly deployed to production environments.
+* **`main`**: Production-ready code. Directly deployed to production environments.
 * **`dev`**: Active staging branch. All features, fixes, and improvements merge here first.
 * **Feature Branches**: Named according to convention:
   * `feat/<feature-name>`
