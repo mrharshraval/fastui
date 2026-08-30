@@ -1,0 +1,21 @@
+# ─────────────────────────────────────────────────────────────
+# Docker Ignore for services/api
+# ─────────────────────────────────────────────────────────────
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+*.db
+*.sqlite3
+fastui_sales.db
+.env
+.env.local
+.env.*.local
+scratch/
+.git
+.gitignore
