@@ -25,8 +25,11 @@ export const metadata: Metadata = {
   description: "Sales CRM & Prospecting Platform",
   icons: {
     icon: [
-      { url: "/brand/favicon/monochrome/balck filled.svg" },
+      { url: "/assets/brand/favicon/brand/primary/filled.svg", type: "image/svg+xml" },
+      { url: "/assets/brand/favicon/brand/primary/filled.png", type: "image/png", sizes: "512x512" },
     ],
+    shortcut: "/assets/brand/favicon/brand/primary/filled.png",
+    apple: "/assets/brand/favicon/brand/primary/filled.png",
   },
 }
 

@@ -11,8 +11,8 @@ import { api } from "@/lib/api"
 function FieldError({ message }: { message: string }) {
   return (
     <div className="flex items-start gap-1.5 mt-1 text-destructive">
-      <AlertCircle className="size-4 mt-0.5 shrink-0" />
-      <p className="text-sm leading-tight font-medium">{message}</p>
+      <AlertCircle className="size-3.5 mt-0.5 shrink-0" />
+      <p className="text-xs leading-tight font-medium">{message}</p>
     </div>
   )
 }
@@ -112,6 +112,7 @@ export function VerifyOtpForm({
       footerText="Already verified?"
       footerLinkText="Log in"
       footerLinkHref="/login"
+      showTerms={false}
     >
       <div className="w-full flex flex-col items-center">
         {/* OTP Input */}
@@ -152,19 +153,18 @@ export function VerifyOtpForm({
         <Button
           type="button"
           onClick={() => handleVerify()}
-          className="w-full h-12 rounded-full font-bold text-base mt-6 bg-primary text-primary-foreground"
-          disabled={loading || otp.length !== 6}
+          className="w-full h-12 rounded-full font-semibold text-sm mt-6 cursor-pointer bg-primary text-primary-foreground"
         >
-          {loading ? "Verifying..." : "Verify & Continue"}
+          Verify & Continue
         </Button>
 
-        {/* Resend & Back Actions */}
-        <div className="w-full mt-6 flex flex-col items-center gap-3">
+        {/* Resend Action */}
+        <div className="w-full mt-6 flex flex-col items-center">
           <button
             type="button"
             onClick={handleResend}
             disabled={resendCooldown > 0 || resending}
-            className="text-sm text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            className="text-sm text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed font-medium cursor-pointer transition-colors"
           >
             {resendCooldown > 0
               ? `Resend code in ${resendCooldown}s`
@@ -172,17 +172,6 @@ export function VerifyOtpForm({
               ? "Sending new code..."
               : "Didn't receive code? Resend"}
           </button>
-
-          {onChangeEmail && (
-            <button
-              type="button"
-              onClick={onChangeEmail}
-              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 font-medium mt-1"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Change email address</span>
-            </button>
-          )}
         </div>
       </div>
     </AuthFormContainer>

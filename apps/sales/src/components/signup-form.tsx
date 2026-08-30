@@ -9,15 +9,15 @@ import { AlertCircle } from "lucide-react"
 import { AuthFormContainer } from "./auth-form-container"
 import { api } from "@/lib/api"
 
-const BASE_INPUT = "w-full bg-input rounded-full h-10 px-4 text-base placeholder:text-muted-foreground border-none focus:ring-2 focus:ring-ring/30 outline-none"
-const INPUT_OK = `${BASE_INPUT} text-foreground`
-const INPUT_ERR = `${BASE_INPUT} text-foreground ring-2 ring-foreground`
+const BASE_INPUT = "w-full bg-transparent rounded-full h-12 px-4 text-sm placeholder:text-muted-foreground border transition-all outline-none"
+const INPUT_OK = `${BASE_INPUT} border-border dark:border-white/20 text-foreground hover:border-foreground/60 focus:border-foreground focus:ring-1 focus:ring-foreground/20`
+const INPUT_ERR = `${BASE_INPUT} border-destructive text-foreground focus:border-destructive hover:border-destructive ring-1 ring-destructive/30`
 
 function FieldError({ message }: { message: string }) {
   return (
     <div className="flex items-start gap-1.5 mt-1 text-destructive">
-      <AlertCircle className="size-4 mt-0.5 shrink-0" />
-      <p className="text-sm leading-tight font-medium">{message}</p>
+      <AlertCircle className="size-3.5 mt-0.5 shrink-0" />
+      <p className="text-xs leading-tight font-medium">{message}</p>
     </div>
   )
 }
@@ -34,9 +34,9 @@ export function SignupForm() {
   const [passwordError, setPasswordError] = useState("")
 
   const validateEmail = (val: string) => {
-    if (!val) { setEmailError("You need to enter your email."); return false }
+    if (!val) { setEmailError("Enter your email."); return false }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
-      setEmailError("This email is invalid. Make sure it's written like example@email.com")
+      setEmailError("Enter a valid email address.")
       return false
     }
     setEmailError("")
@@ -46,7 +46,7 @@ export function SignupForm() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
     let valid = validateEmail(email)
-    if (!password) { setPasswordError("You need to enter a password."); valid = false } else setPasswordError("")
+    if (!password) { setPasswordError("Enter a password."); valid = false } else setPasswordError("")
     if (!valid) return
     setLoading(true)
     try {
@@ -81,8 +81,8 @@ export function SignupForm() {
     >
       <form onSubmit={handleSignup} className="w-full space-y-4">
         <div className="space-y-1.5 flex flex-col items-start w-full">
-          <Label htmlFor="email" className="text-sm font-bold text-foreground">
-            Email address
+          <Label htmlFor="email" className="text-sm font-bold text-foreground tracking-tight">
+            Email
           </Label>
           <Input
             id="email"
@@ -99,7 +99,7 @@ export function SignupForm() {
         </div>
 
         <div className="space-y-1.5 flex flex-col items-start w-full">
-          <Label htmlFor="password" className="text-sm font-bold text-foreground">
+          <Label htmlFor="password" className="text-sm font-bold text-foreground tracking-tight">
             Password
           </Label>
           <Input
@@ -117,10 +117,9 @@ export function SignupForm() {
 
         <Button
           type="submit"
-          className="w-full h-10 rounded-full font-[600] text-sm mt-6"
-          disabled={loading}
+          className="w-full h-12 rounded-full font-semibold text-sm mt-6 cursor-pointer bg-primary text-primary-foreground"
         >
-          {loading ? "Creating account..." : "Sign up"}
+          Sign up
         </Button>
       </form>
     </AuthFormContainer>

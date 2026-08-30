@@ -4,20 +4,20 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { AlertCircle, CheckCircle2, Mail, ArrowLeft } from "lucide-react"
+import { AlertCircle, CheckCircle2, Mail } from "lucide-react"
 import { AuthFormContainer } from "./auth-form-container"
 import { api } from "@/lib/api"
 import Link from "next/link"
 
-const BASE_INPUT = "w-full bg-transparent rounded-full h-12 px-3 text-base placeholder:text-muted-foreground"
-const INPUT_OK = `${BASE_INPUT} border-border text-foreground hover:border-foreground focus:border-foreground`
-const INPUT_ERR = `${BASE_INPUT} border-destructive text-destructive focus:border-destructive hover:border-destructive`
+const BASE_INPUT = "w-full bg-transparent rounded-full h-12 px-4 text-sm placeholder:text-muted-foreground border transition-all outline-none"
+const INPUT_OK = `${BASE_INPUT} border-border dark:border-white/20 text-foreground hover:border-foreground/60 focus:border-foreground focus:ring-1 focus:ring-foreground/20`
+const INPUT_ERR = `${BASE_INPUT} border-destructive text-foreground focus:border-destructive hover:border-destructive ring-1 ring-destructive/30`
 
 function FieldError({ message }: { message: string }) {
   return (
     <div className="flex items-start gap-1.5 mt-1 text-destructive">
-      <AlertCircle className="size-4 mt-0.5 shrink-0" />
-      <p className="text-sm leading-tight font-medium">{message}</p>
+      <AlertCircle className="size-3.5 mt-0.5 shrink-0" />
+      <p className="text-xs leading-tight font-medium">{message}</p>
     </div>
   )
 }
@@ -39,9 +39,9 @@ export function ForgotPasswordForm() {
   }, [sent, cooldown])
 
   const validateEmail = (val: string) => {
-    if (!val) { setEmailError("Please enter your email address."); return false }
+    if (!val) { setEmailError("Enter your email."); return false }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
-      setEmailError("Please enter a valid email address.")
+      setEmailError("Enter a valid email address.")
       return false
     }
     setEmailError("")
@@ -84,34 +84,21 @@ export function ForgotPasswordForm() {
         footerText="Remember your password?"
         footerLinkText="Log in"
         footerLinkHref="/login"
+        showTerms={false}
       >
-        <div className="w-full flex flex-col gap-4 py-2">
-          <p className="text-sm text-muted-foreground text-center leading-relaxed">
-            Click the link in the email to reset your password. If you don't see it, check your spam or junk folder.
-          </p>
-
-          <div className="w-full flex flex-col gap-3 mt-2">
-            <button
-              type="button"
-              onClick={handleResend}
-              disabled={cooldown > 0 || resending}
-              className="w-full h-12 rounded-full font-bold text-sm border border-border hover:border-foreground/40 bg-transparent text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {cooldown > 0
-                ? `Resend link in ${cooldown}s`
-                : resending
-                ? "Sending..."
-                : "Didn't receive email? Resend"}
-            </button>
-
-            <Link
-              href="/login"
-              className="text-xs text-muted-foreground hover:text-foreground text-center py-2 flex items-center justify-center gap-1 font-medium"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back to log in</span>
-            </Link>
-          </div>
+        <div className="w-full flex flex-col gap-3 py-2">
+          <button
+            type="button"
+            onClick={handleResend}
+            disabled={cooldown > 0 || resending}
+            className="w-full h-12 rounded-full font-semibold text-sm border border-border dark:border-white/20 hover:border-foreground/40 bg-transparent text-foreground disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          >
+            {cooldown > 0
+              ? `Resend link in ${cooldown}s`
+              : resending
+              ? "Sending..."
+              : "Didn't receive email? Resend"}
+          </button>
         </div>
       </AuthFormContainer>
     )
@@ -124,11 +111,12 @@ export function ForgotPasswordForm() {
       footerText="Remember your password?"
       footerLinkText="Log in"
       footerLinkHref="/login"
+      showTerms={false}
     >
       <form onSubmit={handleRequest} className="w-full space-y-4">
         <div className="space-y-1.5 flex flex-col items-start w-full">
-          <Label htmlFor="email" className="text-sm font-bold text-foreground">
-            Email address
+          <Label htmlFor="email" className="text-sm font-bold text-foreground tracking-tight">
+            Email
           </Label>
           <Input
             id="email"
@@ -146,10 +134,9 @@ export function ForgotPasswordForm() {
 
         <Button
           type="submit"
-          className="w-full h-12 rounded-full font-bold text-base mt-6 bg-primary text-primary-foreground"
-          disabled={loading}
+          className="w-full h-12 rounded-full font-semibold text-sm mt-6 cursor-pointer bg-primary text-primary-foreground"
         >
-          {loading ? "Sending link..." : "Send reset link"}
+          Send reset link
         </Button>
       </form>
     </AuthFormContainer>

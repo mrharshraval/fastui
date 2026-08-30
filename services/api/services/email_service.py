@@ -246,6 +246,7 @@ class EmailService:
         self,
         to_email: str,
         otp_code: str,
+        verify_url: Optional[str] = None,
         background_tasks: Optional[BackgroundTasks] = None
     ) -> EmailResult:
         """Sends the 6-digit email verification OTP."""
@@ -253,7 +254,7 @@ class EmailService:
         payload = EmailPayload(
             to=to_email,
             subject="Your fastui Verification Code",
-            html=get_otp_template(otp_code),
+            html=get_otp_template(otp_code, verify_url=verify_url, email=to_email),
             text=f"Your fastui verification code is: {otp_code}. Valid for 10 minutes.",
             tags=[
                 EmailTag(name="category", value="authentication"),

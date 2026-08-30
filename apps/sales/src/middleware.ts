@@ -17,6 +17,7 @@ export function middleware(request: NextRequest) {
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
+    pathname.startsWith("/assets") ||
     pathname.startsWith("/brand") ||
     pathname.startsWith("/fonts") ||
     pathname.includes(".")

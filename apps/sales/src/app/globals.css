@@ -104,12 +104,13 @@
     --accent: var(--color-mist);
     --accent-foreground: var(--color-midnight-ink);
 
-    /* Semantic meaning tokens - All achromatic per Mobbin spec */
-    --destructive: var(--color-midnight-ink);
-    --success: var(--color-midnight-ink);
-    --success-foreground: var(--color-pure-canvas);
-    --warning: var(--color-midnight-ink);
-    --warning-foreground: var(--color-pure-canvas);
+    /* Semantic meaning tokens - Apple standard colors */
+    --destructive: #FF3B30;
+    --destructive-foreground: #ffffff;
+    --success: #34C759;
+    --success-foreground: #ffffff;
+    --warning: #FF9500;
+    --warning-foreground: #ffffff;
 
     /* Structural */
     --border: var(--color-fog);
@@ -176,12 +177,13 @@
     --accent: var(--color-mist);
     --accent-foreground: var(--color-midnight-ink);
 
-    /* Semantic meaning tokens */
-    --destructive: var(--color-midnight-ink);
-    --success: var(--color-midnight-ink);
-    --success-foreground: var(--color-pure-canvas);
-    --warning: var(--color-midnight-ink);
-    --warning-foreground: var(--color-pure-canvas);
+    /* Semantic meaning tokens - Apple standard dark mode colors */
+    --destructive: #FF453A;
+    --destructive-foreground: #ffffff;
+    --success: #30D158;
+    --success-foreground: #ffffff;
+    --warning: #FF9F0A;
+    --warning-foreground: #ffffff;
 
     /* Structural */
     --border: var(--color-fog);

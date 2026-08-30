@@ -148,12 +148,12 @@ export function AppSidebar() {
             {/* 1. Default State: Brand Mark */}
             <div className="flex items-center justify-center size-9 transition-opacity duration-150 group-hover/logo-toggle:opacity-0">
               <img
-                src="/brand/mark/monochrome/black filled.svg"
+                src="/assets/brand/mark/monochrome/black.svg"
                 alt="fastui"
                 className="size-6 shrink-0 dark:hidden"
               />
               <img
-                src="/brand/mark/monochrome/white filled.svg"
+                src="/assets/brand/mark/monochrome/white.svg"
                 alt="fastui"
                 className="size-6 shrink-0 hidden dark:block"
               />
@@ -170,22 +170,22 @@ export function AppSidebar() {
         <div className="flex items-center justify-between w-full group-data-[collapsible=icon]:hidden">
           <div className="flex items-center gap-2 pl-1.5">
             <img
-              src="/brand/mark/monochrome/black filled.svg"
+              src="/assets/brand/mark/monochrome/black.svg"
               alt="fastui"
               className="size-6 shrink-0 dark:hidden"
             />
             <img
-              src="/brand/mark/monochrome/white filled.svg"
+              src="/assets/brand/mark/monochrome/white.svg"
               alt="fastui"
               className="size-6 shrink-0 hidden dark:block"
             />
             <img
-              src="/brand/wordmark/monochrome/black filled.svg"
+              src="/assets/brand/wordmark/monochrome/black.svg"
               alt="fastui"
               className="h-4.5 w-auto dark:hidden object-contain"
             />
             <img
-              src="/brand/wordmark/monochrome/white filled.svg"
+              src="/assets/brand/wordmark/monochrome/white.svg"
               alt="fastui"
               className="h-4.5 w-auto hidden dark:block object-contain"
             />

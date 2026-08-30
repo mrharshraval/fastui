@@ -10,15 +10,15 @@ import { AuthFormContainer } from "./auth-form-container"
 import { api } from "@/lib/api"
 import Link from "next/link"
 
-const BASE_INPUT = "w-full bg-transparent rounded-full h-12 px-3 text-base placeholder:text-muted-foreground"
-const INPUT_OK = `${BASE_INPUT} border-border text-foreground hover:border-foreground focus:border-foreground`
-const INPUT_ERR = `${BASE_INPUT} border-destructive text-destructive focus:border-destructive hover:border-destructive`
+const BASE_INPUT = "w-full bg-transparent rounded-full h-12 px-4 text-sm placeholder:text-muted-foreground border transition-all outline-none"
+const INPUT_OK = `${BASE_INPUT} border-border dark:border-white/20 text-foreground hover:border-foreground/60 focus:border-foreground focus:ring-1 focus:ring-foreground/20`
+const INPUT_ERR = `${BASE_INPUT} border-destructive text-foreground focus:border-destructive hover:border-destructive ring-1 ring-destructive/30`
 
 function FieldError({ message }: { message: string }) {
   return (
     <div className="flex items-start gap-1.5 mt-1 text-destructive">
-      <AlertCircle className="size-4 mt-0.5 shrink-0" />
-      <p className="text-sm leading-tight font-medium">{message}</p>
+      <AlertCircle className="size-3.5 mt-0.5 shrink-0" />
+      <p className="text-xs leading-tight font-medium">{message}</p>
     </div>
   )
 }
@@ -85,6 +85,7 @@ export function ResetPasswordForm() {
         footerText="Ready to log in?"
         footerLinkText="Log in"
         footerLinkHref="/login"
+        showTerms={false}
       >
         <div className="w-full flex flex-col gap-4 py-2">
           <p className="text-sm text-muted-foreground text-center">
@@ -94,7 +95,7 @@ export function ResetPasswordForm() {
           <Button
             type="button"
             onClick={() => router.push("/login")}
-            className="w-full h-12 rounded-full font-bold text-base bg-primary text-primary-foreground mt-2"
+            className="w-full h-12 rounded-full font-semibold text-sm bg-primary text-primary-foreground mt-2 cursor-pointer"
           >
             Continue to log in
           </Button>
@@ -111,6 +112,7 @@ export function ResetPasswordForm() {
         footerText="Need help?"
         footerLinkText="Request new link"
         footerLinkHref="/forgot-password"
+        showTerms={false}
       >
         <div className="w-full flex flex-col gap-4 py-2">
           <p className="text-sm text-muted-foreground text-center leading-relaxed">
@@ -120,7 +122,7 @@ export function ResetPasswordForm() {
           <Button
             type="button"
             onClick={() => router.push("/forgot-password")}
-            className="w-full h-12 rounded-full font-bold text-base bg-primary text-primary-foreground mt-2"
+            className="w-full h-12 rounded-full font-semibold text-sm mt-2 cursor-pointer bg-primary text-primary-foreground"
           >
             Request new reset link
           </Button>
@@ -136,6 +138,7 @@ export function ResetPasswordForm() {
       footerText="Remembered your password?"
       footerLinkText="Log in"
       footerLinkHref="/login"
+      showTerms={false}
     >
       <form onSubmit={handleReset} className="w-full space-y-4">
         {generalError && (
@@ -146,7 +149,7 @@ export function ResetPasswordForm() {
         )}
 
         <div className="space-y-1.5 flex flex-col items-start w-full">
-          <Label htmlFor="password" className="text-sm font-bold text-foreground">
+          <Label htmlFor="password" className="text-sm font-bold text-foreground tracking-tight">
             New password
           </Label>
           <Input
@@ -166,7 +169,7 @@ export function ResetPasswordForm() {
         </div>
 
         <div className="space-y-1.5 flex flex-col items-start w-full">
-          <Label htmlFor="confirmPassword" className="text-sm font-bold text-foreground">
+          <Label htmlFor="confirmPassword" className="text-sm font-bold text-foreground tracking-tight">
             Confirm new password
           </Label>
           <Input
@@ -187,10 +190,9 @@ export function ResetPasswordForm() {
 
         <Button
           type="submit"
-          className="w-full h-12 rounded-full font-bold text-base mt-6 bg-primary text-primary-foreground"
-          disabled={loading}
+          className="w-full h-12 rounded-full font-semibold text-sm mt-6 cursor-pointer bg-primary text-primary-foreground"
         >
-          {loading ? "Updating password..." : "Update password"}
+          Update password
         </Button>
       </form>
     </AuthFormContainer>

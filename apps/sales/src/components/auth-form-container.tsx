@@ -8,6 +8,7 @@ interface AuthFormContainerProps {
   footerText?: string
   footerLinkText?: string
   footerLinkHref?: string
+  showTerms?: boolean
 }
 
 export function AuthFormContainer({
@@ -17,25 +18,26 @@ export function AuthFormContainer({
   footerText,
   footerLinkText,
   footerLinkHref,
+  showTerms = true,
 }: AuthFormContainerProps) {
   return (
     <div className="w-full max-w-[324px] mx-auto flex flex-col items-center">
-      {/* Wordmark */}
-      <div className="mb-10 flex justify-center">
+      {/* Brand Icon */}
+      <div className="mb-8 flex justify-center">
         <img
-          src="/brand/wordmark/monochrome/white filled.svg"
+          src="/assets/brand/icon/monochrome/white/filled.svg"
           alt="fastui"
-          className="h-12 w-auto opacity-90 hidden dark:block object-contain"
+          className="size-12 hidden dark:block object-contain"
         />
         <img
-          src="/brand/wordmark/monochrome/black filled.svg"
+          src="/assets/brand/icon/monochrome/balck/filled.svg"
           alt="fastui"
-          className="h-12 w-auto opacity-90 dark:hidden object-contain"
+          className="size-12 dark:hidden object-contain"
         />
       </div>
 
       {/* Title */}
-      <h1 className="text-2xl leading-tight font-bold tracking-tight text-foreground text-center mb-2">
+      <h1 className="text-[32px] leading-tight font-bold tracking-tight text-foreground text-center mb-2">
         {title}
       </h1>
 
@@ -65,19 +67,21 @@ export function AuthFormContainer({
         </div>
       )}
 
-      <div className="w-full mt-12 text-center">
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          By continuing, you agree to the{" "}
-          <Link href="/terms" className="text-xs font-bold hover:text-foreground">
-            Terms of Use
-          </Link>
-          {" "}and{" "}
-          <Link href="/privacy" className="text-xs font-bold hover:text-foreground">
-            Privacy Policy
-          </Link>
-          .
-        </p>
-      </div>
+      {showTerms && (
+        <div className="w-full mt-12 text-center">
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            By continuing, you agree to the{" "}
+            <Link href="/terms" className="text-xs font-bold hover:text-foreground">
+              Terms of Use
+            </Link>
+            {" "}and{" "}
+            <Link href="/privacy" className="text-xs font-bold hover:text-foreground">
+              Privacy Policy
+            </Link>
+            .
+          </p>
+        </div>
+      )}
     </div>
   )
 }

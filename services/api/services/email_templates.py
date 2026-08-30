@@ -1,10 +1,26 @@
 """
 Transactional Email Templates
-Production-grade, responsive HTML templates for FastUI with dark/light visual consistency,
-bulletproof email client compatibility, preheaders, and accessibility standards.
+Apple-styled, auth-page structured responsive HTML email templates for fastui.
+
+Layout structure matching auth pages:
+                  wordmark
+              title goes here
+              otp goes here
+              [    verify    ]
+
+             footer goes here
 """
 
-def _base_layout(title: str, preheader: str, content: str) -> str:
+from typing import Optional
+
+
+def _base_auth_email_layout(
+    title: str,
+    preheader: str,
+    body_content: str,
+    show_terms: bool = True
+) -> str:
+    """Base layout replicating the FastUI authentication card geometry."""
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -26,9 +42,10 @@ def _base_layout(title: str, preheader: str, content: str) -> str:
       margin: 0;
       padding: 0;
       background-color: #0c0d0e;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      color: #e5e7eb;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      color: #ffffff;
       -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }}
     .preheader {{
       display: none !important;
@@ -41,145 +58,202 @@ def _base_layout(title: str, preheader: str, content: str) -> str:
       opacity: 0;
       overflow: hidden;
     }}
+    .wrapper {{
+      width: 100%;
+      background-color: #0c0d0e;
+      padding: 48px 16px;
+      box-sizing: border-box;
+    }}
     .container {{
-      max-width: 560px;
-      margin: 40px auto;
-      background-color: #141517;
-      border: 1px solid #232529;
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+      max-width: 360px;
+      margin: 0 auto;
+      text-align: center;
     }}
-    .header {{
-      padding: 32px 32px 24px;
-      text-align: left;
-      border-bottom: 1px solid #232529;
+    .wordmark-container {{
+      margin-bottom: 32px;
+      text-align: center;
     }}
-    .brand {{
-      font-size: 20px;
+    .wordmark-img {{
+      height: 32px;
+      width: auto;
+      max-width: 160px;
+      display: inline-block;
+      border: 0;
+      outline: none;
+    }}
+    .title {{
+      font-size: 28px;
+      line-height: 1.2;
       font-weight: 700;
       letter-spacing: -0.5px;
       color: #ffffff;
-      text-decoration: none;
+      margin: 0 0 10px 0;
+      text-align: center;
     }}
-    .brand-accent {{
-      color: #6366f1;
+    .subtitle {{
+      font-size: 14px;
+      line-height: 1.5;
+      color: #a1a1aa;
+      margin: 0 0 28px 0;
+      text-align: center;
+      font-weight: 400;
     }}
-    .body {{
-      padding: 32px;
-      line-height: 1.6;
-      font-size: 15px;
-      color: #9ca3af;
+    .otp-table {{
+      margin: 0 auto 28px auto;
+      border-collapse: separate;
+      border-spacing: 6px;
     }}
-    .heading {{
+    .otp-slot {{
+      width: 44px;
+      height: 48px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 9999px;
+      background-color: transparent;
+      color: #ffffff;
       font-size: 22px;
-      font-weight: 600;
-      color: #ffffff;
-      margin: 0 0 16px 0;
-      letter-spacing: -0.3px;
-    }}
-    .code-box {{
-      background: #1c1e22;
-      border: 1px solid #2e3238;
-      border-radius: 8px;
-      padding: 20px;
-      text-align: center;
-      margin: 24px 0;
-    }}
-    .code-text {{
-      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-      font-size: 34px;
       font-weight: 700;
-      letter-spacing: 8px;
-      color: #ffffff;
-      margin: 0;
-    }}
-    .button-container {{
       text-align: center;
-      margin: 28px 0;
+      line-height: 46px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }}
-    .button {{
-      display: inline-block;
-      background-color: #6366f1;
+    .button-verify {{
+      display: block;
+      width: 100%;
+      box-sizing: border-box;
+      height: 48px;
+      line-height: 48px;
+      background-color: #007AFF;
       color: #ffffff !important;
       text-decoration: none;
-      font-weight: 600;
       font-size: 15px;
-      padding: 14px 28px;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+      font-weight: 600;
+      border-radius: 9999px;
+      text-align: center;
+      margin: 0 0 24px 0;
+      cursor: pointer;
     }}
     .footer {{
-      padding: 24px 32px;
-      background-color: #0f1012;
-      border-top: 1px solid #232529;
-      font-size: 12px;
-      color: #6b7280;
       text-align: center;
-      line-height: 1.5;
+      font-size: 12px;
+      line-height: 1.6;
+      color: #71717a;
+      padding-top: 16px;
     }}
     .footer a {{
-      color: #9ca3af;
+      color: #a1a1aa;
       text-decoration: underline;
-    }}
-    .note {{
-      font-size: 13px;
-      color: #6b7280;
-      margin-top: 20px;
+      font-weight: 500;
     }}
   </style>
 </head>
 <body>
   <span class="preheader">{preheader}</span>
-  <div class="container">
-    <div class="header">
-      <span class="brand">fastui<span class="brand-accent">.</span></span>
-    </div>
-    <div class="body">
-      {content}
-    </div>
-    <div class="footer">
-      <p style="margin: 0 0 8px 0;">&copy; 2026 fastui Technologies. All rights reserved.</p>
-      <p style="margin: 0;">If you did not make this request, you can safely ignore this email.</p>
+  <div class="wrapper">
+    <div class="container">
+      <!-- wordmark -->
+      <div class="wordmark-container">
+        <a href="https://sales.fastui.in" target="_blank" style="text-decoration: none;">
+          <img
+            src="https://sales.fastui.in/assets/brand/wordmark/monochrome/white.png"
+            alt="fastui"
+            class="wordmark-img"
+          />
+        </a>
+      </div>
+
+      <!-- content: title, otp / action, verify button -->
+      {body_content}
+
+      <!-- footer goes here -->
+      <div class="footer">
+        <p style="margin: 0 0 10px 0;">If you didn't make this request, you can safely ignore this email.</p>
+        {'''<p style="margin: 0;">By continuing, you agree to the <a href="https://sales.fastui.in/terms" target="_blank">Terms of Use</a> and <a href="https://sales.fastui.in/privacy" target="_blank">Privacy Policy</a>.</p>''' if show_terms else ''}
+      </div>
     </div>
   </div>
 </body>
 </html>
 """
 
-def get_otp_template(otp: str) -> str:
-    """Generates a responsive OTP verification email template."""
-    content = f"""
-      <h1 class="heading">Verify your email address</h1>
-      <p>Please enter the following 6-digit verification code to complete your fastui account setup:</p>
-      <div class="code-box">
-        <p class="code-text">{otp}</p>
-      </div>
-      <p class="note">This verification code is valid for <strong>10 minutes</strong> and can only be used once.</p>
+
+def get_otp_template(
+    otp: str,
+    verify_url: Optional[str] = None,
+    email: Optional[str] = None
+) -> str:
     """
-    return _base_layout(
+    Generates the OTP verification email matching the fastui auth page structure:
+    - Wordmark
+    - Title: Check your email
+    - OTP: 6 individual rounded slots
+    - [ Verify & Continue ] pill button
+    - Footer
+    """
+    target_url = verify_url or f"https://sales.fastui.in/verify{f'?email={email}' if email else ''}"
+    
+    # Format 6-digit OTP into individual table cells
+    digits = list(str(otp).strip()[:6])
+    while len(digits) < 6:
+        digits.append("•")
+        
+    otp_cells_html = "".join(
+        f'<td class="otp-slot" align="center" valign="middle" style="width: 44px; height: 48px; border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 9999px; background-color: transparent; color: #ffffff; font-size: 22px; font-weight: 700; text-align: center; line-height: 46px;">{d}</td>'
+        for d in digits
+    )
+
+    body_content = f"""
+      <!-- title goes here -->
+      <h1 class="title">Check your email</h1>
+      <p class="subtitle">Enter the 6-digit verification code below to continue.</p>
+
+      <!-- otp goes here -->
+      <table class="otp-table" align="center" cellpadding="0" cellspacing="6" style="margin: 0 auto 28px auto; border-collapse: separate; border-spacing: 6px;">
+        <tr>
+          {otp_cells_html}
+        </tr>
+      </table>
+
+      <!-- [ verify ] -->
+      <a href="{target_url}" class="button-verify" target="_blank" style="display: block; width: 100%; box-sizing: border-box; height: 48px; line-height: 48px; background-color: #007AFF; color: #ffffff !important; text-decoration: none; font-size: 15px; font-weight: 600; border-radius: 9999px; text-align: center; margin: 0 0 24px 0;">
+        Verify &amp; Continue
+      </a>
+    """
+
+    return _base_auth_email_layout(
         title="Your fastui Verification Code",
         preheader=f"Your verification code is {otp}. Valid for 10 minutes.",
-        content=content
+        body_content=body_content,
+        show_terms=True
     )
+
 
 def get_password_reset_template(reset_link: str) -> str:
-    """Generates a responsive password reset email template."""
-    content = f"""
-      <h1 class="heading">Reset your password</h1>
-      <p>We received a request to reset the password for your fastui account.</p>
-      <div class="button-container">
-        <a href="{reset_link}" class="button" target="_blank">Reset Password</a>
-      </div>
-      <p style="font-size: 13px; color: #9ca3af; word-break: break-all;">
-        Or paste this link into your browser:<br>
-        <a href="{reset_link}" style="color: #6366f1;">{reset_link}</a>
-      </p>
-      <p class="note">This link is valid for <strong>15 minutes</strong>. If you didn't request a password reset, no further action is required.</p>
     """
-    return _base_layout(
-        title="Reset your fastui Password",
-        preheader="Instructions to reset your fastui password.",
-        content=content
-    )
+    Generates the Password Reset email matching the fastui auth page structure:
+    - Wordmark
+    - Title: Reset your password
+    - [ Reset Password ] pill button
+    - Footer
+    """
+    body_content = f"""
+      <!-- title goes here -->
+      <h1 class="title">Reset your password</h1>
+      <p class="subtitle">Click the button below to choose a new password for your account.</p>
 
+      <!-- [ verify / reset button ] -->
+      <a href="{reset_link}" class="button-verify" target="_blank" style="display: block; width: 100%; box-sizing: border-box; height: 48px; line-height: 48px; background-color: #007AFF; color: #ffffff !important; text-decoration: none; font-size: 15px; font-weight: 600; border-radius: 9999px; text-align: center; margin: 24px 0 24px 0;">
+        Reset Password
+      </a>
+
+      <p style="font-size: 12px; color: #71717a; word-break: break-all; margin: 16px 0 0 0; line-height: 1.5;">
+        Or copy and paste this URL into your browser:<br>
+        <a href="{reset_link}" style="color: #a1a1aa; text-decoration: underline;">{reset_link}</a>
+      </p>
+    """
+
+    return _base_auth_email_layout(
+        title="Reset your fastui password",
+        preheader="Instructions to reset your fastui password.",
+        body_content=body_content,
+        show_terms=False
+    )

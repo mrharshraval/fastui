@@ -10,15 +10,15 @@ import { AlertCircle } from "lucide-react"
 import { AuthFormContainer } from "./auth-form-container"
 import { api } from "@/lib/api"
 
-const BASE_INPUT = "w-full bg-transparent rounded-full h-12 px-3 text-base placeholder:text-muted-foreground"
-const INPUT_OK = `${BASE_INPUT} border-border text-foreground hover:border-foreground focus:border-foreground`
-const INPUT_ERR = `${BASE_INPUT} border-destructive text-destructive focus:border-destructive hover:border-destructive`
+const BASE_INPUT = "w-full bg-transparent rounded-full h-12 px-4 text-sm placeholder:text-muted-foreground border transition-all outline-none"
+const INPUT_OK = `${BASE_INPUT} border-border dark:border-white/20 text-foreground hover:border-foreground/60 focus:border-foreground focus:ring-1 focus:ring-foreground/20`
+const INPUT_ERR = `${BASE_INPUT} border-destructive text-foreground focus:border-destructive hover:border-destructive ring-1 ring-destructive/30`
 
 function FieldError({ message }: { message: string }) {
   return (
     <div className="flex items-start gap-1.5 mt-1 text-destructive">
-      <AlertCircle className="size-4 mt-0.5 shrink-0" />
-      <p className="text-sm leading-tight font-medium">{message}</p>
+      <AlertCircle className="size-3.5 mt-0.5 shrink-0" />
+      <p className="text-xs leading-tight font-medium">{message}</p>
     </div>
   )
 }
@@ -34,8 +34,8 @@ export function LoginForm() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     let valid = true
-    if (!identifier) { setIdentifierError("Please enter your email or username."); valid = false } else setIdentifierError("")
-    if (!password) { setPasswordError("Please enter your password."); valid = false } else setPasswordError("")
+    if (!identifier) { setIdentifierError("Enter your email or username."); valid = false } else setIdentifierError("")
+    if (!password) { setPasswordError("Enter your password."); valid = false } else setPasswordError("")
     if (!valid) return
     setLoading(true)
     try {
@@ -61,7 +61,7 @@ export function LoginForm() {
     >
       <form onSubmit={handleLogin} className="w-full space-y-4">
         <div className="space-y-1.5 flex flex-col items-start w-full">
-          <Label htmlFor="identifier" className="text-sm font-bold text-foreground">
+          <Label htmlFor="identifier" className="text-sm font-bold text-foreground tracking-tight">
             Email or username
           </Label>
           <Input
@@ -79,12 +79,12 @@ export function LoginForm() {
 
         <div className="space-y-1.5 flex flex-col items-start w-full">
           <div className="flex w-full items-center justify-between">
-            <Label htmlFor="password" className="text-sm font-bold text-foreground">
+            <Label htmlFor="password" className="text-sm font-bold text-foreground tracking-tight">
               Password
             </Label>
             <Link
               href="/forgot-password"
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
               Forgot password?
             </Link>
@@ -104,10 +104,9 @@ export function LoginForm() {
 
         <Button
           type="submit"
-          className="w-full h-12 rounded-full font-bold text-base mt-6 bg-primary text-primary-foreground"
-          disabled={loading}
+          className="w-full h-12 rounded-full font-semibold text-sm mt-6 cursor-pointer bg-primary text-primary-foreground"
         >
-          {loading ? "Logging in..." : "Log in"}
+          Log in
         </Button>
       </form>
     </AuthFormContainer>
