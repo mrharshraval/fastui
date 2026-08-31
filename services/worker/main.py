@@ -97,9 +97,18 @@ async def discover(params: DiscoverySearchParams) -> DiscoverResponse:
 
     try:
         aggregator = MultiSourceDiscoveryAggregator(headless=settings.HEADLESS_BROWSER)
-        leads = await aggregator.discover(params)
-        logger.info(f"Discovery complete: {len(leads)} leads returned.")
-        return DiscoverResponse(leads=leads, count=len(leads))
+        leads, exhausted, sources_exhausted, peak_rss = await aggregator.discover_with_meta(params)
+        logger.info(
+            f"Discovery complete: {len(leads)} leads returned "
+            f"(exhausted={exhausted}, peak_rss={peak_rss:.1f}MB)."
+        )
+        return DiscoverResponse(
+            leads=leads,
+            count=len(leads),
+            exhausted=exhausted,
+            sources_exhausted=sources_exhausted,
+            peak_rss_mb=peak_rss,
+        )
     except Exception as e:
         logger.error(f"Discovery failed: {e}", exc_info=True)
         raise HTTPException(

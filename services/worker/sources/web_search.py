@@ -1,12 +1,13 @@
 import logging
 import re
 from typing import List, Optional
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, unquote
 
 from playwright.async_api import Page
 
 from contracts import DiscoveredLead, DiscoverySearchParams
 from sources.playwright_base import PlaywrightScraper
+from utils.memory import memory_tracker
 
 logger = logging.getLogger(__name__)
 
@@ -30,29 +31,39 @@ class WebSearchScraper(PlaywrightScraper):
     contact emails, and phone numbers.
     """
 
+    source_name = "web_search"
+
     async def extract_leads(self, page: Page, params: DiscoverySearchParams) -> List[DiscoveredLead]:
         target_audience = params.target_audience.strip()
         location = params.location.strip()
+        target_limit = params.limit if params.limit and params.limit > 0 else 50
 
         search_query = f"{target_audience} {location} contact website phone".strip()
         encoded_query = quote_plus(search_query)
         url = f"https://html.duckduckgo.com/html/?q={encoded_query}"
 
-        logger.info(f"WebSearchScraper: Searching for '{search_query}'")
+        logger.info(f"WebSearchScraper: Searching for '{search_query}' (limit={target_limit})")
+        memory_tracker.log_stage("source_navigation", source=self.source_name, extra={"query": search_query})
+
         try:
             await page.goto(url, wait_until="domcontentloaded", timeout=25000)
         except Exception as e:
             logger.warning(f"WebSearch navigation error: {e}")
+            self.is_exhausted = True
             return []
 
         leads: List[DiscoveredLead] = []
+        self.is_exhausted = False
+
         try:
             results = await page.query_selector_all('div.result, div.web-result, .results_links')
             if not results:
                 results = await page.query_selector_all('a.result__url, a.result__snippet')
 
-            target_limit = params.limit if params.limit and params.limit > 0 else 100
             for res in results[:target_limit]:
+                if len(leads) >= target_limit or not memory_tracker.is_memory_safe():
+                    break
+
                 try:
                     title_el = await res.query_selector('a.result__a, h2 a, a')
                     if not title_el:
@@ -68,7 +79,6 @@ class WebSearchScraper(PlaywrightScraper):
                     if href and "duckduckgo.com/l/?" in href:
                         match = re.search(r'uddg=([^&]+)', href)
                         if match:
-                            from urllib.parse import unquote
                             website = unquote(match.group(1))
                     elif href and href.startswith("http"):
                         website = href
@@ -109,5 +119,8 @@ class WebSearchScraper(PlaywrightScraper):
         except Exception as e:
             logger.warning(f"WebSearch extraction error: {e}")
 
-        logger.info(f"WebSearchScraper extracted {len(leads)} leads for '{search_query}'")
+        if len(leads) < target_limit:
+            self.is_exhausted = True
+
+        logger.info(f"WebSearchScraper extracted {len(leads)} leads (exhausted={self.is_exhausted})")
         return leads

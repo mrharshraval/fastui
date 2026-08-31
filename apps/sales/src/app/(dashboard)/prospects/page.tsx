@@ -2,17 +2,17 @@
 
 import * as React from "react"
 import { 
-  Plus, Search, ListFilter, Check,
+  Search, ListFilter, Check,
   CircleDashed, Activity, User, Calendar, Database, X,
-  Menu, MoreHorizontal, Globe
+  MoreHorizontal, Globe
 } from "lucide-react"
+
 import { Skeleton } from "@/components/ui/skeleton"
 import { Checkbox } from "@/components/ui/checkbox"
 import { api } from "@/lib/api"
-import { toast } from "sonner"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useSidebar } from "@/components/ui/sidebar"
+
 import {
   DropdownMenu,
   DropdownMenuItem,
@@ -52,9 +52,9 @@ function formatLocation(b: any): string {
 
 export default function ProspectsPage() {
   const router = useRouter()
-  const { toggleSidebar } = useSidebar()
 
   const [prospects, setProspects] = React.useState<Prospect[]>([])
+
   const [loading, setLoading] = React.useState(true)
   const [searchQuery, setSearchQuery] = React.useState("")
   const [statusTab, setStatusTab] = React.useState("all")
@@ -112,10 +112,6 @@ export default function ProspectsPage() {
       email: "Email action logged",
       whatsapp: "WhatsApp action logged"
     }
-    
-    toast.success(actionLabels[actionType] || "Activity logged", {
-      description: `${prospect.business_name}: ${targetValue}`,
-    })
 
     try {
       const numId = parseInt(prospect.id.replace(/[^0-9]/g, ""), 10)
@@ -148,10 +144,6 @@ export default function ProspectsPage() {
     selectedProspects.delete(prospect.id)
     setSelectedProspects(new Set(selectedProspects))
 
-    toast.success("Approved", {
-      description: `${prospect.business_name} moved to active sales pipeline.`
-    })
-
     try {
       if (!isNaN(numId) && numId > 0) {
         await api.post(`/prospects/${numId}/add-to-leads`, {})
@@ -170,10 +162,6 @@ export default function ProspectsPage() {
     // Optimistic removal
     setProspects(prev => prev.filter(p => !selectedProspects.has(p.id)))
     setSelectedProspects(new Set())
-
-    toast.success(`Approved ${count} ${count === 1 ? 'prospect' : 'prospects'}`, {
-      description: "Moved to active sales pipeline."
-    })
 
     try {
       if (numericIds.length > 0) {
@@ -196,22 +184,20 @@ export default function ProspectsPage() {
   // Bulk Qualification status handler
   const handleBulkQualify = async (status: string) => {
     setProspects(prev => prev.map(p => selectedProspects.has(p.id) ? { ...p, qualification_status: status } : p))
-    const ids = Array.from(selectedProspects)
+    selectedProspects.clear()
     setSelectedProspects(new Set())
-    toast.success(`Marked ${ids.length} as ${status}`)
   }
 
   const handleDeleteSelected = () => {
-    const count = selectedProspects.size
     setProspects(prev => prev.filter(p => !selectedProspects.has(p.id)))
+    selectedProspects.clear()
     setSelectedProspects(new Set())
-    toast.success(`Removed ${count} prospects`)
   }
 
   const handleSingleDelete = (id: string) => {
     setProspects(prev => prev.filter(p => p.id !== id))
-    toast.success("Prospect removed")
   }
+
 
   const activeFilterCount = Object.values(filters).filter(v => v !== "all").length
 
@@ -406,27 +392,10 @@ export default function ProspectsPage() {
         
         {/* 1. Mobile Header (Stays sticky at top, z-10) */}
         <div className="sticky top-0 z-10 bg-background flex items-center justify-between px-4 pt-4 pb-2">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={toggleSidebar}
-              className="flex items-center justify-center size-9 -ml-1.5 rounded-full text-foreground hover:bg-accent/60 active:scale-95 transition-all cursor-pointer"
-              aria-label="Open navigation"
-            >
-              <Menu size={20} />
-            </button>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">Prospects</h1>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => router.push("/discover")}
-            title="Discover Prospects"
-            className="flex items-center justify-center size-9 rounded-full bg-[#007AFF] text-white hover:bg-[#0055CC] active:scale-95 transition-all cursor-pointer shadow-xs shrink-0"
-          >
-            <Plus size={18} strokeWidth={2.25} />
-          </button>
+          <h1 className="text-xl font-bold tracking-tight text-foreground">Prospects</h1>
         </div>
+
+
 
         {/* 2. Search Bar */}
         <div className="relative z-0 px-4 pt-2 pb-4 bg-background">
@@ -636,15 +605,6 @@ export default function ProspectsPage() {
                 className="h-9 w-44 sm:w-56 pl-9 pr-4 rounded-full bg-accent/50 hover:bg-accent/80 focus:bg-accent focus:ring-2 focus:ring-foreground/20 text-sm font-medium text-foreground focus:outline-none transition-all placeholder:text-muted-foreground"
               />
             </div>
-
-            <button
-              type="button"
-              onClick={() => router.push("/discover")}
-              title="Discover Prospects"
-              className="flex items-center justify-center size-9 rounded-full bg-[#007AFF] text-white hover:bg-[#0055CC] active:scale-95 transition-all cursor-pointer shadow-xs shrink-0"
-            >
-              <Plus size={18} strokeWidth={2.25} />
-            </button>
           </div>
         </div>
 

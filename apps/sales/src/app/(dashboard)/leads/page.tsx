@@ -2,18 +2,18 @@
 
 import * as React from "react"
 import { 
-  Plus, Search, ListFilter, Check,
+  Search, ListFilter, Check,
   CircleDashed, Activity, User, Calendar, Database, X,
-  Menu, MoreHorizontal
+  MoreHorizontal, Phone, MessageSquare, Mail, AlertTriangle, ArrowRight,
+  TrendingUp, Clock
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Checkbox } from "@/components/ui/checkbox"
 import { api } from "@/lib/api"
-import { toast } from "sonner"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useSidebar } from "@/components/ui/sidebar"
+
 import {
   DropdownMenu,
   DropdownMenuItem,
@@ -66,9 +66,9 @@ function formatLocation(b: any): string {
 
 export default function LeadsPage() {
   const router = useRouter()
-  const { toggleSidebar } = useSidebar()
 
   const [leads, setLeads] = React.useState<Lead[]>([])
+
   const [loading, setLoading] = React.useState(true)
   const [searchQuery, setSearchQuery] = React.useState("")
   const [statusTab, setStatusTab] = React.useState("all")
@@ -126,12 +126,9 @@ export default function LeadsPage() {
       email: "Email action logged",
       whatsapp: "WhatsApp action logged"
     }
-    
-    toast.success(actionLabels[actionType] || "Activity logged", {
-      description: `${lead.business_name}: ${targetValue}`,
-    })
 
     try {
+
       const numId = parseInt(lead.id.replace(/[^0-9]/g, ""), 10)
       if (!isNaN(numId) && numId > 0) {
         const typeMap: Record<string, string> = {
@@ -413,26 +410,10 @@ export default function LeadsPage() {
         
         {/* 1. Mobile Header (Stays sticky at top, z-10) */}
         <div className="sticky top-0 z-10 bg-background flex items-center justify-between px-4 pt-4 pb-2">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={toggleSidebar}
-              className="flex items-center justify-center size-9 -ml-1.5 rounded-full text-foreground hover:bg-accent/60 active:scale-95 transition-all cursor-pointer"
-              aria-label="Open navigation"
-            >
-              <Menu size={20} />
-            </button>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">Leads</h1>
-          </div>
-
-          <button
-            type="button"
-            title="Add Lead"
-            className="flex items-center justify-center size-9 rounded-full bg-[#007AFF] text-white hover:bg-[#0055CC] active:scale-95 transition-all cursor-pointer shadow-xs shrink-0"
-          >
-            <Plus size={18} strokeWidth={2.25} />
-          </button>
+          <h1 className="text-xl font-bold tracking-tight text-foreground">Leads</h1>
         </div>
+
+
 
         {/* 2. Search Bar */}
         <div className="relative z-0 px-4 pt-2 pb-4 bg-background">
@@ -635,14 +616,6 @@ export default function LeadsPage() {
                 className="h-9 w-44 sm:w-56 pl-9 pr-4 rounded-full bg-accent/50 hover:bg-accent/80 focus:bg-accent focus:ring-2 focus:ring-foreground/20 text-sm font-medium text-foreground focus:outline-none transition-all placeholder:text-muted-foreground"
               />
             </div>
-
-            <button
-              type="button"
-              title="Add Lead"
-              className="flex items-center justify-center size-9 rounded-full bg-[#007AFF] text-white hover:bg-[#0055CC] active:scale-95 transition-all cursor-pointer shadow-xs shrink-0"
-            >
-              <Plus size={18} strokeWidth={2.25} />
-            </button>
           </div>
         </div>
 

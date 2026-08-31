@@ -27,10 +27,9 @@ import {
  ChevronDown,
  X,
  MoreHorizontal,
- Menu,
  Check,
 } from "lucide-react";
-import { useSidebar } from "@/components/ui/sidebar";
+
 import {
  Card,
  CardContent,
@@ -120,8 +119,8 @@ function Sparkline({
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { toggleSidebar } = useSidebar();
   const [stats, setStats] = React.useState<Stats>({
+
     total_leads: 0,
     pipeline_value: 0,
     active_companies: 0,
@@ -386,26 +385,7 @@ export default function DashboardPage() {
  <div className="flex flex-col w-full md:hidden pb-16">
  {/* 1. Mobile Header (Sticky at top, z-10) */}
  <div className="sticky top-0 z-10 bg-background flex items-center justify-between px-4 pt-4 pb-2">
- <div className="flex items-center gap-2">
- <button
- type="button"
- onClick={toggleSidebar}
- className="flex items-center justify-center size-9 -ml-1.5 rounded-full text-foreground hover:bg-accent/60 active:scale-95 transition-all cursor-pointer"
- aria-label="Open navigation"
->
- <Menu size={20} />
- </button>
  <h1 className="text-xl font-bold tracking-tight text-foreground">Home</h1>
- </div>
-
- <button
- type="button"
- onClick={() => router.push("/leads")}
- title="Add Lead"
- className="flex items-center justify-center size-9 rounded-full bg-[#007AFF] text-white hover:bg-[#0055CC] active:scale-95 transition-all cursor-pointer shadow-xs shrink-0"
->
- <Plus size={18} strokeWidth={2.25} />
- </button>
  </div>
 
  {/* 2. Search Bar (Normal flow, passes underneath header, z-0) */}
@@ -601,14 +581,6 @@ export default function DashboardPage() {
  {/* Top Header */}
  <div className="flex items-center justify-between mb-2">
  <h2 className="text-xl font-bold tracking-tight text-foreground">Home</h2>
- <button
- type="button"
- onClick={() => router.push("/leads")}
- title="Add Lead"
- className="flex items-center justify-center size-9 rounded-full bg-[#007AFF] text-white hover:bg-[#0055CC] active:scale-95 transition-all cursor-pointer shadow-xs shrink-0"
->
- <Plus size={18} strokeWidth={2.25} />
- </button>
  </div>
 
  {/* 1. Core KPI Cards Grid */}

@@ -4,7 +4,6 @@ import { Geist_Mono } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
-import { Toaster } from "@/components/ui/sonner"
 import { cn } from "@/lib/utils"
 
 const polymath = localFont({
@@ -23,6 +22,12 @@ export const metadata: Metadata = {
     template: "%s | fastui sales",
   },
   description: "Sales CRM & Prospecting Platform",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "FastUI Sales",
+  },
   icons: {
     icon: [
       { url: "/assets/brand/favicon/brand/primary/filled.svg", type: "image/svg+xml" },
@@ -32,6 +37,7 @@ export const metadata: Metadata = {
     apple: "/assets/brand/favicon/brand/primary/filled.png",
   },
 }
+
 
 export default function RootLayout({
   children,
@@ -47,15 +53,16 @@ export default function RootLayout({
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var s=localStorage.getItem("theme")||"dark";var r=s==="system"?(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):s;var d=document.documentElement;d.classList.remove("light","dark");d.classList.add(r);d.style.colorScheme=r;}catch(e){}})()`,
+            __html: `(function(){try{var s=localStorage.getItem("theme")||"dark";var r=s==="system"?(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):s;var d=document.documentElement;d.classList.remove("light","dark");d.classList.add(r);d.style.colorScheme=r;}catch(e){}})();
+            if ('serviceWorker' in navigator) { window.addEventListener('load', function() { navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function(){}); }); }`,
           }}
         />
       </head>
+
       <body>
         <ThemeProvider>
           <TooltipProvider delayDuration={300}>
             {children}
-            <Toaster />
           </TooltipProvider>
         </ThemeProvider>
       </body>

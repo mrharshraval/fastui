@@ -45,6 +45,14 @@ async def get_job_status(
     if not job:
         raise EntityNotFoundException("DiscoveryJob", job_id)
         
+    target_count = int(
+        (job.query or {}).get("target_count")
+        or (job.query or {}).get("limit")
+        or 1000
+    )
+    total_scope_leads = (job.existing_businesses or 0) + (job.new_leads or 0)
+    remaining_count = max(0, target_count - total_scope_leads)
+
     return JobStatusResponse(
         job_id=str(job.id),
         status=job.status.value,
@@ -56,7 +64,9 @@ async def get_job_status(
         duplicates=job.duplicates,
         skipped=job.skipped,
         errors=job.errors,
-        error_message=job.error_message
+        target_count=target_count,
+        remaining_count=remaining_count,
+        error_message=job.error_message,
     )
 
 @router.patch("/jobs/{job_id}/cancel", response_model=JobStatusResponse)
@@ -69,6 +79,14 @@ async def cancel_discovery_job(
     Cancels an ongoing or queued discovery job.
     """
     job = await DiscoveryService.cancel_job(session, job_id)
+    target_count = int(
+        (job.query or {}).get("target_count")
+        or (job.query or {}).get("limit")
+        or 1000
+    )
+    total_scope_leads = (job.existing_businesses or 0) + (job.new_leads or 0)
+    remaining_count = max(0, target_count - total_scope_leads)
+
     return JobStatusResponse(
         job_id=str(job.id),
         status=job.status.value,
@@ -80,5 +98,7 @@ async def cancel_discovery_job(
         duplicates=job.duplicates,
         skipped=job.skipped,
         errors=job.errors,
-        error_message=job.error_message
+        target_count=target_count,
+        remaining_count=remaining_count,
+        error_message=job.error_message,
     )

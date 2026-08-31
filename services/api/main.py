@@ -29,9 +29,22 @@ from fastapi.middleware.cors import CORSMiddleware
 from core.config import settings
 from core.exceptions import FastUIException
 from core.middleware import RequestCorrelationMiddleware
-from models.database import engine, Base
+from models.database import engine, Base, AsyncSessionLocal
 from core.database_migration import run_safe_migrations
-from routes import auth, prospecting, exports, businesses, stats
+from routes import auth, prospecting, exports, businesses, stats, notifications
+from services.reminder_service import ReminderNotificationService
+
+async def _reminder_checker_loop():
+    """Background task running every 30 seconds to deliver due reminder push notifications."""
+    while True:
+        try:
+            await asyncio.sleep(30)
+            async with AsyncSessionLocal() as session:
+                await ReminderNotificationService.process_due_reminders(session)
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.error(f"Error in reminder notification background loop: {e}")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -43,9 +56,20 @@ async def lifespan(app: FastAPI):
         logger.info("Database schema initialized and all columns synchronized successfully.")
     except Exception as e:
         logger.error(f"Database initialization warning: {e}")
-    yield
+
+    # Launch background reminder push dispatcher
+    reminder_task = asyncio.create_task(_reminder_checker_loop())
+    try:
+        yield
+    finally:
+        reminder_task.cancel()
+        try:
+            await reminder_task
+        except asyncio.CancelledError:
+            pass
 
 app = FastAPI(
+
     title="FastUI Sales API",
     version="1.0.0",
     description="Production-grade API for lead prospecting, sales pipeline, and exports.",
@@ -138,3 +162,5 @@ app.include_router(prospecting.router)
 app.include_router(exports.router)
 app.include_router(businesses.router)
 app.include_router(stats.router)
+app.include_router(notifications.router)
+

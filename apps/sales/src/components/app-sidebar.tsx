@@ -48,13 +48,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useTheme } from "@/components/theme-provider"
 import { Moon, Sun } from "lucide-react"
-
-const NAV_ITEMS = [
-  { id: "home",      label: "Home",      icon: LayoutDashboard, href: "/" },
-  { id: "discover",  label: "Discover",  icon: Compass,         href: "/discover" },
-  { id: "prospects", label: "Prospects", icon: UserSearch,      href: "/prospects" },
-  { id: "leads",     label: "Leads",     icon: Users,           href: "/leads" },
-]
+import { DESKTOP_NAV_ITEMS } from "@/config/navigation"
 
 function getUserInitials(name?: string | null, email?: string | null) {
   if (name) {
@@ -212,17 +206,12 @@ export function AppSidebar() {
         <SidebarGroup className="px-1.5 pt-1 pb-0">
           <SidebarGroupContent>
             <SidebarMenu className="gap-1">
-              {NAV_ITEMS.map((item) => {
-                let isActive = false
-                if (item.id === "home") isActive = pathname === "/"
-                else if (item.id === "discover") isActive = pathname.startsWith("/discover") || pathname.startsWith("/prospecting")
-                else if (item.id === "prospects") isActive = pathname.startsWith("/prospects")
-                else if (item.id === "leads") isActive = pathname.startsWith("/leads")
-                else if (item.id === "accounts") isActive = pathname.startsWith("/accounts") || pathname.startsWith("/companies") || pathname.startsWith("/contacts")
-                else isActive = pathname.startsWith(item.href)
+              {DESKTOP_NAV_ITEMS.map((item) => {
+                const isActive = item.isActive(pathname)
 
                 return (
                   <SidebarMenuItem key={item.id} className="flex justify-start w-full">
+
                     <SidebarMenuButton
                       asChild
                       isActive={isActive}

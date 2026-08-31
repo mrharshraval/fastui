@@ -143,6 +143,14 @@ class Settings(BaseSettings):
     # Used by the Render API to sign and generate Google OIDC ID tokens for private Cloud Run Worker calls.
     GCP_SERVICE_ACCOUNT_KEY: Optional[str] = None
 
+    # ─────────────────────────────────────────────────────────────
+    # Web Push (VAPID)
+    # ─────────────────────────────────────────────────────────────
+    VAPID_PUBLIC_KEY: Optional[str] = None
+    VAPID_PRIVATE_KEY: Optional[str] = None
+    VAPID_CLAIM_EMAIL: str = "notifications@fastui.in"
+
+
     # Pydantic v2 Config: Cascading file resolution, highest precedence to OS environment
     model_config = SettingsConfigDict(
         env_file=[

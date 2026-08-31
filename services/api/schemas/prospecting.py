@@ -11,6 +11,7 @@ class ProspectingQuery(BaseModel):
     business_type: str = Field(..., min_length=1, description="e.g. Dentist, Plumber, Bakery")
     location: LocationSchema
     website_status: str = Field(default="any")
+    target_count: int = Field(default=1000, ge=1, le=5000, description="Target unique prospects to discover")
 
 class JobCreateResponse(BaseModel):
     job_id: str
@@ -27,4 +28,7 @@ class JobStatusResponse(BaseModel):
     duplicates: int
     skipped: int
     errors: int
+    target_count: Optional[int] = None
+    remaining_count: Optional[int] = None
     error_message: Optional[str] = None
+

@@ -16,3 +16,5 @@ email-validator>=2.1.0
 resend>=2.1.0
 gunicorn>=21.2.0
 google-auth>=2.27.0
+pywebpush>=1.14.0
+

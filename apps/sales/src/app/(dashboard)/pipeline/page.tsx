@@ -1,11 +1,11 @@
 "use client"
 
 import * as React from "react"
-import { Plus, Menu, MoreHorizontal, Search } from "lucide-react"
+import { MoreHorizontal, Search } from "lucide-react"
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useSidebar } from "@/components/ui/sidebar"
 import { api } from "@/lib/api"
 import {
  DropdownMenu,
@@ -25,7 +25,6 @@ interface Deal {
 }
 
 export default function PipelinePage() {
- const { toggleSidebar } = useSidebar()
  const [deals, setDeals] = React.useState<Deal[]>([])
  const [loading, setLoading] = React.useState(true)
  const [activeStage, setActiveStage] = React.useState("all")
@@ -65,25 +64,7 @@ export default function PipelinePage() {
  <div className="flex flex-col w-full md:hidden pb-16">
  {/* 1. Mobile Header (Sticky at top, z-10) */}
  <div className="sticky top-0 z-10 bg-background flex items-center justify-between px-4 pt-4 pb-2">
-  <div className="flex items-center gap-2">
-  <button
-  type="button"
-  onClick={toggleSidebar}
-  className="flex items-center justify-center size-9 -ml-1.5 rounded-full text-foreground hover:bg-accent/60 active:scale-95 transition-all cursor-pointer"
-  aria-label="Open navigation"
->
-  <Menu size={20} />
-  </button>
   <h1 className="text-xl font-bold tracking-tight text-foreground">Pipeline</h1>
-  </div>
-
-  <button
-  type="button"
-  title="Add Deal"
-  className="flex items-center justify-center size-9 rounded-full bg-[#007AFF] text-white hover:bg-[#0055CC] active:scale-95 transition-all cursor-pointer shadow-xs shrink-0"
->
-  <Plus size={18} strokeWidth={2.25} />
-  </button>
  </div>
 
  {/* 2. Search Bar (Normal flow, passes underneath header, z-0) */}
@@ -199,13 +180,6 @@ export default function PipelinePage() {
  <div className="hidden md:flex flex-col gap-8 px-8 lg:px-12 xl:px-16 pt-14 pb-8 max-w-[1600px] w-full mx-auto">
  <div className="flex items-center justify-between mb-2">
   <h2 className="text-xl font-bold tracking-tight text-foreground">Pipeline</h2>
-  <button
-  type="button"
-  title="Add Deal"
-  className="flex items-center justify-center size-9 rounded-full bg-[#007AFF] text-white hover:bg-[#0055CC] active:scale-95 transition-all cursor-pointer shadow-xs shrink-0"
->
-  <Plus size={18} strokeWidth={2.25} />
-  </button>
  </div>
 
  {/* Kanban Board Grid */}

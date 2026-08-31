@@ -2,19 +2,10 @@
 
 import * as React from "react"
 import { usePathname, useRouter } from "next/navigation"
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
-import { Separator } from "@/components/ui/separator"
-import {
- Breadcrumb,
- BreadcrumbItem,
- BreadcrumbList,
- BreadcrumbPage,
-} from "@/components/ui/breadcrumb"
+import { MobileBottomNav } from "@/components/mobile-bottom-nav"
 import { api } from "@/lib/api"
-import { ChevronLeft, Loader2, Search, Plus } from "lucide-react"
-
-// Breadcrumbs removed as requested
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
  const pathname = usePathname()
@@ -46,11 +37,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
  <AppSidebar />
  <SidebarInset className="bg-background flex flex-col flex-1 min-w-0">
 
- {/* Main content area */}
- <div className="flex flex-1 flex-col">
+ {/* Main content area with bottom clearance for mobile nav */}
+ <div className="flex flex-1 flex-col pb-20 md:pb-0">
   {children}
  </div>
  </SidebarInset>
+ <MobileBottomNav />
  </SidebarProvider>
  )
 }

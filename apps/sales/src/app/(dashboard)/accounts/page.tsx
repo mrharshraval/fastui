@@ -1,13 +1,14 @@
 "use client"
 
 import * as React from "react"
-import { Plus, Search, X, Menu, MoreHorizontal, Check } from "lucide-react"
+import { Search, X, MoreHorizontal, Check } from "lucide-react"
+
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Checkbox } from "@/components/ui/checkbox"
-import { useSidebar } from "@/components/ui/sidebar"
 import { api } from "@/lib/api"
+
 import {
  DropdownMenu,
  DropdownMenuItem,
@@ -34,8 +35,8 @@ interface Contact {
 }
 
 export default function AccountsPage() {
- const { toggleSidebar } = useSidebar()
- const [activeTab, setActiveTab] = React.useState<"companies" | "contacts">("companies")
+  const [activeTab, setActiveTab] = React.useState<"companies" | "contacts">("companies")
+
 
  // Companies state
  const [companies, setCompanies] = React.useState<Company[]>([])
@@ -152,25 +153,7 @@ export default function AccountsPage() {
  <div className="flex flex-col w-full md:hidden pb-16">
  {/* 1. Mobile Header (Sticky at top, z-10) */}
  <div className="sticky top-0 z-10 bg-background flex items-center justify-between px-4 pt-4 pb-2">
- <div className="flex items-center gap-2">
- <button
- type="button"
- onClick={toggleSidebar}
- className="flex items-center justify-center size-9 -ml-1.5 rounded-full text-foreground hover:bg-accent/60 active:scale-95 transition-all cursor-pointer"
- aria-label="Open navigation"
->
- <Menu size={20} />
- </button>
  <h1 className="text-xl font-bold tracking-tight text-foreground">Accounts</h1>
- </div>
-
- <button
- type="button"
- title={activeTab === "companies" ? "Add Company" : "Add Contact"}
- className="flex items-center justify-center size-9 rounded-full bg-[#007AFF] text-white hover:bg-[#0055CC] active:scale-95 transition-all cursor-pointer shadow-xs shrink-0"
->
- <Plus size={18} strokeWidth={2.25} />
- </button>
  </div>
 
  {/* 2. Search Bar (Normal flow, passes underneath header, z-0) */}
@@ -362,14 +345,6 @@ export default function AccountsPage() {
  className="h-9 w-44 sm:w-56 pl-9 pr-4 rounded-full bg-accent/50 hover:bg-accent/80 focus:bg-accent focus:ring-2 focus:ring-foreground/20 text-sm font-medium text-foreground focus:outline-none transition-all placeholder:text-muted-foreground"
  />
  </div>
-
- <button
- type="button"
- title={activeTab === "companies" ? "Add Company" : "Add Contact"}
- className="flex items-center justify-center size-9 rounded-full bg-[#007AFF] text-white hover:bg-[#0055CC] active:scale-95 transition-all cursor-pointer shadow-xs shrink-0"
->
- <Plus size={18} strokeWidth={2.25} />
- </button>
  </div>
  </div>
 

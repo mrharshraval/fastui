@@ -3,12 +3,13 @@
 import * as React from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
-import { Menu, Plus, ChevronDown, MoreHorizontal, ArrowLeft, X, Check } from "lucide-react"
+import { Plus, ChevronDown, MoreHorizontal, ArrowLeft, X, Check } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useSidebar } from "@/components/ui/sidebar"
+import { getNotificationPermissionState, subscribeToPushNotifications } from "@/lib/push-notifications"
+
+
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api"
-import { toast } from "sonner"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -175,9 +176,9 @@ function ActivityItemRow({
 export function BusinessProfileView() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
-  const { toggleSidebar } = useSidebar()
 
   const [business, setBusiness] = React.useState<BusinessDetail | null>(null)
+
   const [activities, setActivities] = React.useState<ActivityItem[]>([])
   const [reminders, setReminders] = React.useState<ReminderItem[]>([])
   const [activeTab, setActiveTab] = React.useState<"activity" | "reminders" | "details">("activity")
@@ -432,9 +433,8 @@ export function BusinessProfileView() {
         timestamp: formatActivityTimestamp(new Date())
       }
       setActivities((prev) => [newActivity, ...prev])
-      toast.success("Approved", { description: `${business.business_name} is now in your pipeline.` })
-    } catch (e: any) {
-      toast.error("Failed to approve", { description: e.message || "Please try again." })
+    } catch {
+      // Ignore API errors
     } finally {
       setAddingToLeads(false)
     }
@@ -479,7 +479,6 @@ export function BusinessProfileView() {
     }
 
     setActivities((prev) => [newActivity, ...prev])
-    toast.success(actionDesc, { description: `${business.business_name}: ${targetValue}` })
 
     // Persist to API
     try {
@@ -524,7 +523,6 @@ export function BusinessProfileView() {
     setNoteInput("")
     setActiveSheet(null)
     setSubmittingNote(false)
-    toast.success("Note added")
 
     // Persist to API
     try {
@@ -585,7 +583,6 @@ export function BusinessProfileView() {
     setReminderText("")
     setActiveSheet(null)
     setSubmittingReminder(false)
-    toast.success("Reminder created", { description: `${business.business_name} · ${formattedDue}` })
 
     // Persist to API
     try {
@@ -600,6 +597,16 @@ export function BusinessProfileView() {
     } catch {
       // Ignore API errors
     }
+
+    // Seamlessly request push notification permission if default
+    try {
+      if (getNotificationPermissionState() === "default") {
+        subscribeToPushNotifications().catch(() => {})
+      }
+    } catch {
+      // Ignore
+    }
+
   }
 
   if (loading) {
@@ -750,27 +757,20 @@ export function BusinessProfileView() {
   return (
     <div className="flex flex-col h-full w-full min-h-screen bg-background">
       {/* ─────────────────────────────────────────────────────────────
-          1. HEADER (Hamburger Left, Back Right)
+          1. HEADER (Mobile Back Header)
          ───────────────────────────────────────────────────────────── */}
       {/* Mobile Sticky Header */}
       <div className="md:hidden sticky top-0 z-10 bg-background flex items-center justify-between px-4 pt-4 pb-2 border-b border-border/30">
         <button
           type="button"
-          onClick={toggleSidebar}
-          className="flex items-center justify-center size-9 -ml-1.5 rounded-full text-foreground hover:bg-accent/60 active:scale-95 transition-all cursor-pointer"
-          aria-label="Open navigation"
-        >
-          <Menu size={20} />
-        </button>
-
-        <button
-          type="button"
           onClick={handleBack}
-          className="h-8 px-3 rounded-full bg-accent/60 hover:bg-accent text-foreground text-xs font-medium transition-colors cursor-pointer shrink-0"
+          className="flex items-center gap-1.5 h-8 px-3 rounded-full bg-accent/60 hover:bg-accent text-foreground text-xs font-medium transition-colors cursor-pointer shrink-0"
         >
-          Back
+          <ArrowLeft size={14} />
+          <span>Back</span>
         </button>
       </div>
+
 
       {/* Desktop Main Container */}
       <div className="flex flex-col flex-1 px-4 md:px-8 lg:px-12 xl:px-16 pt-4 md:pt-14 pb-16 max-w-[1600px] mx-auto w-full">
@@ -937,7 +937,6 @@ export function BusinessProfileView() {
                     act={act}
                     onDelete={() => {
                       setActivities((prev) => prev.filter((a) => a.id !== act.id))
-                      toast.success("Activity removed")
                     }}
                   />
                 ))}
@@ -984,7 +983,6 @@ export function BusinessProfileView() {
                             <DropdownMenuItem
                               onClick={() => {
                                 setReminders((prev) => prev.filter((r) => r.id !== rem.id))
-                                toast.success("Reminder completed")
                               }}
                               className="min-h-8 px-2.5 rounded-xl cursor-pointer text-xs font-medium"
                             >
@@ -993,7 +991,6 @@ export function BusinessProfileView() {
                             <DropdownMenuItem
                               onClick={() => {
                                 setReminders((prev) => prev.filter((r) => r.id !== rem.id))
-                                toast.success("Reminder deleted")
                               }}
                               className="min-h-8 px-2.5 rounded-xl cursor-pointer text-xs font-medium text-destructive focus:text-destructive"
                             >
@@ -1003,6 +1000,7 @@ export function BusinessProfileView() {
                         </DropdownMenu>
                       </div>
                     </div>
+
 
                     <span className="text-xs text-muted-foreground mt-0.5 font-normal">
                       {rem.user_name || "Harsh"}

@@ -19,7 +19,7 @@ from typing import List, Optional
 import httpx
 
 from core.config import settings
-from schemas.discovery import DiscoveredLead, DiscoverySearchParams
+from schemas.discovery import DiscoveredLead, DiscoverySearchParams, DiscoverResponse
 
 logger = logging.getLogger(__name__)
 
@@ -95,9 +95,9 @@ class WorkerClient:
     """
 
     @staticmethod
-    async def discover(params: DiscoverySearchParams) -> List[DiscoveredLead]:
+    async def discover_batch(params: DiscoverySearchParams) -> DiscoverResponse:
         """
-        Sends a POST /discover request to the Cloud Run Worker and returns discovered leads.
+        Sends a POST /discover request to the Cloud Run Worker and returns a DiscoverResponse envelope.
         """
         worker_url = settings.WORKER_URL
         if not worker_url:
@@ -142,8 +142,20 @@ class WorkerClient:
             data = response.json()
             raw_leads = data.get("leads", [])
             leads = [DiscoveredLead.model_validate(lead) for lead in raw_leads]
-            logger.info(f"Worker returned {len(leads)} leads.")
-            return leads
+            exhausted = data.get("exhausted", False)
+            sources_exhausted = data.get("sources_exhausted")
+            peak_rss_mb = data.get("peak_rss_mb")
+
+            logger.info(
+                f"Worker returned {len(leads)} leads (exhausted={exhausted}, peak_rss={peak_rss_mb})."
+            )
+            return DiscoverResponse(
+                leads=leads,
+                count=len(leads),
+                exhausted=exhausted,
+                sources_exhausted=sources_exhausted,
+                peak_rss_mb=peak_rss_mb,
+            )
 
         except httpx.TimeoutException:
             logger.error(f"Worker request timed out after {_DISCOVER_TIMEOUT.read}s.")
@@ -154,3 +166,12 @@ class WorkerClient:
         except Exception as e:
             logger.error(f"Worker request failed: {e}", exc_info=True)
             raise
+
+    @staticmethod
+    async def discover(params: DiscoverySearchParams) -> List[DiscoveredLead]:
+        """
+        Backward-compatible discover method returning raw leads list.
+        """
+        response = await WorkerClient.discover_batch(params)
+        return response.leads
+

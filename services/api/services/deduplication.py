@@ -9,12 +9,12 @@ from typing import Optional
 from urllib.parse import urlparse
 
 from sqlalchemy import and_, func, or_, select
-from models.schema import Business
+from models.schema import Business, BusinessSource
 
 
 class LeadDeduplicator:
     """
-    Encapsulates phone, website, and business entity deduplication algorithms.
+    Encapsulates phone, website, place ID, and business entity deduplication algorithms.
     """
 
     @staticmethod
@@ -64,24 +64,44 @@ class LeadDeduplicator:
             return cleaned if cleaned else None
 
     @staticmethod
-    async def is_duplicate(
+    async def find_duplicate(
         session,
         normalized_phone: Optional[str],
         normalized_website: Optional[str],
         business_name: str,
         city: Optional[str],
-    ) -> bool:
+        source_platform: Optional[str] = None,
+        source_place_id: Optional[str] = None,
+    ) -> Optional[Business]:
         """
-        Checks if a business already exists based on deduplication signals:
-        1. Exact normalized website domain
-        2. Exact normalized phone
-        3. Exact business name + city (case-insensitive match)
+        Finds existing Business entity based on deduplication hierarchy:
+        1. Exact match on source platform + external_id in BusinessSource
+        2. Exact match on normalized_website
+        3. Exact match on normalized_phone
+        4. Exact match on business_name + city (case-insensitive)
         """
-        conditions = []
+        # 1. Check BusinessSource external_id (strongest ID)
+        if source_platform and source_place_id:
+            src_query = (
+                select(Business)
+                .join(BusinessSource, Business.id == BusinessSource.business_id)
+                .where(
+                    and_(
+                        BusinessSource.platform == source_platform,
+                        BusinessSource.external_id == source_place_id,
+                    )
+                )
+                .limit(1)
+            )
+            src_res = await session.execute(src_query)
+            existing_by_src = src_res.scalar_one_or_none()
+            if existing_by_src:
+                return existing_by_src
 
+        # 2. Check website / phone / name+city
+        conditions = []
         if normalized_website:
             conditions.append(Business.normalized_website == normalized_website)
-
         if normalized_phone:
             conditions.append(Business.normalized_phone == normalized_phone)
 
@@ -99,16 +119,40 @@ class LeadDeduplicator:
             conditions.append(func.lower(Business.business_name) == clean_name.lower())
 
         if not conditions:
-            return False
+            return None
 
-        query = select(Business.id).where(or_(*conditions)).limit(1)
+        query = select(Business).where(or_(*conditions)).limit(1)
         result = await session.execute(query)
-        duplicate_id = result.scalar_one_or_none()
+        return result.scalar_one_or_none()
 
-        return duplicate_id is not None
+    @staticmethod
+    async def is_duplicate(
+        session,
+        normalized_phone: Optional[str],
+        normalized_website: Optional[str],
+        business_name: str,
+        city: Optional[str],
+        source_platform: Optional[str] = None,
+        source_place_id: Optional[str] = None,
+    ) -> bool:
+        """
+        Checks if a business already exists based on deduplication signals.
+        """
+        dup = await LeadDeduplicator.find_duplicate(
+            session,
+            normalized_phone=normalized_phone,
+            normalized_website=normalized_website,
+            business_name=business_name,
+            city=city,
+            source_platform=source_platform,
+            source_place_id=source_place_id,
+        )
+        return dup is not None
 
 
 # Module-level convenience functions
 normalize_phone = LeadDeduplicator.normalize_phone
 normalize_website = LeadDeduplicator.normalize_website
 is_duplicate = LeadDeduplicator.is_duplicate
+find_duplicate = LeadDeduplicator.find_duplicate
+

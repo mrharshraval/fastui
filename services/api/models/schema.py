@@ -144,6 +144,8 @@ class User(Base):
     outreaches = relationship("Outreach", back_populates="user")
     interactions = relationship("Interaction", back_populates="user")
     activities = relationship("Activity", back_populates="user")
+    push_subscriptions = relationship("PushSubscription", back_populates="user", cascade="all, delete-orphan")
+
 
 # ─────────────────────────────────────────────────────────────
 # 2. BUSINESS MODEL (Discovered Company Master Entity)
@@ -345,8 +347,10 @@ class Reminder(Base):
     due_at = Column(DateTime(timezone=True), nullable=False, index=True)
     status = Column(Enum(ReminderStatus), default=ReminderStatus.PENDING, nullable=False, index=True)
     completed_at = Column(DateTime(timezone=True), nullable=True)
+    notification_sent_at = Column(DateTime(timezone=True), nullable=True, index=True)
     
     created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+
     updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)
 
     # Relationships
@@ -486,3 +490,24 @@ class ExportJob(Base):
     
     created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
     completed_at = Column(DateTime(timezone=True), nullable=True)
+
+# ─────────────────────────────────────────────────────────────
+# 14. PUSH SUBSCRIPTION MODEL (Web Push Device Registry)
+# ─────────────────────────────────────────────────────────────
+
+class PushSubscription(Base):
+    __tablename__ = "push_subscriptions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    endpoint = Column(Text, nullable=False, unique=True, index=True)
+    p256dh = Column(String(255), nullable=False)
+    auth = Column(String(255), nullable=False)
+    user_agent = Column(String(500), nullable=True)
+    
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)
+
+    # Relationships
+    user = relationship("User", back_populates="push_subscriptions")
+
