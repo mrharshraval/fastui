@@ -11,6 +11,7 @@ from schemas.auth import (
     RegisterRequest, 
     TokenResponse, 
     TokenData,
+    UserProfileUpdateRequest,
     PasswordUpdateRequest,
     PasswordResetRequest,
     PasswordResetConfirm,
@@ -235,6 +236,27 @@ async def logout(response: Response):
 async def get_me(current_user: TokenData = Depends(get_current_user)):
     """Returns currently authenticated user session details."""
     return current_user
+
+@router.put("/me", response_model=TokenData)
+@router.patch("/me", response_model=TokenData)
+async def update_profile(
+    req: UserProfileUpdateRequest,
+    current_user: TokenData = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Updates user profile information (such as display name) in the database."""
+    user = await db.get(User, current_user.user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    
+    if req.name is not None:
+        user.name = req.name.strip()
+        
+    await db.commit()
+    await db.refresh(user)
+    
+    role_str = user.role.value if hasattr(user.role, 'value') else str(user.role)
+    return TokenData(user_id=user.id, email=user.email, role=role_str, name=user.name)
 
 @router.put("/password")
 async def update_password(

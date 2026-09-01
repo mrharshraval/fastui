@@ -5,6 +5,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from models.database import get_db
 from schemas.businesses import (
     BusinessResponse,
+    BusinessUpdateRequest,
+    BulkDeleteRequest,
+    BulkDeleteResponse,
+    PipelineDealResponse,
     StageUpdateRequest,
     StageUpdateResponse,
     QualifyProspectRequest,
@@ -145,6 +149,71 @@ async def get_business(
     Retrieves details for a single business/lead.
     """
     return await BusinessService.get_business_by_id(session=session, business_id=business_id)
+
+@router.patch("/businesses/{business_id}", response_model=BusinessResponse)
+@router.patch("/leads/{business_id}", response_model=BusinessResponse)
+async def update_business(
+    business_id: int,
+    update: BusinessUpdateRequest,
+    session: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user)
+):
+    """
+    Updates business and associated lead details in the database.
+    """
+    return await BusinessService.update_business(
+        session=session,
+        business_id=business_id,
+        req=update,
+        current_user=current_user
+    )
+
+@router.delete("/businesses/{business_id}")
+@router.delete("/leads/{business_id}")
+@router.delete("/prospects/{business_id}")
+async def delete_business(
+    business_id: int,
+    session: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user)
+):
+    """
+    Deletes a business/lead record from the database.
+    """
+    return await BusinessService.delete_business(
+        session=session,
+        business_id=business_id,
+        current_user=current_user
+    )
+
+@router.post("/businesses/bulk-delete", response_model=BulkDeleteResponse)
+@router.post("/leads/bulk-delete", response_model=BulkDeleteResponse)
+@router.post("/prospects/bulk-delete", response_model=BulkDeleteResponse)
+async def bulk_delete_businesses(
+    req: BulkDeleteRequest,
+    session: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user)
+):
+    """
+    Bulk deletes multiple businesses/leads from the database.
+    """
+    return await BusinessService.bulk_delete_businesses(
+        session=session,
+        business_ids=req.business_ids,
+        current_user=current_user
+    )
+
+@router.get("/pipeline", response_model=List[PipelineDealResponse])
+async def get_pipeline(
+    session: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user)
+):
+    """
+    Returns pipeline deals formatted for the pipeline board view.
+    """
+    return await BusinessService.get_pipeline_deals(
+        session=session,
+        current_user=current_user
+    )
 
 @router.patch("/businesses/{business_id}/stage", response_model=StageUpdateResponse)
 @router.patch("/leads/{business_id}/stage", response_model=StageUpdateResponse)
@@ -333,6 +402,19 @@ async def list_business_notes(
         for n in notes
     ]
 
+@router.delete("/notes/{note_id}")
+async def delete_note(
+    note_id: int,
+    session: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user)
+):
+    """Deletes a note record from the database."""
+    return await BusinessService.delete_note(
+        session=session,
+        note_id=note_id,
+        current_user=current_user
+    )
+
 # ─────────────────────────────────────────────────────────────
 # 6. TASKS (Actionable Work To-Dos)
 # ─────────────────────────────────────────────────────────────
@@ -370,7 +452,11 @@ async def list_all_tasks(
     session: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user)
 ):
-    tasks = await BusinessService.get_all_tasks(session=session, status=status)
+    tasks = await BusinessService.get_all_tasks(
+        session=session,
+        status=status,
+        user_id=current_user.user_id
+    )
     return [
         TaskResponse(
             id=t.id,
@@ -415,6 +501,19 @@ async def update_task(
         created_at=task.created_at.isoformat() if task.created_at else None
     )
 
+@router.delete("/tasks/{task_id}")
+async def delete_task(
+    task_id: int,
+    session: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user)
+):
+    """Deletes a task record from the database."""
+    return await BusinessService.delete_task(
+        session=session,
+        task_id=task_id,
+        current_user=current_user
+    )
+
 # ─────────────────────────────────────────────────────────────
 # 7. REMINDERS & FOLLOW-UPS
 # ─────────────────────────────────────────────────────────────
@@ -453,7 +552,11 @@ async def list_all_reminders(
     session: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user)
 ):
-    reminders = await BusinessService.get_all_reminders(session=session, status=status)
+    reminders = await BusinessService.get_all_reminders(
+        session=session,
+        status=status,
+        user_id=current_user.user_id
+    )
     return [
         ReminderResponse(
             id=r.id,
@@ -499,6 +602,20 @@ async def update_reminder(
         created_at=reminder.created_at.isoformat() if reminder.created_at else None
     )
 
+@router.delete("/reminders/{reminder_id}")
+@router.delete("/follow-ups/{reminder_id}")
+async def delete_reminder(
+    reminder_id: int,
+    session: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user)
+):
+    """Deletes a reminder record from the database."""
+    return await BusinessService.delete_reminder(
+        session=session,
+        reminder_id=reminder_id,
+        current_user=current_user
+    )
+
 # ─────────────────────────────────────────────────────────────
 # 8. ACTIVITIES (Chronological Timeline Audit Stream)
 # ─────────────────────────────────────────────────────────────
@@ -509,22 +626,23 @@ async def list_business_activities(
     session: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user)
 ):
-    activities = await BusinessService.get_business_activities(session=session, business_id=business_id)
+    enriched = await BusinessService.get_business_activities(session=session, business_id=business_id)
     return [
         ActivityResponse(
-            id=act.id,
-            business_id=act.business_id,
-            user_id=act.user_id,
-            contact_id=act.contact_id,
-            type=act.type.value if hasattr(act.type, 'value') else str(act.type),
-            channel=act.channel,
-            outcome=act.outcome,
-            notes=act.notes,
-            entity_type=act.entity_type,
-            entity_id=act.entity_id,
-            created_at=act.created_at.isoformat() if act.created_at else None
+            id=row["activity"].id,
+            business_id=row["activity"].business_id,
+            user_id=row["activity"].user_id,
+            user_name=row["user_name"],
+            contact_id=row["activity"].contact_id,
+            type=row["activity"].type.value if hasattr(row["activity"].type, 'value') else str(row["activity"].type),
+            channel=row["activity"].channel,
+            outcome=row["activity"].outcome,
+            notes=row["activity"].notes,
+            entity_type=row["activity"].entity_type,
+            entity_id=row["activity"].entity_id,
+            created_at=row["activity"].created_at.isoformat() if row["activity"].created_at else None
         )
-        for act in activities
+        for row in enriched
     ]
 
 @router.get("/activities", response_model=List[ActivityResponse])
@@ -533,20 +651,25 @@ async def list_all_activities(
     session: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user)
 ):
-    activities = await BusinessService.get_all_activities(session=session, limit=limit)
+    enriched = await BusinessService.get_all_activities(
+        session=session,
+        limit=limit,
+        user_id=current_user.user_id
+    )
     return [
         ActivityResponse(
-            id=act.id,
-            business_id=act.business_id,
-            user_id=act.user_id,
-            contact_id=act.contact_id,
-            type=act.type.value if hasattr(act.type, 'value') else str(act.type),
-            channel=act.channel,
-            outcome=act.outcome,
-            notes=act.notes,
-            entity_type=act.entity_type,
-            entity_id=act.entity_id,
-            created_at=act.created_at.isoformat() if act.created_at else None
+            id=row["activity"].id,
+            business_id=row["activity"].business_id,
+            user_id=row["activity"].user_id,
+            user_name=row["user_name"],
+            contact_id=row["activity"].contact_id,
+            type=row["activity"].type.value if hasattr(row["activity"].type, 'value') else str(row["activity"].type),
+            channel=row["activity"].channel,
+            outcome=row["activity"].outcome,
+            notes=row["activity"].notes,
+            entity_type=row["activity"].entity_type,
+            entity_id=row["activity"].entity_id,
+            created_at=row["activity"].created_at.isoformat() if row["activity"].created_at else None
         )
-        for act in activities
+        for row in enriched
     ]

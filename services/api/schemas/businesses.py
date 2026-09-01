@@ -53,6 +53,42 @@ class BusinessResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+class BusinessUpdateRequest(BaseModel):
+    business_name: Optional[str] = None
+    category: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    website: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    country: Optional[str] = None
+    postal_code: Optional[str] = None
+    qualification_status: Optional[str] = None
+    stage: Optional[str] = None
+    priority: Optional[str] = None
+    signal: Optional[str] = None
+    score: Optional[int] = None
+
+class BulkDeleteRequest(BaseModel):
+    business_ids: List[int]
+
+class BulkDeleteResponse(BaseModel):
+    message: str
+    deleted_count: int
+    business_ids: List[int]
+
+class PipelineDealResponse(BaseModel):
+    id: str
+    business_name: str
+    stage: str
+    value: Optional[float] = None
+    probability: Optional[int] = None
+    priority: Optional[str] = "medium"
+    lead_id: Optional[int] = None
+    city: Optional[str] = None
+    category: Optional[str] = None
+
 class StageUpdateRequest(BaseModel):
     stage: str
 
@@ -247,6 +283,7 @@ class ActivityResponse(BaseModel):
     id: int
     business_id: int
     user_id: Optional[int] = None
+    user_name: Optional[str] = None  # Display name of the actor (email prefix or full name)
     contact_id: Optional[int] = None
     type: Union[str, object]
     channel: Optional[str] = None

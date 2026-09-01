@@ -34,7 +34,6 @@ import {
   X,
 } from "lucide-react"
 
-
 interface AuthUser {
   user_id?: number
   email?: string
@@ -70,20 +69,19 @@ function MinimalSwitch({
       onClick={() => onChange(!checked)}
       className={cn(
         "relative inline-flex h-[22px] w-[38px] shrink-0 cursor-pointer rounded-full p-[2px] transition-colors duration-200 ease-in-out focus:outline-none active:scale-95",
-        checked ? "bg-[#3B82F6]" : "bg-neutral-300 dark:bg-neutral-600",
+        checked ? "bg-primary" : "bg-input border border-border/50",
         disabled && "opacity-50 cursor-not-allowed"
       )}
     >
       <span
         className={cn(
-          "pointer-events-none inline-block size-[18px] rounded-full bg-white shadow-xs transition-transform duration-200 ease-in-out",
-          checked ? "translate-x-[16px]" : "translate-x-0"
+          "pointer-events-none inline-block size-[18px] rounded-full transition-transform duration-200 ease-in-out",
+          checked ? "translate-x-[16px] bg-primary-foreground" : "translate-x-0 bg-foreground/80"
         )}
       />
     </button>
   )
 }
-
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -95,6 +93,8 @@ export default function SettingsPage() {
   const [email, setEmail] = React.useState("")
   const [currentPassword, setCurrentPassword] = React.useState("")
   const [newPassword, setNewPassword] = React.useState("")
+  const [savingProfile, setSavingProfile] = React.useState(false)
+  const [updatingPassword, setUpdatingPassword] = React.useState(false)
 
   // Mobile sub-sheets / modals
   const [activeModal, setActiveModal] = React.useState<"profile" | "password" | "notifications" | "logout" | "delete" | null>(null)
@@ -145,14 +145,58 @@ export default function SettingsPage() {
     }
   }, [])
 
-  const userEmailDisplay = email || "team@fastui.in"
-  const userNameDisplay = displayName || userEmailDisplay.split("@")[0]
-  const initials = getUserInitials(userNameDisplay, userEmailDisplay)
+  const userEmailDisplay = email
+  const userNameDisplay = displayName || (userEmailDisplay ? userEmailDisplay.split("@")[0] : "Account")
+  const initials = getUserInitials(userNameDisplay || null, userEmailDisplay || null)
+
+  const handleSaveProfile = async () => {
+    if (!displayName.trim() || savingProfile) return
+    try {
+      setSavingProfile(true)
+      const res = await api.patch<AuthUser>("/auth/me", { name: displayName.trim() })
+      if (res) {
+        setCurrentUser(res)
+        try {
+          localStorage.setItem("fastui_user", JSON.stringify(res))
+        } catch { }
+      }
+      setStatusMessage("Profile updated.")
+      setTimeout(() => {
+        setStatusMessage(null)
+        setActiveModal(null)
+      }, 1000)
+    } catch (err: any) {
+      setStatusMessage(err?.message || "Failed to update profile.")
+    } finally {
+      setSavingProfile(false)
+    }
+  }
+
+  const handlePasswordUpdate = async () => {
+    if (!currentPassword || !newPassword || updatingPassword) return
+    try {
+      setUpdatingPassword(true)
+      await api.put("/auth/password", {
+        current_password: currentPassword,
+        new_password: newPassword
+      })
+      setCurrentPassword("")
+      setNewPassword("")
+      setStatusMessage("Password updated.")
+      setTimeout(() => {
+        setStatusMessage(null)
+        setActiveModal(null)
+      }, 1200)
+    } catch (err: any) {
+      setStatusMessage(err?.message || "Incorrect current password.")
+    } finally {
+      setUpdatingPassword(false)
+    }
+  }
 
   const handleLogout = async () => {
     try {
       localStorage.removeItem("fastui_user")
-      document.cookie = "access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0;"
       await api.post("/auth/logout", {})
     } catch { }
     window.location.href = "/login"
@@ -207,20 +251,20 @@ export default function SettingsPage() {
          ───────────────────────────────────────────────────────────── */}
       <div className="md:hidden flex flex-col min-h-screen bg-background pb-32">
         {/* Mobile Header */}
-        <div className="sticky top-0 z-10 bg-background flex items-center justify-between px-4 pt-4 pb-2">
+        <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md flex items-center justify-between px-4 pt-4 pb-2 border-b border-border/40">
           <h1 className="text-xl font-bold tracking-tight text-foreground">Settings</h1>
         </div>
 
         {/* Settings Body */}
-        <div className="flex flex-col gap-3.5 px-4 pt-2">
+        <div className="flex flex-col gap-3.5 px-4 pt-3">
 
           {/* 1. Account Profile Card */}
           <div
             onClick={() => setActiveModal("profile")}
-            className="flex items-center justify-between p-3.5 rounded-3xl bg-neutral-100 dark:bg-neutral-800 active:bg-neutral-200/60 dark:active:bg-neutral-700/60 transition-all cursor-pointer"
+            className="flex items-center justify-between p-3.5 rounded-3xl bg-card border-none active:bg-muted/70 transition-all cursor-pointer shadow-none"
           >
             <div className="flex items-center gap-3.5 min-w-0">
-              <Avatar className="size-12 rounded-full border border-neutral-200 dark:border-neutral-700 shrink-0">
+              <Avatar className="size-12 rounded-full border border-border/50 shrink-0">
                 <AvatarFallback className="text-sm font-bold bg-foreground text-background">
                   {initials}
                 </AvatarFallback>
@@ -238,12 +282,12 @@ export default function SettingsPage() {
           </div>
 
           {/* 2. Account Group (Multi-row rounded-3xl) */}
-          <div className="rounded-3xl bg-neutral-100 dark:bg-neutral-800 overflow-hidden">
+          <div className="rounded-3xl bg-card border-none overflow-hidden shadow-none">
             {/* Profile Row */}
             <button
               type="button"
               onClick={() => setActiveModal("profile")}
-              className="flex items-center justify-between w-full h-[54px] px-4 hover:bg-neutral-200/50 dark:hover:bg-neutral-700/50 active:bg-neutral-200/80 dark:active:bg-neutral-700/80 transition-colors cursor-pointer text-left"
+              className="flex items-center justify-between w-full h-[54px] px-4 hover:bg-muted/50 active:bg-muted/80 transition-colors cursor-pointer text-left"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <User size={18} className="text-foreground shrink-0" strokeWidth={1.75} />
@@ -257,13 +301,13 @@ export default function SettingsPage() {
               </div>
             </button>
 
-            <div className="ml-[44px] border-b border-neutral-200/60 dark:border-neutral-700/50" />
+            <div className="ml-[44px] border-b border-border/40" />
 
             {/* Password Row */}
             <button
               type="button"
               onClick={() => setActiveModal("password")}
-              className="flex items-center justify-between w-full h-[54px] px-4 hover:bg-neutral-200/50 dark:hover:bg-neutral-700/50 active:bg-neutral-200/80 dark:active:bg-neutral-700/80 transition-colors cursor-pointer text-left"
+              className="flex items-center justify-between w-full h-[54px] px-4 hover:bg-muted/50 active:bg-muted/80 transition-colors cursor-pointer text-left"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <Lock size={18} className="text-foreground shrink-0" strokeWidth={1.75} />
@@ -277,13 +321,13 @@ export default function SettingsPage() {
               </div>
             </button>
 
-            <div className="ml-[44px] border-b border-neutral-200/60 dark:border-neutral-700/50" />
+            <div className="ml-[44px] border-b border-border/40" />
 
             {/* Discovery Row */}
             <button
               type="button"
               onClick={() => router.push("/discover")}
-              className="flex items-center justify-between w-full h-[54px] px-4 hover:bg-neutral-200/50 dark:hover:bg-neutral-700/50 active:bg-neutral-200/80 dark:active:bg-neutral-700/80 transition-colors cursor-pointer text-left"
+              className="flex items-center justify-between w-full h-[54px] px-4 hover:bg-muted/50 active:bg-muted/80 transition-colors cursor-pointer text-left"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <Sparkles size={18} className="text-foreground shrink-0" strokeWidth={1.75} />
@@ -299,7 +343,7 @@ export default function SettingsPage() {
           </div>
 
           {/* 3. Push Notifications Row (Single-row rounded-full) */}
-          <div className="flex items-center justify-between w-full h-[54px] px-4.5 rounded-full bg-neutral-100 dark:bg-neutral-800">
+          <div className="flex items-center justify-between w-full h-[54px] px-4.5 rounded-full bg-card border-none shadow-none">
             <div className="flex items-center gap-3 min-w-0">
               <Bell size={18} className="text-foreground shrink-0" strokeWidth={1.75} />
               <span className="text-[15px] font-normal text-foreground truncate">
@@ -314,7 +358,7 @@ export default function SettingsPage() {
           </div>
 
           {/* 4. Dark Mode Row (Single-row rounded-full) */}
-          <div className="flex items-center justify-between w-full h-[54px] px-4.5 rounded-full bg-neutral-100 dark:bg-neutral-800">
+          <div className="flex items-center justify-between w-full h-[54px] px-4.5 rounded-full bg-card border-none shadow-none">
             <div className="flex items-center gap-3 min-w-0">
               {resolvedTheme === "dark" ? (
                 <Moon size={18} className="text-foreground shrink-0" strokeWidth={1.75} />
@@ -332,7 +376,7 @@ export default function SettingsPage() {
           </div>
 
           {/* 5. General / About Row (Single-row rounded-full) */}
-          <div className="flex items-center justify-between w-full h-[54px] px-4.5 rounded-full bg-neutral-100 dark:bg-neutral-800">
+          <div className="flex items-center justify-between w-full h-[54px] px-4.5 rounded-full bg-card border-none shadow-none">
             <div className="flex items-center gap-3 min-w-0">
               <Info size={18} className="text-foreground shrink-0" strokeWidth={1.75} />
               <span className="text-[15px] font-normal text-foreground truncate">
@@ -346,7 +390,7 @@ export default function SettingsPage() {
           <button
             type="button"
             onClick={() => setActiveModal("logout")}
-            className="flex items-center justify-between w-full h-[54px] px-4.5 rounded-full bg-neutral-100 dark:bg-neutral-800 hover:bg-destructive/10 active:bg-destructive/20 transition-colors cursor-pointer text-left text-destructive"
+            className="flex items-center justify-between w-full h-[54px] px-4.5 rounded-full bg-card border-none hover:bg-destructive-muted/30 active:bg-destructive-muted/60 transition-colors cursor-pointer text-left text-destructive shadow-none"
           >
             <div className="flex items-center gap-3 min-w-0">
               <LogOut size={18} className="text-destructive shrink-0" strokeWidth={1.75} />
@@ -361,17 +405,16 @@ export default function SettingsPage() {
           <button
             type="button"
             onClick={() => setActiveModal("delete")}
-            className="flex items-center justify-between w-full h-[54px] px-4.5 rounded-full bg-neutral-100 dark:bg-neutral-800 hover:bg-rose-500/10 active:bg-rose-500/20 transition-colors cursor-pointer text-left text-rose-500"
+            className="flex items-center justify-between w-full h-[54px] px-4.5 rounded-full bg-card border-none hover:bg-destructive-muted/30 active:bg-destructive-muted/60 transition-colors cursor-pointer text-left text-destructive shadow-none"
           >
             <div className="flex items-center gap-3 min-w-0">
-              <Trash2 size={18} className="text-rose-500 shrink-0" strokeWidth={1.75} />
+              <Trash2 size={18} className="text-destructive shrink-0" strokeWidth={1.75} />
               <span className="text-[15px] font-normal truncate">
                 Delete Account
               </span>
             </div>
-            <ChevronRight size={16} className="text-rose-500/50 shrink-0" />
+            <ChevronRight size={16} className="text-destructive/50 shrink-0" />
           </button>
-
 
         </div>
 
@@ -380,7 +423,7 @@ export default function SettingsPage() {
            ───────────────────────────────────────────────────────────── */}
         {activeModal && (
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
-            <div className="w-full sm:max-w-md bg-background border border-neutral-200 dark:border-neutral-800 rounded-t-3xl sm:rounded-2xl p-5 shadow-2xl animate-in slide-in-from-bottom-6 duration-200 pb-8 sm:pb-5">
+            <div className="w-full sm:max-w-md bg-background border-none rounded-t-3xl sm:rounded-2xl p-5 shadow-none animate-in slide-in-from-bottom-6 duration-200 pb-8 sm:pb-5">
 
               {/* Header with Close */}
               <div className="flex items-center justify-between pb-3 border-b border-border/30">
@@ -394,7 +437,7 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={() => { setActiveModal(null); setStatusMessage(null) }}
-                  className="size-7 rounded-full bg-accent/60 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer"
+                  className="size-7 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer"
                 >
                   <X size={14} />
                 </button>
@@ -409,7 +452,7 @@ export default function SettingsPage() {
                       <Input
                         value={displayName}
                         onChange={(e) => setDisplayName(e.target.value)}
-                        className="h-10 bg-neutral-100 dark:bg-neutral-800 border-none rounded-full px-4 text-sm"
+                        className="h-10 bg-input border border-border/50 rounded-full px-4 text-sm"
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -417,22 +460,15 @@ export default function SettingsPage() {
                       <Input
                         value={email}
                         disabled
-                        className="h-10 bg-neutral-100 dark:bg-neutral-800 border-none rounded-full px-4 text-sm opacity-70"
+                        className="h-10 bg-input border border-border/50 rounded-full px-4 text-sm opacity-70"
                       />
                     </div>
                     <Button
-                      onClick={() => {
-                        try {
-                          const stored = localStorage.getItem("fastui_user")
-                          const obj = stored ? JSON.parse(stored) : {}
-                          localStorage.setItem("fastui_user", JSON.stringify({ ...obj, name: displayName }))
-                        } catch { }
-                        setStatusMessage("Profile updated.")
-                        setTimeout(() => setActiveModal(null), 800)
-                      }}
+                      onClick={handleSaveProfile}
+                      disabled={savingProfile}
                       className="w-full h-10 rounded-full text-sm mt-2"
                     >
-                      Done
+                      {savingProfile ? "Saving..." : "Done"}
                     </Button>
                   </>
                 )}
@@ -446,7 +482,7 @@ export default function SettingsPage() {
                         placeholder="Current password"
                         value={currentPassword}
                         onChange={(e) => setCurrentPassword(e.target.value)}
-                        className="h-10 bg-neutral-100 dark:bg-neutral-800 border-none rounded-full px-4 text-sm"
+                        className="h-10 bg-input border border-border/50 rounded-full px-4 text-sm"
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -456,24 +492,22 @@ export default function SettingsPage() {
                         placeholder="New password"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
-                        className="h-10 bg-neutral-100 dark:bg-neutral-800 border-none rounded-full px-4 text-sm"
+                        className="h-10 bg-input border border-border/50 rounded-full px-4 text-sm"
                       />
                     </div>
                     <Button
-                      onClick={() => {
-                        setStatusMessage("Password updated.")
-                        setTimeout(() => setActiveModal(null), 800)
-                      }}
+                      onClick={handlePasswordUpdate}
+                      disabled={updatingPassword}
                       className="w-full h-10 rounded-full text-sm mt-2"
                     >
-                      Update Password
+                      {updatingPassword ? "Updating..." : "Update Password"}
                     </Button>
                   </>
                 )}
 
                 {activeModal === "notifications" && (
                   <>
-                    <div className="flex items-center justify-between p-3.5 rounded-2xl bg-neutral-100 dark:bg-neutral-800">
+                    <div className="flex items-center justify-between p-3.5 rounded-2xl bg-card border-none shadow-none">
                       <div>
                         <p className="text-xs font-medium text-foreground">
                           {pushSubscribed ? "Active on this device" : "Turned off"}
@@ -495,34 +529,31 @@ export default function SettingsPage() {
                         variant="secondary"
                         onClick={handleSendTestPush}
                         disabled={pushLoading}
-                        className="w-full h-10 rounded-full text-xs flex items-center justify-center gap-1.5"
+                        className="w-full h-10 rounded-full text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer mt-2"
                       >
                         <Send size={13} />
-                        <span>Send Test Alert</span>
+                        Send Test Notification
                       </Button>
                     )}
                   </>
                 )}
 
                 {activeModal === "logout" && (
-                  <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-3 pt-1">
                     <p className="text-xs text-muted-foreground">
                       Are you sure you want to sign out of FastUI?
                     </p>
                     <div className="flex gap-2">
                       <Button
-                        type="button"
-                        variant="outline"
+                        variant="secondary"
                         onClick={() => setActiveModal(null)}
-                        className="flex-1 h-10 rounded-full text-xs"
+                        className="flex-1 h-10 rounded-full text-xs font-medium"
                       >
                         Cancel
                       </Button>
                       <Button
-                        type="button"
-                        variant="destructive"
                         onClick={handleLogout}
-                        className="flex-1 h-10 rounded-full text-xs"
+                        className="flex-1 h-10 rounded-full text-xs font-medium"
                       >
                         Sign Out
                       </Button>
@@ -531,23 +562,22 @@ export default function SettingsPage() {
                 )}
 
                 {activeModal === "delete" && (
-                  <div className="flex flex-col gap-3">
-                    <p className="text-xs text-rose-400">
-                      This will permanently delete your account and all associated data. This action cannot be undone.
+                  <div className="flex flex-col gap-3 pt-1">
+                    <p className="text-xs text-muted-foreground">
+                      This action cannot be undone. All your business records, tasks, and data will be permanently removed.
                     </p>
                     <div className="flex gap-2">
                       <Button
-                        type="button"
-                        variant="outline"
+                        variant="secondary"
                         onClick={() => setActiveModal(null)}
-                        className="flex-1 h-10 rounded-full text-xs"
+                        className="flex-1 h-10 rounded-full text-xs font-medium"
                       >
                         Cancel
                       </Button>
                       <Button
-                        type="button"
-                        className="flex-1 h-10 rounded-full text-xs bg-rose-600 text-white hover:bg-rose-700"
-                        onClick={() => setActiveModal(null)}
+                        variant="destructive"
+                        onClick={handleLogout}
+                        className="flex-1 h-10 rounded-full text-xs font-medium"
                       >
                         Delete Account
                       </Button>
@@ -555,9 +585,8 @@ export default function SettingsPage() {
                   </div>
                 )}
 
-
                 {statusMessage && (
-                  <div className="flex items-center gap-1.5 text-xs text-emerald-400 mt-1">
+                  <div className="flex items-center gap-1.5 text-xs text-success mt-1">
                     <Check size={13} />
                     <span>{statusMessage}</span>
                   </div>
@@ -570,15 +599,23 @@ export default function SettingsPage() {
       </div>
 
       {/* ─────────────────────────────────────────────────────────────
-          DESKTOP SETTINGS EXPERIENCE (>= 768px) — 100% UNCHANGED
+          DESKTOP VIEW (Settings Cards Grid)
+          Visible on screen >= md
          ───────────────────────────────────────────────────────────── */}
-      <div className="hidden md:flex flex-col gap-8 px-4 md:px-8 lg:px-12 xl:px-16 pt-4 md:pt-14 pb-8 max-w-[1600px] w-full mx-auto">
-        {/* Desktop Header */}
-        <div className="flex items-center justify-between mb-2">
+      <div className="hidden md:flex flex-col gap-6 px-8 lg:px-12 xl:px-16 pt-14 pb-12 max-w-4xl mx-auto w-full">
+        <div>
           <h2 className="text-xl font-bold tracking-tight text-foreground">Settings</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">Manage your preferences and workspace configuration</p>
         </div>
 
-        <Card className="bg-card rounded-xl">
+        {statusMessage && (
+          <div className="flex items-center gap-2 p-3 rounded-2xl bg-primary/10 border border-primary/20 text-foreground text-xs font-medium animate-in fade-in">
+            <Info size={14} className="text-primary shrink-0" />
+            <span>{statusMessage}</span>
+          </div>
+        )}
+
+        <Card className="bg-card rounded-xl border-none shadow-none">
           <CardHeader className="pb-4">
             <CardTitle className="text-sm font-semibold">Profile</CardTitle>
             <CardDescription className="text-xs">Update your name and email</CardDescription>
@@ -589,8 +626,8 @@ export default function SettingsPage() {
               <Input
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="Your name"
-                className="h-10 bg-accent/30 rounded-full text-sm border-none"
+                placeholder="Your Name"
+                className="h-10 bg-input border border-border/50 rounded-full text-sm"
               />
             </div>
             <div className="space-y-1.5">
@@ -600,14 +637,20 @@ export default function SettingsPage() {
                 disabled
                 type="email"
                 placeholder="name@domain.com"
-                className="h-10 bg-accent/30 rounded-full text-sm border-none opacity-80"
+                className="h-10 bg-input border border-border/50 rounded-full text-sm opacity-80"
               />
             </div>
-            <Button className="w-fit h-9 rounded-2xl text-sm border-none">Save Changes</Button>
+            <Button
+              onClick={handleSaveProfile}
+              disabled={savingProfile}
+              className="w-fit h-9 rounded-2xl text-sm"
+            >
+              {savingProfile ? "Saving..." : "Save Changes"}
+            </Button>
           </CardContent>
         </Card>
 
-        <Card className="bg-card rounded-xl">
+        <Card className="bg-card rounded-xl border-none shadow-none">
           <CardHeader className="pb-4">
             <CardTitle className="text-sm font-semibold">Notifications</CardTitle>
             <CardDescription className="text-xs">Lock-screen alerts and sound for sales reminders</CardDescription>
@@ -617,7 +660,7 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        <Card className="bg-card rounded-xl">
+        <Card className="bg-card rounded-xl border-none shadow-none">
           <CardHeader className="pb-4">
             <CardTitle className="text-sm font-semibold">Password</CardTitle>
             <CardDescription className="text-xs">Update your password</CardDescription>
@@ -628,7 +671,9 @@ export default function SettingsPage() {
               <Input
                 type="password"
                 placeholder="Current password"
-                className="h-10 bg-accent/30 rounded-full text-sm border-none"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                className="h-10 bg-input border border-border/50 rounded-full text-sm"
               />
             </div>
             <div className="space-y-1.5">
@@ -636,24 +681,31 @@ export default function SettingsPage() {
               <Input
                 type="password"
                 placeholder="New password"
-                className="h-10 bg-accent/30 rounded-full text-sm border-none"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="h-10 bg-input border border-border/50 rounded-full text-sm"
               />
             </div>
-            <Button variant="secondary" className="w-fit h-9 rounded-2xl text-sm border-none">
-              Update Password
+            <Button
+              variant="secondary"
+              onClick={handlePasswordUpdate}
+              disabled={updatingPassword}
+              className="w-fit h-9 rounded-2xl text-sm"
+            >
+              {updatingPassword ? "Updating..." : "Update Password"}
             </Button>
           </CardContent>
         </Card>
 
-        <Card className="bg-rose-500/10 rounded-xl">
+        <Card className="bg-destructive-muted/30 border-none rounded-xl shadow-none">
           <CardHeader className="pb-4">
-            <CardTitle className="text-sm font-semibold text-rose-400">Danger Zone</CardTitle>
+            <CardTitle className="text-sm font-semibold text-destructive">Danger Zone</CardTitle>
             <CardDescription className="text-xs">Irreversible actions</CardDescription>
           </CardHeader>
           <CardContent>
             <Button
-              variant="secondary"
-              className="h-9 rounded-2xl text-sm text-rose-400 bg-rose-500/20 hover:bg-rose-500/30 border-none"
+              variant="destructive"
+              className="h-9 rounded-2xl text-sm"
             >
               Delete Account
             </Button>
@@ -742,11 +794,11 @@ function DesktopNotificationsSection() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {isSubscribed ? (
-            <div className="flex items-center justify-center size-8 rounded-full bg-emerald-500/10 text-emerald-400">
+            <div className="flex items-center justify-center size-8 rounded-full bg-success-muted text-success">
               <Bell size={16} />
             </div>
           ) : (
-            <div className="flex items-center justify-center size-8 rounded-full bg-accent/40 text-muted-foreground">
+            <div className="flex items-center justify-center size-8 rounded-full bg-secondary text-muted-foreground">
               <BellOffIcon size={16} />
             </div>
           )}
@@ -789,7 +841,7 @@ function DesktopNotificationsSection() {
 
       {statusMessage && (
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
-          <Check size={12} className="text-emerald-400" />
+          <Check size={12} className="text-success" />
           <span>{statusMessage}</span>
         </div>
       )}

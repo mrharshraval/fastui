@@ -120,7 +120,7 @@ function ActivityItemRow({
                 <MoreHorizontal size={14} />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-32 p-1.5 rounded-2xl border border-border/40 shadow-xl bg-background">
+            <DropdownMenuContent align="end" className="w-32">
               <DropdownMenuItem
                 onClick={onDelete}
                 className="min-h-8 px-2.5 rounded-xl cursor-pointer text-xs font-medium text-destructive focus:text-destructive"
@@ -176,6 +176,35 @@ function ActivityItemRow({
 export function BusinessProfileView() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
+
+  // ─── Current authenticated user (for activity attribution) ───
+  const [currentUser, setCurrentUser] = React.useState<{ user_id?: number; email?: string; name?: string } | null>(null)
+
+  React.useEffect(() => {
+    // 1. Instant hydration from cached identity
+    try {
+      const stored = localStorage.getItem("fastui_user")
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        if (parsed?.email) setCurrentUser(parsed)
+      }
+    } catch {}
+    // 2. Authoritative sync from backend session
+    api.get<{ user_id?: number; email?: string; name?: string }>("/auth/me")
+      .then((data) => { if (data?.email) setCurrentUser(data) })
+      .catch(() => {})
+  }, [])
+
+  // Derive a short display name for the current user
+  const currentUserName = React.useMemo(() => {
+    if (!currentUser) return "You"
+    if (currentUser.name) return currentUser.name
+    if (currentUser.email) {
+      const prefix = currentUser.email.split("@")[0]
+      return prefix.charAt(0).toUpperCase() + prefix.slice(1)
+    }
+    return "You"
+  }, [currentUser])
 
   const [business, setBusiness] = React.useState<BusinessDetail | null>(null)
 
@@ -345,7 +374,13 @@ export function BusinessProfileView() {
               website: comp.website || undefined,
               phone: comp.phone || undefined,
               email: comp.email || undefined,
-              whatsapp: comp.phone ? comp.phone.replace(/[^0-9]/g, "") : undefined,
+              whatsapp: comp.phone
+                ? (() => {
+                    const digits = comp.phone.replace(/[^0-9]/g, "")
+                    const clean = digits.startsWith("0") && digits.length === 11 ? digits.slice(1) : digits
+                    return clean.length === 10 ? `91${clean}` : clean
+                  })()
+                : undefined,
               created_at: comp.created_at || new Date().toISOString(),
               is_lead: comp.is_lead,
               qualification_status: comp.qualification_status,
@@ -359,7 +394,8 @@ export function BusinessProfileView() {
                 setActivities(
                   acts.map((a: any) => ({
                     id: String(a.id),
-                    user_name: "Harsh",
+                    // Use server-returned user_name if present, else current user name
+                    user_name: a.user_name || currentUserName,
                     action: formatActivityAction(a.type, a.outcome),
                     notes: a.notes || undefined,
                     timestamp: formatActivityTimestamp(a.created_at ? new Date(a.created_at) : new Date())
@@ -383,7 +419,8 @@ export function BusinessProfileView() {
                     due_date: r.due_at ? formatActivityTimestamp(new Date(r.due_at)) : "No date",
                     notes: r.notes || undefined,
                     status: r.status || "pending",
-                    user_name: "Harsh",
+                    // Use server-returned user_name if present, else current user name
+                    user_name: r.user_name || currentUserName,
                     timestamp: formatActivityTimestamp(r.created_at ? new Date(r.created_at) : new Date())
                   }))
                 )
@@ -427,7 +464,7 @@ export function BusinessProfileView() {
       
       const newActivity: ActivityItem = {
         id: `act-promote-${Date.now()}`,
-        user_name: "Harsh",
+        user_name: currentUserName,
         action: "Approved",
         notes: "Promoted to sales pipeline",
         timestamp: formatActivityTimestamp(new Date())
@@ -472,7 +509,7 @@ export function BusinessProfileView() {
 
     const newActivity: ActivityItem = {
       id: `act-local-${Date.now()}`,
-      user_name: "Harsh",
+      user_name: currentUserName,
       action: actionLabel,
       notes: targetValue,
       timestamp: formatActivityTimestamp(new Date())
@@ -513,7 +550,7 @@ export function BusinessProfileView() {
     const noteText = noteInput.trim()
     const newActivity: ActivityItem = {
       id: `act-note-${Date.now()}`,
-      user_name: "Harsh",
+      user_name: currentUserName,
       action: "Note added",
       notes: noteText,
       timestamp: formatActivityTimestamp(new Date())
@@ -565,7 +602,7 @@ export function BusinessProfileView() {
       due_date: formattedDue,
       notes: reminderContact ? `Contact: ${reminderContact}` : undefined,
       status: "pending",
-      user_name: "Harsh",
+      user_name: currentUserName,
       timestamp: formatActivityTimestamp(new Date())
     }
 
@@ -573,7 +610,7 @@ export function BusinessProfileView() {
 
     const newActivity: ActivityItem = {
       id: `act-reminder-${Date.now()}`,
-      user_name: "Harsh",
+      user_name: currentUserName,
       action: "Reminder set",
       notes: `${text} (${formattedDue})${reminderContact ? ` · Contact: ${reminderContact}` : ""}`,
       timestamp: formatActivityTimestamp(new Date())
@@ -790,7 +827,7 @@ export function BusinessProfileView() {
            ───────────────────────────────────────────────────────────── */}
         <div className="flex flex-col items-center w-full max-w-[540px] mx-auto text-center pt-2 md:pt-4 pb-6">
           {/* Circular Business Initial/Avatar */}
-          <div className="size-16 rounded-full bg-accent/70 text-foreground flex items-center justify-center text-xl font-bold tracking-tight shadow-sm select-none">
+          <div className="size-16 rounded-full bg-accent/70 text-foreground flex items-center justify-center text-xl font-bold tracking-tight shadow-none select-none">
             {initialLetter}
           </div>
 
@@ -856,7 +893,7 @@ export function BusinessProfileView() {
                 type="button"
                 onClick={handleAddToLeads}
                 disabled={addingToLeads}
-                className="h-8 px-4 rounded-full bg-[#007AFF] hover:bg-[#0062CC] text-white text-sm font-medium transition-all active:scale-[0.98] cursor-pointer inline-flex items-center justify-center shadow-xs disabled:opacity-50"
+                className="h-8 px-4 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium transition-all active:scale-[0.98] cursor-pointer inline-flex items-center justify-center disabled:opacity-50"
               >
                 <span>{addingToLeads ? "Approving…" : "Approve"}</span>
               </button>
@@ -883,7 +920,7 @@ export function BusinessProfileView() {
                 className={cn(
                   "h-9 px-3.5 rounded-full text-sm transition-colors cursor-pointer shrink-0 whitespace-nowrap",
                   activeTab === tab.id
-                    ? "bg-neutral-900 text-white dark:bg-white dark:text-black font-semibold shadow-sm"
+                    ? "bg-primary text-primary-foreground font-semibold"
                     : "text-muted-foreground hover:text-foreground font-medium"
                 )}
               >
@@ -898,7 +935,7 @@ export function BusinessProfileView() {
               <button
                 type="button"
                 onClick={() => setActiveSheet("note")}
-                className="flex items-center justify-center size-8 rounded-full bg-[#007AFF] hover:bg-[#0062CC] text-white shadow-xs active:scale-95 transition-all cursor-pointer"
+                className="flex items-center justify-center size-8 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground active:scale-95 transition-all cursor-pointer"
                 aria-label="Add note"
                 title="Add note"
               >
@@ -910,7 +947,7 @@ export function BusinessProfileView() {
               <button
                 type="button"
                 onClick={() => setActiveSheet("reminder")}
-                className="flex items-center justify-center size-8 rounded-full bg-[#007AFF] hover:bg-[#0062CC] text-white shadow-xs active:scale-95 transition-all cursor-pointer"
+                className="flex items-center justify-center size-8 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground active:scale-95 transition-all cursor-pointer"
                 aria-label="Add reminder"
                 title="Add reminder"
               >
@@ -935,8 +972,14 @@ export function BusinessProfileView() {
                   <ActivityItemRow
                     key={act.id}
                     act={act}
-                    onDelete={() => {
+                    onDelete={async () => {
                       setActivities((prev) => prev.filter((a) => a.id !== act.id))
+                      const numId = parseInt(act.id.replace(/[^0-9]/g, ""), 10)
+                      if (!isNaN(numId) && numId > 0 && act.id.includes("note")) {
+                        try {
+                          await api.delete(`/notes/${numId}`)
+                        } catch {}
+                      }
                     }}
                   />
                 ))}
@@ -979,18 +1022,30 @@ export function BusinessProfileView() {
                               <MoreHorizontal size={16} />
                             </button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-36 p-1.5 rounded-2xl border border-border/40 shadow-xl bg-background">
+                          <DropdownMenuContent align="end" className="w-36">
                             <DropdownMenuItem
-                              onClick={() => {
+                              onClick={async () => {
                                 setReminders((prev) => prev.filter((r) => r.id !== rem.id))
+                                const numId = parseInt(rem.id.replace(/[^0-9]/g, ""), 10)
+                                if (!isNaN(numId) && numId > 0) {
+                                  try {
+                                    await api.patch(`/reminders/${numId}`, { status: "completed" })
+                                  } catch {}
+                                }
                               }}
                               className="min-h-8 px-2.5 rounded-xl cursor-pointer text-xs font-medium"
                             >
                               Complete
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() => {
+                              onClick={async () => {
                                 setReminders((prev) => prev.filter((r) => r.id !== rem.id))
+                                const numId = parseInt(rem.id.replace(/[^0-9]/g, ""), 10)
+                                if (!isNaN(numId) && numId > 0) {
+                                  try {
+                                    await api.delete(`/reminders/${numId}`)
+                                  } catch {}
+                                }
                               }}
                               className="min-h-8 px-2.5 rounded-xl cursor-pointer text-xs font-medium text-destructive focus:text-destructive"
                             >
@@ -1107,7 +1162,7 @@ export function BusinessProfileView() {
           {/* Lightly Dimmed Backdrop */}
           <div
             onClick={() => setActiveSheet(null)}
-            className="fixed inset-0 bg-black/30 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
+            className="fixed inset-0 bg-backdrop backdrop-blur-[1px] transition-opacity animate-in fade-in duration-200"
           />
 
           {/* Floating Sheet Surface */}
@@ -1120,7 +1175,7 @@ export function BusinessProfileView() {
                 }
               }
             }}
-            className="relative z-10 w-full max-w-md bg-background rounded-[28px] shadow-[0_12px_40px_rgba(0,0,0,0.08)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.35)] border border-border/30 p-5 pt-3 pb-4 animate-in slide-in-from-bottom-6 duration-200 flex flex-col max-h-[calc(100dvh-3rem)] overflow-hidden"
+            className="relative z-10 w-full max-w-md bg-card rounded-[28px] shadow-sheet border border-border/30 p-5 pt-3 pb-4 animate-in slide-in-from-bottom-6 duration-200 flex flex-col max-h-[calc(100dvh-3rem)] overflow-hidden"
           >
             {/* Subtle Drag Handle */}
             <div className="w-9 h-1 rounded-full bg-muted-foreground/25 mx-auto mb-3 shrink-0" />
@@ -1164,7 +1219,7 @@ export function BusinessProfileView() {
                     type="button"
                     onClick={handleSaveNote}
                     disabled={!noteInput.trim() || submittingNote}
-                    className="h-8 px-4 rounded-full bg-[#007AFF] hover:bg-[#0062CC] text-white font-semibold text-xs transition-all cursor-pointer disabled:opacity-35 active:scale-[0.98] shadow-xs"
+                    className="h-8 px-4 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs transition-all cursor-pointer disabled:opacity-35 active:scale-[0.98]"
                   >
                     Save
                   </button>
@@ -1216,8 +1271,8 @@ export function BusinessProfileView() {
                           className={cn(
                             "h-7 px-3 rounded-full text-xs transition-colors cursor-pointer shrink-0 whitespace-nowrap select-none",
                             isSelected
-                              ? "bg-neutral-900 text-white dark:bg-white dark:text-black font-semibold shadow-sm"
-                              : "bg-accent/40 hover:bg-accent/70 text-muted-foreground hover:text-foreground font-medium"
+                              ? "bg-primary text-primary-foreground font-semibold"
+                              : "bg-secondary hover:bg-secondary/80 text-muted-foreground hover:text-foreground font-medium"
                           )}
                         >
                           {d.label}
@@ -1252,8 +1307,8 @@ export function BusinessProfileView() {
                           className={cn(
                             "h-7 px-3 rounded-full text-xs transition-colors cursor-pointer shrink-0 whitespace-nowrap select-none",
                             isSelected
-                              ? "bg-neutral-900 text-white dark:bg-white dark:text-black font-semibold shadow-sm"
-                              : "bg-accent/40 hover:bg-accent/70 text-muted-foreground hover:text-foreground font-medium"
+                              ? "bg-primary text-primary-foreground font-semibold"
+                              : "bg-secondary hover:bg-secondary/80 text-muted-foreground hover:text-foreground font-medium"
                           )}
                         >
                           {t.label}
@@ -1316,7 +1371,7 @@ export function BusinessProfileView() {
                     type="button"
                     onClick={handleSaveReminder}
                     disabled={!reminderText.trim() || submittingReminder}
-                    className="h-8 px-4 rounded-full bg-[#007AFF] hover:bg-[#0062CC] text-white font-semibold text-xs transition-all cursor-pointer disabled:opacity-35 active:scale-[0.98] shadow-xs"
+                    className="h-8 px-4 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs transition-all cursor-pointer disabled:opacity-35 active:scale-[0.98]"
                   >
                     Save
                   </button>

@@ -47,7 +47,7 @@ export function EmptyState({
               <button
                 type="button"
                 onClick={primaryAction.onClick}
-                className="h-[44px] w-full max-w-[280px] rounded-full bg-[#007AFF] text-white hover:bg-[#0055CC] active:scale-[0.98] transition-all font-semibold text-[15px] shadow-sm"
+                className="h-[44px] w-full max-w-[280px] rounded-full bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-all font-semibold text-[15px] cursor-pointer"
               >
                 {primaryAction.label}
               </button>
@@ -56,7 +56,7 @@ export function EmptyState({
               <button
                 type="button"
                 onClick={secondaryAction.onClick}
-                className="h-[44px] w-full max-w-[280px] rounded-full bg-accent hover:bg-accent/80 text-foreground active:scale-[0.98] transition-all font-medium text-[15px]"
+                className="h-[44px] w-full max-w-[280px] rounded-full bg-secondary hover:bg-secondary/80 text-secondary-foreground active:scale-[0.98] transition-all font-medium text-[15px] cursor-pointer"
               >
                 {secondaryAction.label}
               </button>

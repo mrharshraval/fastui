@@ -37,6 +37,7 @@ class WorkerSettings(BaseSettings):
     MAX_CONCURRENT_SCRAPERS: int = 3
     HEADLESS_BROWSER: bool = True
     BROWSER_TIMEOUT_MS: int = 30000
+    MEMORY_SAFETY_LIMIT_MB: float = 2048.0
 
     model_config = SettingsConfigDict(
         env_file=[

@@ -59,7 +59,7 @@ export default function RootLayout({
         />
       </head>
 
-      <body>
+      <body className="bg-background text-foreground min-h-screen selection:bg-primary/20">
         <ThemeProvider>
           <TooltipProvider delayDuration={300}>
             {children}

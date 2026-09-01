@@ -12,32 +12,31 @@ from sqlalchemy import and_, func, or_, select
 from models.schema import Business, BusinessSource
 
 
+from utils.phone import normalize_global_phone, resolve_country_code
+
+
 class LeadDeduplicator:
     """
     Encapsulates phone, website, place ID, and business entity deduplication algorithms.
     """
 
     @staticmethod
-    def normalize_phone(phone: Optional[str]) -> Optional[str]:
+    def format_display_phone(phone: Optional[str], location: Optional[str] = None) -> Optional[str]:
+        """
+        Formats phone number for clean human display with universal country code.
+        Strips domestic trunk '0' and standardizes worldwide.
+        """
+        display_phone, _ = normalize_global_phone(phone, location=location)
+        return display_phone
+
+    @staticmethod
+    def normalize_phone(phone: Optional[str], location: Optional[str] = None) -> Optional[str]:
         """
         Normalizes a phone number to canonical E.164-style standard format (+<digits>).
-        Strips whitespace, hyphens, parentheses, and non-numeric characters.
-        Defaults 10-digit Indian numbers to +91 country code.
+        Strips whitespace, hyphens, parentheses, and leading trunk zeros.
         """
-        if not phone or not isinstance(phone, str):
-            return None
-
-        digits = re.sub(r"\D", "", phone)
-        if not digits:
-            return None
-
-        # Handle leading 0 (e.g. 07046335733 -> 10-digit Indian number)
-        if digits.startswith("0") and len(digits) == 11:
-            digits = digits[1:]
-
-        if len(digits) == 10:
-            return f"+91{digits}"
-        return f"+{digits}"
+        _, e164 = normalize_global_phone(phone, location=location)
+        return e164
 
     @staticmethod
     def normalize_website(website: Optional[str]) -> Optional[str]:

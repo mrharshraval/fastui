@@ -26,10 +26,10 @@ class MemoryTracker:
     Logs structured memory metrics and provides safety cutoff checks.
     """
 
-    DEFAULT_SAFETY_LIMIT_MB = 800.0  # Safe threshold below Cloud Run 1024 MB / 2048 MB limit
+    DEFAULT_SAFETY_LIMIT_MB = float(os.getenv("MEMORY_SAFETY_LIMIT_MB", "2048.0"))
 
-    def __init__(self, safety_limit_mb: float = DEFAULT_SAFETY_LIMIT_MB) -> None:
-        self.safety_limit_mb = safety_limit_mb
+    def __init__(self, safety_limit_mb: Optional[float] = None) -> None:
+        self.safety_limit_mb = safety_limit_mb if safety_limit_mb is not None else float(os.getenv("MEMORY_SAFETY_LIMIT_MB", "2048.0"))
         self.peak_rss_mb: float = 0.0
         self._update_peak()
 

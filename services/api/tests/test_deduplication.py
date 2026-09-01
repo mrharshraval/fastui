@@ -5,9 +5,16 @@ from services.deduplication import normalize_phone, normalize_website, is_duplic
 from models.schema import Business
 
 def test_normalize_phone():
+    # India with and without leading 0
     assert normalize_phone("+91 98765 43210") == "+919876543210"
     assert normalize_phone("9876543210") == "+919876543210"
+    assert normalize_phone("09876543210", location="Ahmedabad, Gujarat, India") == "+919876543210"
+    assert normalize_phone("079 2640 1234", location="Ahmedabad, Gujarat, India") == "+917926401234"
+
+    # UK, USA, UAE with leading domestic 0
     assert normalize_phone("+1 (415) 555-1234") == "+14155551234"
+    assert normalize_phone("020 7946 0919", location="London, UK") == "+442079460919"
+    assert normalize_phone("04 123 4567", location="Dubai, UAE") == "+97141234567"
     assert normalize_phone(None) is None
     assert normalize_phone("") is None
 

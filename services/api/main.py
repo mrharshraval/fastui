@@ -15,10 +15,9 @@ service_dir = os.path.abspath(os.path.dirname(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 sys.path.insert(0, service_dir)
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-)
+from core.logger import setup_logging
+
+setup_logging(service_name="fastui-api")
 logger = logging.getLogger("fastui.api")
 
 from contextlib import asynccontextmanager

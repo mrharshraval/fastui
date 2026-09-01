@@ -35,8 +35,12 @@ class WorkerTokenVerifier:
         """
         expected_token = self.configured_token
 
+        # In non-production environments (local dev/test), allow local requests
+        if settings.ENVIRONMENT != "production":
+            if not x_worker_token or not expected_token:
+                return True
+
         if not expected_token:
-            # If the worker requires token authentication but no token was configured in env
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Worker authentication is not configured",

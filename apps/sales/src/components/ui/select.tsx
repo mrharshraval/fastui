@@ -71,7 +71,7 @@ function SelectContent({
         data-slot="select-content"
         data-align-trigger={position === "item-aligned"}
         className={cn(
-          "relative z-50 max-h-72 min-w-[var(--radix-select-trigger-width)] overflow-x-hidden overflow-y-auto rounded-xl bg-popover/95 text-popover-foreground backdrop-blur-xl border border-border/60 shadow-xl p-1.5 duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "relative z-50 max-h-72 min-w-[var(--radix-select-trigger-width)] overflow-x-hidden overflow-y-auto rounded-2xl bg-popover text-popover-foreground shadow-elevated border border-border dark:border-white/10 p-1.5 duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className
         )}
         position={position}

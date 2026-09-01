@@ -24,6 +24,7 @@ async def create_export(
     export_id = str(uuid.uuid4())
     job = ExportJob(
         id=export_id,
+        user_id=current_user.user_id,
         status=ExportStatus.QUEUED,
         progress_percent=0,
         records_processed=0,

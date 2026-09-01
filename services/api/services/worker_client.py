@@ -1,7 +1,8 @@
 """
-FastUI Worker Client
-====================
-Thin HTTP client for dispatching discovery jobs to the private Cloud Run Worker.
+FastUI API - Cloud Run Worker Client (Authoritative)
+====================================================
+Production-grade HTTP client communicating with the external Cloud Run Worker.
+Handles OIDC authentication, retry budgets, exponential backoff, and envelope validation.
 
 Authentication strategy:
 - Cloud Run IAM (Production Render → Cloud Run):
@@ -99,7 +100,7 @@ class WorkerClient:
         """
         Sends a POST /discover request to the Cloud Run Worker and returns a DiscoverResponse envelope.
         """
-        worker_url = settings.WORKER_URL
+        worker_url = os.getenv("WORKER_URL") or settings.WORKER_URL
         if not worker_url:
             raise ValueError(
                 "WORKER_URL is not configured. Real scraper worker on Cloud Run is required. "
@@ -112,8 +113,16 @@ class WorkerClient:
         headers = {"Content-Type": "application/json"}
 
         # Attach application-level worker authentication token if configured
-        if settings.WORKER_TOKEN:
-            headers["X-Worker-Token"] = settings.WORKER_TOKEN
+        worker_token = os.getenv("WORKER_TOKEN") or settings.WORKER_TOKEN
+        if worker_token:
+            headers["X-Worker-Token"] = worker_token
+
+        # Forward distributed correlation ID
+        from core.logger import correlation_id_ctx
+        corr_id = correlation_id_ctx.get()
+        if corr_id:
+            headers["X-Correlation-ID"] = corr_id
+            headers["X-Request-ID"] = corr_id
 
         # Generate Google OIDC token if calling a remote HTTPS Cloud Run URL
         if worker_url.startswith("https://"):

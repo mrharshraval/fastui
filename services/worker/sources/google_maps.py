@@ -26,17 +26,21 @@ def clean_unicode_spaces(text: str) -> str:
     return text.replace('\u202f', ' ').replace('\xa0', ' ').replace('\u200b', ' ').strip()
 
 
-def extract_phone_number(text: str) -> Optional[str]:
+from utils.phone import normalize_global_phone
+
+
+def extract_phone_number(text: str, location: Optional[str] = None) -> Optional[str]:
     cleaned = clean_unicode_spaces(text)
     if not cleaned:
         return None
     candidates = PHONE_REGEX.findall(cleaned)
     for c in candidates:
         c_clean = c.strip()
-        digits = sum(ch.isdigit() for ch in c_clean)
+        digits = sum(ch.isdigit() for c in c_clean)
         if 8 <= digits <= 15:
             if not (c_clean.startswith(('19', '20')) and digits <= 8):
-                return c_clean
+                display_phone, _ = normalize_global_phone(c_clean, location=location)
+                return display_phone
     return None
 
 
@@ -136,138 +140,203 @@ class GoogleMapsScraper(PlaywrightScraper):
 
             # Handle Google Consent popup if present
             try:
-                consent_btn = await page.query_selector('button[aria-label*="Accept all"], button[aria-label*="Agree"]')
+                consent_btn = await page.query_selector(
+                    'button[aria-label*="Accept all"], button[aria-label*="Agree"], form[action*="consent"] button, button:has-text("Accept all"), button:has-text("I agree")'
+                )
                 if consent_btn:
                     await consent_btn.click()
-                    await asyncio.sleep(0.5)
+                    await asyncio.sleep(0.8)
             except Exception:
                 pass
 
-            # Wait for results feed
+            # Wait for results feed with graceful timeout
             feed_selector = 'div[role="feed"]'
+            has_feed = True
             try:
-                await page.wait_for_selector(feed_selector, timeout=8000)
+                await page.wait_for_selector(feed_selector, timeout=6000)
             except Exception:
                 try:
-                    await page.wait_for_selector('div[role="article"], a[href*="/maps/place/"]', timeout=4000)
+                    await page.wait_for_selector('div[role="article"], div.Nv2PK, a[href*="/maps/place/"]', timeout=4000)
                 except Exception:
+                    has_feed = False
                     logger.info(f"No listings rendered for query '{search_query}'.")
                     continue
 
             # Auto-scroll loop to load listings up to remaining target
-            previous_count = 0
             scroll_attempts = 0
             max_scroll_attempts = 15
+            previous_count = 0
 
             for _ in range(max_scroll_attempts):
                 if len(leads) >= target_limit or not memory_tracker.is_memory_safe():
                     break
 
-                articles = await page.query_selector_all('div[role="article"], div.Nv2PK')
-                current_count = len(articles)
+                # Count current cards
+                card_count = await page.evaluate('''() => {
+                    return document.querySelectorAll('div[role="article"], div.Nv2PK, a.hfpxzc').length;
+                }''')
 
-                if current_count >= (target_limit - len(leads)):
+                if card_count >= (target_limit - len(leads)):
                     break
 
-                if current_count == previous_count:
+                if card_count == previous_count:
                     scroll_attempts += 1
                     if scroll_attempts >= 3:
                         break
                 else:
                     scroll_attempts = 0
 
-                previous_count = current_count
+                previous_count = card_count
 
-                # Check if end of list reached
-                end_indicator = await page.query_selector("span.HlvSq, div.fontTitleSmall:has-text('reached the end')")
-                if end_indicator:
-                    break
+                # Scroll the feed or main scrollable container
+                scrolled = await page.evaluate('''() => {
+                    const selectors = [
+                        'div[role="feed"]',
+                        'div.m6QErb[aria-label*="Results for"]',
+                        'div.m6QErb.DxyBCb',
+                        'div.m6QErb',
+                        'div[role="main"]'
+                    ];
+                    for (const sel of selectors) {
+                        const el = document.querySelector(sel);
+                        if (el && el.scrollHeight > el.clientHeight) {
+                            el.scrollTop = el.scrollHeight;
+                            return true;
+                        }
+                    }
+                    window.scrollTo(0, document.body.scrollHeight);
+                    return false;
+                }''')
 
-                try:
-                    await page.evaluate(f'''
-                        const feed = document.querySelector('{feed_selector}');
-                        if (feed) {{
-                            feed.scrollTop = feed.scrollHeight;
-                        }}
-                    ''')
-                    await asyncio.sleep(1.0)
-                except Exception:
-                    break
+                await asyncio.sleep(1.2)
 
-            # Extract listings
-            articles = await page.query_selector_all('div[role="article"], div.Nv2PK')
+            # Check if Google Maps redirected to a single place page
+            current_url = page.url
+            if "/maps/place/" in current_url:
+                single_lead_data = await page.evaluate('''() => {
+                    const nameEl = document.querySelector('h1.DUwDvf, h1.fontHeadlineLarge, h1');
+                    const name = nameEl ? nameEl.innerText.trim() : null;
+                    if (!name) return null;
 
-            for article in articles:
+                    const webEl = document.querySelector('a[data-item-id="authority"], a[aria-label*="website" i]');
+                    const website = webEl ? webEl.href : null;
+
+                    const phoneEl = document.querySelector('button[data-item-id*="phone"], button[aria-label*="Phone" i]');
+                    let phone = null;
+                    if (phoneEl) {
+                        phone = phoneEl.getAttribute('aria-label') || phoneEl.innerText;
+                    }
+
+                    const addrEl = document.querySelector('button[data-item-id*="address"], button[aria-label*="Address" i]');
+                    let address = null;
+                    if (addrEl) {
+                        address = (addrEl.getAttribute('aria-label') || addrEl.innerText || '').replace(/^Address:\s*/i, '').trim();
+                    }
+
+                    return { name, website, phone, address };
+                }''')
+
+                if single_lead_data and single_lead_data.get("name"):
+                    s_name = clean_unicode_spaces(single_lead_data["name"])
+                    if s_name.lower() not in seen_names:
+                        seen_names.add(s_name.lower())
+                        leads.append(DiscoveredLead(
+                            name=s_name,
+                            category=target_audience if target_audience else "Business",
+                            city=location,
+                            address=clean_unicode_spaces(single_lead_data.get("address") or ""),
+                            phone=extract_phone_number(single_lead_data.get("phone") or "", location=location),
+                            website=single_lead_data.get("website"),
+                            source_platform="google_maps",
+                            source_place_id=extract_place_id(current_url),
+                            source_url=current_url,
+                        ))
+                continue
+
+            # Batch extract all listing cards directly via evaluate
+            raw_listings = await page.evaluate('''() => {
+                const items = [];
+                const cards = document.querySelectorAll('div.Nv2PK, div[role="article"]');
+
+                for (const card of cards) {
+                    try {
+                        const nameEl = card.querySelector('div.fontHeadlineSmall, div.qBF1Pd, .qBF1Pd, a.hfpxzc');
+                        let name = '';
+                        if (nameEl) {
+                            name = nameEl.innerText ? nameEl.innerText.trim() : (nameEl.getAttribute('aria-label') || '').trim();
+                        }
+                        if (!name || name.length < 2) continue;
+
+                        let href = '';
+                        const linkEl = card.querySelector('a.hfpxzc, a[href*="/maps/place/"]');
+                        if (linkEl) {
+                            href = linkEl.getAttribute('href') || '';
+                        }
+
+                        let website = '';
+                        const webEl = card.querySelector('a[data-value="Website"], a[aria-label*="website" i], a[data-item-id="authority"]');
+                        if (webEl) {
+                            website = webEl.getAttribute('href') || '';
+                        }
+
+                        // Collect all text from sub-containers for address, category & phone parsing
+                        const textBlobs = [];
+                        const textEls = card.querySelectorAll('div.W4Efsd, span.fontBodyMedium');
+                        for (const tel of textEls) {
+                            if (tel.innerText) {
+                                textBlobs.push(tel.innerText.trim());
+                            }
+                        }
+
+                        const fullText = card.innerText || '';
+
+                        items.push({
+                            name,
+                            href,
+                            website,
+                            textBlobs,
+                            fullText
+                        });
+                    } catch (e) {}
+                }
+                return items;
+            }''')
+
+            for item in raw_listings:
                 if len(leads) >= target_limit or not memory_tracker.is_memory_safe():
                     break
 
                 try:
-                    name_element = await article.query_selector('div.fontHeadlineSmall, div.qBF1Pd, .qBF1Pd')
-                    if not name_element:
-                        continue
-                    name = clean_unicode_spaces(await name_element.inner_text())
+                    name = clean_unicode_spaces(item.get("name", ""))
                     if not name or name.lower() in seen_names:
                         continue
 
-                    raw_text = await article.inner_text()
-                    text_content = clean_unicode_spaces(raw_text)
+                    full_text = clean_unicode_spaces(item.get("fullText", ""))
+                    phone = extract_phone_number(full_text, location=location)
+                    
+                    # Try text blobs if phone not found in full text
+                    if not phone:
+                        for blob in item.get("textBlobs", []):
+                            phone = extract_phone_number(blob, location=location)
+                            if phone:
+                                break
 
-                    phone = extract_phone_number(text_content)
-                    website = None
-                    category = target_audience if target_audience else "Business"
+                    website = item.get("website") or None
+                    place_href = item.get("href") or None
+                    source_place_id = extract_place_id(place_href)
+
+                    # Extract address from text blobs
                     address = None
-                    source_place_id = None
-                    place_href = None
-
-                    website_link = await article.query_selector('a[data-value="Website"], a[aria-label*="website" i]')
-                    if website_link:
-                        href = await website_link.get_attribute("href")
-                        if href:
-                            website = href
-
-                    link_el = await article.query_selector('a.hfpxzc, a[href*="/maps/place/"]')
-                    if link_el:
-                        place_href = await link_el.get_attribute("href")
-                        source_place_id = extract_place_id(place_href)
-
-                        # Only click detail pane if vital contact details are missing and under bounded count
-                        if not phone or not website:
-                            try:
-                                await link_el.click()
-                                await asyncio.sleep(0.6)
-
-                                if not phone:
-                                    phone_el = await page.query_selector(
-                                        'button[data-item-id*="phone"], button[aria-label*="Phone" i], [data-item-id*="phone"]'
-                                    )
-                                    if phone_el:
-                                        phone_aria = clean_unicode_spaces(await phone_el.get_attribute("aria-label") or "")
-                                        phone_txt = clean_unicode_spaces(await phone_el.inner_text() or "")
-                                        phone = extract_phone_number(phone_aria or phone_txt)
-
-                                if not website:
-                                    web_el = await page.query_selector(
-                                        'a[data-item-id*="authority"], a[aria-label*="Website" i]'
-                                    )
-                                    if web_el:
-                                        website = await web_el.get_attribute("href")
-
-                                addr_el = await page.query_selector(
-                                    'button[data-item-id*="address"], button[aria-label*="Address:" i]'
-                                )
-                                if addr_el:
-                                    addr_aria = clean_unicode_spaces(await addr_el.get_attribute("aria-label") or "")
-                                    addr_txt = clean_unicode_spaces(await addr_el.inner_text() or "")
-                                    full_addr = (addr_aria or addr_txt).replace("Address:", "").strip()
-                                    if full_addr:
-                                        address = full_addr
-                            except Exception as e:
-                                logger.debug(f"Detail pane extraction skipped for {name}: {e}")
+                    for blob in item.get("textBlobs", []):
+                        # Address blobs usually contain commas or location keywords and are distinct from review counts
+                        if any(c.isdigit() for c in blob) and len(blob) > 10 and not blob.startswith(('(', '★', 'http')):
+                            address = clean_unicode_spaces(blob)
+                            break
 
                     seen_names.add(name.lower())
                     leads.append(DiscoveredLead(
                         name=name,
-                        category=category,
+                        category=target_audience if target_audience else "Business",
                         city=location,
                         address=address,
                         phone=phone,
@@ -276,9 +345,8 @@ class GoogleMapsScraper(PlaywrightScraper):
                         source_place_id=source_place_id,
                         source_url=place_href or url,
                     ))
-
                 except Exception as e:
-                    logger.debug(f"Skipped article: {e}")
+                    logger.debug(f"Error parsing item: {e}")
 
         # Mark source exhausted if fewer leads found than target limit across all queries
         if len(leads) < target_limit:

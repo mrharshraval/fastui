@@ -22,6 +22,7 @@ async def create_discovery_job(
     Creates a lead discovery job and enqueues the scraping task in the background.
     """
     job = DiscoveryJob(
+        user_id=current_user.user_id,
         query=query.model_dump(),
         status=JobStatus.QUEUED
     )

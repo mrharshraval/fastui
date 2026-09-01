@@ -25,23 +25,21 @@ from utils.memory import memory_tracker
 
 logger = logging.getLogger(__name__)
 
-# Resource types blocked to drastically reduce Chromium memory and network overhead
-BLOCKED_RESOURCE_TYPES = {"image", "media", "font", "websocket"}
+# Resource types blocked to optimize memory without breaking map RPCs/fonts
+BLOCKED_RESOURCE_TYPES = {"image", "media"}
 
-# Domains/keywords to abort (analytics, trackers, heavy ads)
+# Specific third-party ad/tracker domains to abort (never match generic keywords that break search RPCs)
 BLOCKED_URL_PATTERNS = (
     "google-analytics.com",
     "googletagmanager.com",
     "doubleclick.net",
     "facebook.net",
-    "analytics",
-    "tracker",
-    "ads",
+    "adservice.google.com",
 )
 
 
 async def _route_interceptor(route: Route) -> None:
-    """Blocks non-essential resources to optimize memory and speed."""
+    """Blocks non-essential images and third-party trackers to optimize memory and speed."""
     request = route.request
     resource_type = request.resource_type
     url = request.url.lower()
@@ -50,7 +48,7 @@ async def _route_interceptor(route: Route) -> None:
         await route.abort()
         return
 
-    if any(pattern in url for pattern in BLOCKED_URL_PATTERNS):
+    if any(domain in url for domain in BLOCKED_URL_PATTERNS):
         await route.abort()
         return
 
@@ -164,15 +162,25 @@ class PlaywrightScraper(DiscoverySourceAdapter, ABC):
             self.context = await self.browser.new_context(
                 viewport={"width": DEFAULT_VIEWPORT_WIDTH, "height": DEFAULT_VIEWPORT_HEIGHT},
                 user_agent=DEFAULT_USER_AGENT,
+                locale="en-US",
+                timezone_id="Asia/Kolkata",
             )
 
-            # Auto-close any unexpectedly spawned popup pages to prevent memory leaks
-            self.context.on("page", lambda p: asyncio.create_task(p.close()))
+            # Inject anti-detection evasions
+            await self.context.add_init_script("""
+                Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+                window.chrome = { runtime: {} };
+                Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+                Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+            """)
 
             # Enable resource blocking
             await self.context.route("**/*", _route_interceptor)
 
             self.page = await self.context.new_page()
+
+            # Auto-close popup tabs if a website tries to open a new tab
+            self.page.on("popup", lambda popup: asyncio.create_task(popup.close()))
 
             memory_tracker.log_stage(
                 "browser_started",

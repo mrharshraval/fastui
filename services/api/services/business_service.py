@@ -5,19 +5,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_, desc, asc
 from sqlalchemy.orm import selectinload
 
+from core.exceptions import EntityNotFoundException
 from models.schema import (
     Business, Lead, Contact, Note, Task, Reminder,
-    Outreach, Interaction, Activity,
+    Outreach, Interaction, Activity, User,
     PipelineStage, LeadPriority, LeadSignal,
     OutreachChannel, OutreachStatus, InteractionType,
     ActivityType, TaskStatus, ReminderStatus
 )
 from schemas.businesses import (
-    StageUpdateResponse, BusinessResponse,
+    StageUpdateResponse, BusinessResponse, BusinessUpdateRequest,
     OutreachCreateRequest, InteractionCreateRequest,
     NoteCreateRequest, TaskCreateRequest, TaskUpdateRequest,
     ReminderCreateRequest, ReminderUpdateRequest,
-    BulkAddToLeadsResponse
+    BulkAddToLeadsResponse, BulkDeleteResponse, PipelineDealResponse
 )
 from schemas.auth import TokenData
 
@@ -737,8 +738,16 @@ class BusinessService:
         return task
 
     @staticmethod
-    async def get_all_tasks(session: AsyncSession, status: Optional[str] = None) -> List[Task]:
+    async def get_all_tasks(
+        session: AsyncSession,
+        status: Optional[str] = None,
+        user_id: Optional[int] = None
+    ) -> List[Task]:
+        """Returns tasks scoped to the authenticated user."""
         query = select(Task)
+        # Scope to current user — never leak cross-user tasks
+        if user_id is not None:
+            query = query.where(Task.user_id == user_id)
         if status and status.lower() != "all":
             for st in TaskStatus:
                 if st.value == status.lower():
@@ -838,8 +847,16 @@ class BusinessService:
         return reminder
 
     @staticmethod
-    async def get_all_reminders(session: AsyncSession, status: Optional[str] = None) -> List[Reminder]:
+    async def get_all_reminders(
+        session: AsyncSession,
+        status: Optional[str] = None,
+        user_id: Optional[int] = None
+    ) -> List[Reminder]:
+        """Returns reminders scoped to the authenticated user."""
         query = select(Reminder)
+        # Scope to current user — never leak cross-user reminders
+        if user_id is not None:
+            query = query.where(Reminder.user_id == user_id)
         if status and status.lower() != "all":
             for st in ReminderStatus:
                 if st.value == status.lower():
@@ -853,13 +870,282 @@ class BusinessService:
     # ACTIVITY (Timeline audit stream)
     # ─────────────────────────────────────────────────────────────
     @staticmethod
-    async def get_business_activities(session: AsyncSession, business_id: int) -> List[Activity]:
-        query = select(Activity).where(Activity.business_id == business_id).order_by(desc(Activity.created_at))
+    async def get_business_activities(
+        session: AsyncSession,
+        business_id: int
+    ) -> List[Dict[str, Any]]:
+        """
+        Returns activities for a business, joined with User to provide
+        the actor's display name (user_name) for correct frontend attribution.
+        """
+        query = (
+            select(Activity, User)
+            .outerjoin(User, Activity.user_id == User.id)
+            .where(Activity.business_id == business_id)
+            .order_by(desc(Activity.created_at))
+        )
         result = await session.execute(query)
-        return list(result.scalars().all())
+        rows = result.all()
+
+        enriched = []
+        for activity, user in rows:
+            # Derive a display-ready name: full name first, then email prefix, then None
+            user_name: Optional[str] = None
+            if user:
+                if user.name:
+                    user_name = user.name
+                elif user.email:
+                    user_name = user.email.split("@")[0].capitalize()
+            enriched.append({
+                "activity": activity,
+                "user_name": user_name,
+            })
+        return enriched
 
     @staticmethod
-    async def get_all_activities(session: AsyncSession, limit: int = 50) -> List[Activity]:
-        query = select(Activity).order_by(desc(Activity.created_at)).limit(limit)
+    async def get_all_activities(
+        session: AsyncSession,
+        limit: int = 50,
+        user_id: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Returns global activities enriched with actor name.
+        When user_id is provided, scopes results to that user.
+        """
+        query = (
+            select(Activity, User)
+            .outerjoin(User, Activity.user_id == User.id)
+        )
+        # Scope to authenticated user when provided
+        if user_id is not None:
+            query = query.where(Activity.user_id == user_id)
+        query = query.order_by(desc(Activity.created_at)).limit(limit)
         result = await session.execute(query)
-        return list(result.scalars().all())
+        rows = result.all()
+
+        enriched = []
+        for activity, user in rows:
+            user_name: Optional[str] = None
+            if user:
+                if user.name:
+                    user_name = user.name
+                elif user.email:
+                    user_name = user.email.split("@")[0].capitalize()
+            enriched.append({
+                "activity": activity,
+                "user_name": user_name,
+            })
+        return enriched
+
+    @staticmethod
+    async def update_business(
+        session: AsyncSession,
+        business_id: int,
+        req: BusinessUpdateRequest,
+        current_user: TokenData
+    ) -> BusinessResponse:
+        """
+        Updates business and associated lead details and records changes to database.
+        """
+        business = await session.get(Business, business_id)
+        if not business:
+            raise EntityNotFoundException("Business", business_id)
+
+        if req.business_name is not None:
+            business.business_name = req.business_name.strip()
+        if req.category is not None:
+            business.category = req.category.strip()
+        if req.phone is not None:
+            business.phone = req.phone.strip()
+            business.has_whatsapp = bool(business.phone)
+        if req.email is not None:
+            business.email = req.email.strip()
+        if req.website is not None:
+            business.website = req.website.strip()
+        if req.address is not None:
+            business.address = req.address.strip()
+        if req.city is not None:
+            business.city = req.city.strip()
+        if req.state is not None:
+            business.state = req.state.strip()
+        if req.country is not None:
+            business.country = req.country.strip()
+        if req.postal_code is not None:
+            business.postal_code = req.postal_code.strip()
+        if req.qualification_status is not None:
+            business.qualification_status = req.qualification_status.lower()
+
+        # Check for associated lead to update lead-specific fields
+        lead_res = await session.execute(select(Lead).where(Lead.business_id == business_id))
+        lead = lead_res.scalar_one_or_none()
+
+        if lead:
+            if req.stage is not None:
+                for s in PipelineStage:
+                    if s.value.lower() == req.stage.lower():
+                        lead.stage = s
+                        break
+            if req.priority is not None:
+                for p in LeadPriority:
+                    if p.value.lower() == req.priority.lower():
+                        lead.priority = p
+                        break
+            if req.signal is not None:
+                for sg in LeadSignal:
+                    if sg.value.lower() == req.signal.lower():
+                        lead.signal = sg
+                        break
+            if req.score is not None:
+                lead.score = req.score
+
+        activity = Activity(
+            business_id=business.id,
+            user_id=current_user.user_id,
+            type=ActivityType.INTERACTION_LOGGED,
+            channel="crm",
+            outcome="Record updated",
+            notes=f"Updated details for {business.business_name}",
+            entity_type="business",
+            entity_id=business.id
+        )
+        session.add(activity)
+
+        await session.commit()
+        await session.refresh(business)
+        return await BusinessService.get_business_by_id(session=session, business_id=business_id)
+
+    @staticmethod
+    async def delete_business(
+        session: AsyncSession,
+        business_id: int,
+        current_user: TokenData
+    ) -> Dict[str, Any]:
+        """
+        Deletes a business record and all related cascade entities (leads, notes, tasks, reminders, activities).
+        """
+        business = await session.get(Business, business_id)
+        if not business:
+            raise EntityNotFoundException("Business", business_id)
+
+        name = business.business_name
+        await session.delete(business)
+        await session.commit()
+        logger.info(f"Deleted business ID {business_id} ('{name}') by user {current_user.email}")
+        return {"status": "deleted", "id": business_id, "name": name}
+
+    @staticmethod
+    async def bulk_delete_businesses(
+        session: AsyncSession,
+        business_ids: List[int],
+        current_user: TokenData
+    ) -> BulkDeleteResponse:
+        """
+        Bulk deletes multiple business records.
+        """
+        if not business_ids:
+            return BulkDeleteResponse(message="No business IDs provided", deleted_count=0, business_ids=[])
+
+        deleted_ids = []
+        for b_id in business_ids:
+            business = await session.get(Business, b_id)
+            if business:
+                await session.delete(business)
+                deleted_ids.append(b_id)
+
+        await session.commit()
+        logger.info(f"Bulk deleted {len(deleted_ids)} businesses by user {current_user.email}")
+        return BulkDeleteResponse(
+            message=f"Successfully deleted {len(deleted_ids)} records",
+            deleted_count=len(deleted_ids),
+            business_ids=deleted_ids
+        )
+
+    @staticmethod
+    async def delete_note(
+        session: AsyncSession,
+        note_id: int,
+        current_user: TokenData
+    ) -> Dict[str, Any]:
+        note = await session.get(Note, note_id)
+        if not note:
+            raise EntityNotFoundException("Note", note_id)
+        await session.delete(note)
+        await session.commit()
+        return {"status": "deleted", "id": note_id}
+
+    @staticmethod
+    async def delete_task(
+        session: AsyncSession,
+        task_id: int,
+        current_user: TokenData
+    ) -> Dict[str, Any]:
+        task = await session.get(Task, task_id)
+        if not task:
+            raise EntityNotFoundException("Task", task_id)
+        await session.delete(task)
+        await session.commit()
+        return {"status": "deleted", "id": task_id}
+
+    @staticmethod
+    async def delete_reminder(
+        session: AsyncSession,
+        reminder_id: int,
+        current_user: TokenData
+    ) -> Dict[str, Any]:
+        reminder = await session.get(Reminder, reminder_id)
+        if not reminder:
+            raise EntityNotFoundException("Reminder", reminder_id)
+        await session.delete(reminder)
+        await session.commit()
+        return {"status": "deleted", "id": reminder_id}
+
+    @staticmethod
+    async def get_pipeline_deals(
+        session: AsyncSession,
+        current_user: TokenData
+    ) -> List[Dict[str, Any]]:
+        """
+        Returns all active pipeline leads formatted for the Pipeline board view.
+        """
+        query = (
+            select(Business, Lead)
+            .join(Lead, Business.id == Lead.business_id)
+            .order_by(desc(Lead.updated_at))
+        )
+        result = await session.execute(query)
+        rows = result.all()
+
+        stage_map = {
+            "lead": "Qualification",
+            "contacted": "Demo",
+            "qualified": "Demo",
+            "proposal": "Proposal",
+            "won": "Closed Won",
+            "lost": "Qualification"
+        }
+
+        probability_map = {
+            "lead": 20,
+            "contacted": 40,
+            "qualified": 60,
+            "proposal": 80,
+            "won": 100,
+            "lost": 0
+        }
+
+        deals = []
+        for business, lead in rows:
+            raw_stage = lead.stage.value if hasattr(lead.stage, 'value') else str(lead.stage).lower()
+            board_stage = stage_map.get(raw_stage, "Qualification")
+            deals.append({
+                "id": str(business.id),
+                "business_name": business.business_name,
+                "stage": board_stage,
+                "value": (lead.score or 50) * 100,
+                "probability": probability_map.get(raw_stage, 50),
+                "priority": lead.priority.value if hasattr(lead.priority, 'value') else str(lead.priority),
+                "lead_id": lead.id,
+                "city": business.city,
+                "category": business.category
+            })
+        return deals

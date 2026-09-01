@@ -101,13 +101,11 @@ function Sparkline({
     })
     .join(" ");
 
-  const color = isPositive ? "#34C759" : "#FF3B30";
-
   return (
     <svg width={width} height={height} className="overflow-visible">
       <polyline
         fill="none"
-        stroke={color}
+        className={isPositive ? "stroke-success" : "stroke-destructive"}
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -205,30 +203,41 @@ export default function DashboardPage() {
       .catch(() => setFollowUps([]));
   }, []);
 
- const handleSaveTouchpoint = (e: React.FormEvent) => {
- e.preventDefault();
- if (!selectedAction) return;
+  const handleSaveTouchpoint = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAction) return;
 
- setFollowUps((prev) =>
- prev.map((f) => {
- if (f.id === selectedAction.id) {
- return {
- ...f,
- lastInteraction: `${touchpointType.toUpperCase()}: ${logOutcome || "Touchpoint logged"} • Just now`,
- nextAction: `Follow-up on ${touchpointType} outcome`,
- dueDate: nextFollowUpDate || "In 2 days",
- bucket: nextFollowUpDate.toLowerCase().includes("today")
- ? "due_today"
- : "upcoming",
- done: false,
- };
- }
- return f;
- })
- );
- setSelectedAction(null);
- setLogOutcome("");
- };
+    const actionCopy = selectedAction;
+    setFollowUps((prev) =>
+      prev.map((f) => {
+        if (f.id === actionCopy.id) {
+          return {
+            ...f,
+            lastInteraction: `${touchpointType.toUpperCase()}: ${logOutcome || "Touchpoint logged"} • Just now`,
+            nextAction: `Follow-up on ${touchpointType} outcome`,
+            dueDate: nextFollowUpDate || "In 2 days",
+            bucket: nextFollowUpDate.toLowerCase().includes("today")
+              ? "due_today"
+              : "upcoming",
+            done: false,
+          };
+        }
+        return f;
+      })
+    );
+    setSelectedAction(null);
+    setLogOutcome("");
+
+    const numId = parseInt(actionCopy.id.replace(/[^0-9]/g, ""), 10);
+    if (!isNaN(numId) && numId > 0) {
+      try {
+        await api.patch(`/reminders/${numId}`, {
+          notes: `${touchpointType.toUpperCase()}: ${logOutcome || "Logged touchpoint"}`,
+          status: "completed",
+        });
+      } catch {}
+    }
+  };
 
  // Filtered Reminders (Desktop Search)
  const filteredDesktopReminders = followUps.filter((f) => {
@@ -403,7 +412,7 @@ export default function DashboardPage() {
  </div>
 
  {/* 3. Sticky Tab Bar (Scrolls up to top, locks stickily overlapping header, z-30) */}
- <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-md px-4 py-2 border-b border-border/30 flex items-center justify-between gap-2 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+ <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-md px-4 py-2 border-b border-border/30 flex items-center justify-between gap-2">
  <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 min-w-0 flex-1">
  {[
  { id: "reminder", label: "Reminder" },
@@ -415,7 +424,7 @@ export default function DashboardPage() {
  onClick={() => { setMobileTab(tab.id as any); setMobileSearch(""); }}
  className={`h-9 px-3.5 rounded-full text-sm transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
  mobileTab === tab.id
- ? "bg-neutral-900 text-white dark:bg-white dark:text-black font-semibold shadow-sm"
+ ? "bg-primary text-primary-foreground font-semibold"
  : "text-muted-foreground hover:text-foreground font-medium"
  }`}
 >
@@ -436,7 +445,7 @@ export default function DashboardPage() {
  onClick={() => setRemindersTab(sub)}
  className={`text-xs capitalize font-medium px-2.5 py-1 rounded-full cursor-pointer transition-colors ${
  remindersTab === sub
- ? "bg-background text-foreground font-semibold shadow-xs"
+ ? "bg-background text-foreground font-semibold"
  : "text-muted-foreground hover:text-foreground"
  }`}
 >
@@ -484,7 +493,7 @@ export default function DashboardPage() {
  <MoreHorizontal size={18} />
  </button>
  </DropdownMenuTrigger>
- <DropdownMenuContent align="end" className="w-44 p-2 rounded-2xl border border-border/40 shadow-xl bg-background">
+ <DropdownMenuContent align="end" className="w-44">
  <DropdownMenuItem
  onClick={() => setSelectedAction(item)}
  className="min-h-9 px-2.5 rounded-xl cursor-pointer text-[13px] font-[500]"
@@ -511,7 +520,7 @@ export default function DashboardPage() {
  onClick={() => setActivityTab(sub)}
  className={`text-xs capitalize font-medium px-2.5 py-1 rounded-full cursor-pointer transition-colors ${
  activityTab === sub
- ? "bg-background text-foreground font-semibold shadow-xs"
+ ? "bg-background text-foreground font-semibold"
  : "text-muted-foreground hover:text-foreground"
  }`}
 >
@@ -558,7 +567,7 @@ export default function DashboardPage() {
  <MoreHorizontal size={18} />
  </button>
  </DropdownMenuTrigger>
- <DropdownMenuContent align="end" className="w-44 p-2 rounded-2xl border border-border/40 shadow-xl bg-background">
+ <DropdownMenuContent align="end" className="w-44">
  <DropdownMenuItem className="min-h-9 px-2.5 rounded-xl cursor-pointer text-[13px] font-[500]">
  View Details
  </DropdownMenuItem>
@@ -588,7 +597,7 @@ export default function DashboardPage() {
  {metrics.map((m) => (
  <div
  key={m.title}
- className="flex items-center justify-between gap-4 p-5 bg-neutral-100 dark:bg-neutral-800 text-card-foreground rounded-2xl"
+ className="flex items-center justify-between gap-4 p-5 bg-card text-card-foreground rounded-2xl border border-border/50"
 >
  <div className="flex flex-col gap-1 min-w-0">
  <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">
@@ -598,7 +607,7 @@ export default function DashboardPage() {
  {m.value}
  </div>
  <div className="flex items-center gap-2 mt-1.5 whitespace-nowrap">
- <span className={`inline-flex items-center text-xs font-[600] ${m.isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}`}>
+ <span className={`inline-flex items-center text-xs font-[600] ${m.isPositive ? "text-success" : "text-destructive"}`}>
  {m.trend}
  </span>
  <span className="text-xs font-medium text-muted-foreground">{m.sub}</span>
@@ -625,21 +634,21 @@ export default function DashboardPage() {
  placeholder="Search reminders..."
  value={reminderSearch}
  onChange={(e) => setReminderSearch(e.target.value)}
- className="h-9 w-44 sm:w-56 pl-9 pr-4 rounded-full bg-accent/50 hover:bg-accent/80 focus:bg-accent focus:ring-2 focus:ring-foreground/20 text-sm font-medium text-foreground focus:outline-none transition-all placeholder:text-muted-foreground"
+ className="h-9 w-44 sm:w-56 pl-9 pr-4 rounded-full bg-secondary/50 hover:bg-secondary focus:bg-secondary border border-border/40 focus:ring-2 focus:ring-foreground/20 text-sm font-medium text-foreground focus:outline-none transition-all placeholder:text-muted-foreground"
  />
  </div>
 
- <button
- type="button"
- onClick={() => {
- const first = followUps[0];
- if (first) setSelectedAction(first);
- }}
- title="Add Reminder"
- className="flex items-center justify-center size-9 rounded-full bg-[#007AFF] text-white hover:bg-[#0055CC] active:scale-95 transition-all cursor-pointer shadow-xs shrink-0"
->
- <Plus size={18} strokeWidth={2.25} />
- </button>
+      <button
+        type="button"
+        onClick={() => {
+          const first = followUps[0];
+          if (first) setSelectedAction(first);
+        }}
+        title="Add Reminder"
+        className="flex items-center justify-center size-9 rounded-full bg-foreground text-background hover:bg-foreground/90 active:scale-95 transition-all cursor-pointer shrink-0"
+      >
+        <Plus size={18} strokeWidth={2.25} />
+      </button>
  </div>
  </div>
 
@@ -655,7 +664,7 @@ export default function DashboardPage() {
  onClick={() => setRemindersTab(tab)}
  className={`h-9 px-3.5 rounded-full text-sm capitalize transition-colors cursor-pointer ${
  remindersTab === tab
- ? "bg-neutral-100 dark:bg-neutral-800 text-foreground font-semibold"
+ ? "bg-muted text-foreground font-semibold"
  : "text-muted-foreground hover:text-foreground font-medium"
  }`}
 >
@@ -668,7 +677,7 @@ export default function DashboardPage() {
  <button
  type="button"
  aria-label="Filter"
- className="relative flex items-center justify-center size-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer shrink-0"
+ className="relative flex items-center justify-center size-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer shrink-0"
 >
  <ListFilter size={20} />
  </button>
@@ -680,35 +689,42 @@ export default function DashboardPage() {
  <button 
  type="button"
  onClick={() => {
- if (selectedReminders.size> 0) {
+ if (selectedReminders.size > 0) {
  const firstId = Array.from(selectedReminders)[0];
  const found = followUps.find(f => f.id === firstId);
  if (found) setSelectedAction(found);
  }
  }}
- className="h-9 px-4 rounded-full bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-sm font-medium text-foreground transition-colors cursor-pointer"
+ className="h-9 px-4 rounded-full bg-secondary hover:bg-accent text-sm font-medium text-foreground transition-colors cursor-pointer"
 >
  Log Outcome
  </button>
  <button 
  type="button"
- onClick={() => {
- setFollowUps(followUps.filter(f => !selectedReminders.has(f.id)));
- setSelectedReminders(new Set());
+ onClick={async () => {
+  const ids = Array.from(selectedReminders);
+  setFollowUps(followUps.filter(f => !selectedReminders.has(f.id)));
+  setSelectedReminders(new Set());
+  for (const id of ids) {
+    const numId = parseInt(id.replace(/[^0-9]/g, ""), 10);
+    if (!isNaN(numId) && numId > 0) {
+      api.delete(`/reminders/${numId}`).catch(() => {});
+    }
+  }
  }}
- className="h-9 px-4 rounded-full border border-rose-400 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-sm font-medium transition-colors cursor-pointer"
+ className="h-9 px-4 rounded-full border border-destructive/30 text-destructive hover:bg-destructive-muted text-sm font-medium transition-colors cursor-pointer"
 >
  Delete
  </button>
  </div>
  <div className="flex items-center gap-3">
- <span className="text-sm text-neutral-500 font-normal">
+ <span className="text-sm text-muted-foreground font-normal">
  {selectedReminders.size} selected
  </span>
  <button
  type="button"
  onClick={() => setSelectedReminders(new Set())}
- className="flex items-center justify-center size-7 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+ className="flex items-center justify-center size-7 rounded-full hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
  title="Clear selection"
 >
  <X size={20} />
@@ -753,15 +769,15 @@ export default function DashboardPage() {
  ) : (
  visibleDesktopReminders.map((action, idx) => {
  const isSelected = selectedReminders.has(action.id);
- const prevSelected = idx> 0 && selectedReminders.has(visibleDesktopReminders[idx - 1].id);
+ const prevSelected = idx > 0 && selectedReminders.has(visibleDesktopReminders[idx - 1].id);
  const nextSelected = idx < visibleDesktopReminders.length - 1 && selectedReminders.has(visibleDesktopReminders[idx + 1].id);
 
  let selectionRounding = "rounded-xl";
  if (isSelected) {
  if (!prevSelected && nextSelected) {
- selectionRounding = "rounded-t-xl border-b border-neutral-200/50 dark:border-neutral-700/40";
+ selectionRounding = "rounded-t-xl border-b border-border/40";
  } else if (prevSelected && nextSelected) {
- selectionRounding = "rounded-none border-b border-neutral-200/50 dark:border-neutral-700/40";
+ selectionRounding = "rounded-none border-b border-border/40";
  } else if (prevSelected && !nextSelected) {
  selectionRounding = "rounded-b-xl";
  } else {
@@ -790,8 +806,8 @@ export default function DashboardPage() {
  onClick={() => setSelectedAction(action)}
  className={`flex-1 grid grid-cols-12 gap-4 px-3 py-3 text-sm items-center transition-colors cursor-pointer ${
  isSelected 
- ? `bg-neutral-100/90 dark:bg-neutral-800/80 ${selectionRounding}` 
- : "hover:bg-neutral-100/50 dark:hover:bg-neutral-800/40 rounded-xl"
+ ? `bg-secondary text-foreground ${selectionRounding}` 
+ : "hover:bg-accent/50 rounded-xl"
  }`}
 >
  <div className="col-span-4 font-medium text-foreground truncate">
@@ -812,7 +828,7 @@ export default function DashboardPage() {
  Overdue
  </Badge>
  ) : action.bucket === "due_today" ? (
- <Badge variant="secondary" className="text-xs rounded-full px-2.5 py-0.5 font-normal bg-amber-500/15 text-amber-600 dark:text-amber-400">
+ <Badge variant="warning" className="text-xs rounded-full px-2.5 py-0.5 font-normal">
  Due Today
  </Badge>
  ) : (
@@ -843,14 +859,14 @@ export default function DashboardPage() {
  placeholder="Search activities..."
  value={activitySearch}
  onChange={(e) => setActivitySearch(e.target.value)}
- className="h-9 w-44 sm:w-56 pl-9 pr-4 rounded-full bg-accent/50 hover:bg-accent/80 focus:bg-accent focus:ring-2 focus:ring-foreground/20 text-sm font-medium text-foreground focus:outline-none transition-all placeholder:text-muted-foreground"
+ className="h-9 w-44 sm:w-56 pl-9 pr-4 rounded-full bg-secondary/50 hover:bg-secondary focus:bg-secondary border border-border/40 focus:ring-2 focus:ring-foreground/20 text-sm font-medium text-foreground focus:outline-none transition-all placeholder:text-muted-foreground"
  />
  </div>
 
  <button
  type="button"
  title="Add Activity"
- className="flex items-center justify-center size-9 rounded-full bg-[#007AFF] text-white hover:bg-[#0055CC] active:scale-[0.97] transition-all cursor-pointer shadow-sm shrink-0"
+ className="flex items-center justify-center size-9 rounded-full bg-foreground text-background hover:bg-foreground/90 active:scale-95 transition-all cursor-pointer shrink-0"
 >
  <Plus size={20} />
  </button>
@@ -869,7 +885,7 @@ export default function DashboardPage() {
  onClick={() => setActivityTab(tab)}
  className={`h-9 px-3.5 rounded-full text-sm capitalize transition-colors cursor-pointer ${
  activityTab === tab
- ? "bg-neutral-100 dark:bg-neutral-800 text-foreground font-semibold"
+ ? "bg-secondary text-foreground font-semibold"
  : "text-muted-foreground hover:text-foreground font-medium"
  }`}
 >
@@ -882,7 +898,7 @@ export default function DashboardPage() {
  <button
  type="button"
  aria-label="Filter"
- className="relative flex items-center justify-center size-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer shrink-0"
+ className="relative flex items-center justify-center size-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer shrink-0"
 >
  <ListFilter size={20} />
  </button>
@@ -897,19 +913,19 @@ export default function DashboardPage() {
  setActivities(activities.filter(a => !selectedActivities.has(a.id)));
  setSelectedActivities(new Set());
  }}
- className="h-9 px-4 rounded-full border border-rose-400 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-sm font-medium transition-colors cursor-pointer"
+ className="h-9 px-4 rounded-full border border-destructive/30 text-destructive hover:bg-destructive-muted text-sm font-medium transition-colors cursor-pointer"
 >
  Delete
  </button>
  </div>
  <div className="flex items-center gap-3">
- <span className="text-sm text-neutral-500 font-normal">
+ <span className="text-sm text-muted-foreground font-normal">
  {selectedActivities.size} selected
  </span>
  <button
  type="button"
  onClick={() => setSelectedActivities(new Set())}
- className="flex items-center justify-center size-7 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+ className="flex items-center justify-center size-7 rounded-full hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
  title="Clear selection"
 >
  <X size={20} />
@@ -954,15 +970,15 @@ export default function DashboardPage() {
  ) : (
  visibleDesktopActivities.map((a, idx) => {
  const isSelected = selectedActivities.has(a.id);
- const prevSelected = idx> 0 && selectedActivities.has(visibleDesktopActivities[idx - 1].id);
+ const prevSelected = idx > 0 && selectedActivities.has(visibleDesktopActivities[idx - 1].id);
  const nextSelected = idx < visibleDesktopActivities.length - 1 && selectedActivities.has(visibleDesktopActivities[idx + 1].id);
 
  let selectionRounding = "rounded-xl";
  if (isSelected) {
  if (!prevSelected && nextSelected) {
- selectionRounding = "rounded-t-xl border-b border-neutral-200/50 dark:border-neutral-700/40";
+ selectionRounding = "rounded-t-xl border-b border-border/40";
  } else if (prevSelected && nextSelected) {
- selectionRounding = "rounded-none border-b border-neutral-200/50 dark:border-neutral-700/40";
+ selectionRounding = "rounded-none border-b border-border/40";
  } else if (prevSelected && !nextSelected) {
  selectionRounding = "rounded-b-xl";
  } else {
@@ -990,8 +1006,8 @@ export default function DashboardPage() {
  <div 
  className={`flex-1 grid grid-cols-12 gap-4 px-3 py-3 text-sm items-center transition-colors cursor-pointer ${
  isSelected 
- ? `bg-neutral-100/90 dark:bg-neutral-800/80 ${selectionRounding}` 
- : "hover:bg-neutral-100/50 dark:hover:bg-neutral-800/40 rounded-xl"
+ ? `bg-secondary text-foreground ${selectionRounding}` 
+ : "hover:bg-accent/50 rounded-xl"
  }`}
 >
  <div className="col-span-4 font-medium text-foreground truncate">
@@ -1017,8 +1033,8 @@ export default function DashboardPage() {
 
  {/* Touchpoint Logging Modal */}
  {selectedAction && (
- <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in">
- <div className="bg-card border border-border/60 rounded-2xl max-w-md w-full p-6 shadow-2xl flex flex-col gap-4">
+ <div className="fixed inset-0 z-50 flex items-center justify-center bg-backdrop backdrop-blur-[1px] p-4 animate-in fade-in">
+ <div className="bg-card border border-border/40 rounded-2xl max-w-md w-full p-6 shadow-modal flex flex-col gap-4">
  <div className="flex items-center justify-between">
  <div>
  <h3 className="text-lg font-semibold text-foreground">
@@ -1056,7 +1072,7 @@ export default function DashboardPage() {
  onClick={() => setTouchpointType(t.id as any)}
  className={`flex flex-col items-center gap-1 p-2 rounded-xl text-sm font-medium transition-all cursor-pointer ${
  touchpointType === t.id
- ? "bg-[#007AFF] text-white font-semibold shadow-none"
+ ? "bg-primary text-primary-foreground font-semibold shadow-none"
  : "bg-accent text-muted-foreground hover:text-foreground hover:bg-accent/70"
  }`}
 >
@@ -1077,7 +1093,7 @@ export default function DashboardPage() {
  placeholder="e.g. Connected on call, reviewed enterprise tier requirements, agreed to send revised SLA..."
  value={logOutcome}
  onChange={(e) => setLogOutcome(e.target.value)}
- className="w-full rounded-xl bg-accent/40 p-3 text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-[#007AFF]/30 resize-none border-none"
+ className="w-full rounded-xl bg-accent/40 p-3 text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring/30 resize-none border-none"
  required
  />
  </div>
@@ -1095,7 +1111,7 @@ export default function DashboardPage() {
  onClick={() => setNextFollowUpDate(date)}
  className={`p-2 rounded-xl text-sm font-medium transition-all cursor-pointer ${
  nextFollowUpDate === date
- ? "bg-[#007AFF] text-white font-semibold shadow-none"
+ ? "bg-primary text-primary-foreground font-semibold shadow-none"
  : "bg-accent text-muted-foreground hover:text-foreground hover:bg-accent/70"
  }`}
 >
@@ -1116,7 +1132,7 @@ export default function DashboardPage() {
  </button>
  <button
  type="submit"
- className="h-9 px-4 text-sm font-semibold rounded-2xl cursor-pointer bg-[#007AFF] text-white hover:bg-[#0055CC] transition-colors active:scale-[0.98]"
+ className="h-9 px-4 text-sm font-semibold rounded-2xl cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90 transition-colors active:scale-[0.98]"
 >
  Save & Update
  </button>

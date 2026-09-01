@@ -109,4 +109,4 @@ async def get_current_user(
         )
         
     role_str = user.role.value if hasattr(user.role, 'value') else str(user.role)
-    return TokenData(user_id=user.id, email=user.email, role=role_str)
+    return TokenData(user_id=user.id, email=user.email, role=role_str, name=user.name)

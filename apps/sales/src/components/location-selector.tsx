@@ -316,7 +316,7 @@ export function LocationSelector({
         </button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-[var(--radix-popover-trigger-width)] p-0 rounded-[22px] shadow-xl overflow-hidden border border-border/60 bg-background"
+        className="w-[var(--radix-popover-trigger-width)] p-0 rounded-[22px] shadow-none overflow-hidden border-none bg-popover text-popover-foreground"
         align="start"
         side="bottom"
         sideOffset={-44}

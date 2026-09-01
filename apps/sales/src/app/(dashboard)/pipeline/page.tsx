@@ -51,9 +51,15 @@ export default function PipelinePage() {
  return matchesSearch && matchesStage;
  })
 
- const handleSingleDelete = (id: string) => {
- setDeals(deals.filter(d => d.id !== id))
- }
+ const handleSingleDelete = async (id: string) => {
+  setDeals(deals.filter(d => d.id !== id))
+  const numId = parseInt(id.replace(/[^0-9]/g, ""), 10)
+  if (!isNaN(numId) && numId > 0) {
+    try {
+      await api.delete(`/businesses/${numId}`)
+    } catch {}
+  }
+}
 
  return (
  <>
@@ -82,33 +88,33 @@ export default function PipelinePage() {
  </div>
 
  {/* 3. Sticky Stage Tabs (Scrolls up to top, locks stickily overlapping header, z-30) */}
- <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-md px-4 py-2 border-b border-border/30 flex items-center gap-1.5 overflow-x-auto no-scrollbar shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
-  <button
-  type="button"
-  onClick={() => setActiveStage("all")}
-  className={`h-9 px-3.5 rounded-full text-sm transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
-  activeStage === "all"
-  ? "bg-neutral-900 text-white dark:bg-white dark:text-black font-semibold shadow-sm"
-  : "text-muted-foreground hover:text-foreground font-medium"
-  }`}
->
-  All Stages
-  </button>
-  {STAGES.map((st) => (
-  <button
-  key={st}
-  type="button"
-  onClick={() => setActiveStage(st)}
-  className={`h-9 px-3.5 rounded-full text-sm transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
-  activeStage === st
-   ? "bg-neutral-900 text-white dark:bg-white dark:text-black font-semibold shadow-sm"
+ <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-md px-4 py-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+   <button
+   type="button"
+   onClick={() => setActiveStage("all")}
+   className={`h-9 px-3.5 rounded-full text-sm transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
+   activeStage === "all"
+   ? "bg-primary text-primary-foreground font-semibold"
    : "text-muted-foreground hover:text-foreground font-medium"
-  }`}
->
-  {st} ({byStage(st).length})
-  </button>
-  ))}
- </div>
+   }`}
+ >
+   All Stages
+   </button>
+   {STAGES.map((st) => (
+   <button
+   key={st}
+   type="button"
+   onClick={() => setActiveStage(st)}
+   className={`h-9 px-3.5 rounded-full text-sm transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
+   activeStage === st
+    ? "bg-primary text-primary-foreground font-semibold"
+    : "text-muted-foreground hover:text-foreground font-medium"
+   }`}
+ >
+   {st} ({byStage(st).length})
+   </button>
+   ))}
+  </div>
 
  {/* Mobile List Content */}
  <div className="flex flex-col w-full divide-y divide-border/30">
@@ -157,11 +163,11 @@ export default function PipelinePage() {
    <MoreHorizontal size={18} />
    </button>
    </DropdownMenuTrigger>
-   <DropdownMenuContent align="end" className="w-44 p-2 rounded-2xl border border-border/40 shadow-xl bg-background">
-   <DropdownMenuItem
-   onClick={() => handleSingleDelete(deal.id)}
-   className="flex items-center min-h-9 px-2.5 rounded-xl cursor-pointer text-[13px] font-[500] text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30"
- >
+   <DropdownMenuContent align="end" className="w-44">
+    <DropdownMenuItem
+    onClick={() => handleSingleDelete(deal.id)}
+    className="flex items-center min-h-9 px-2.5 rounded-xl cursor-pointer text-[13px] font-[500] text-destructive hover:bg-destructive-muted"
+  >
    Delete Deal
    </DropdownMenuItem>
    </DropdownMenuContent>
@@ -196,7 +202,7 @@ export default function PipelinePage() {
    : byStage(stage).length === 0
    ? <div className="h-20 rounded-xl bg-accent/20 flex items-center justify-center"><span className="text-xs text-muted-foreground">No deals</span></div>
    : byStage(stage).map((deal) => (
-   <Card key={deal.id} className="bg-card rounded-xl hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing border-border/40">
+   <Card key={deal.id} className="bg-card rounded-xl shadow-none border-none cursor-grab active:cursor-grabbing">
    <CardHeader className="pb-2 pt-3.5 px-3.5">
    <CardTitle className="text-sm font-medium leading-tight">{deal.business_name}</CardTitle>
    </CardHeader>

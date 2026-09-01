@@ -19,10 +19,7 @@ PHONE_REGEX = re.compile(
 )
 
 
-def clean_text(text: str) -> str:
-    if not text:
-        return ""
-    return text.replace('\u202f', ' ').replace('\xa0', ' ').replace('\u200b', ' ').strip()
+from utils.phone import normalize_global_phone
 
 
 class WebSearchScraper(PlaywrightScraper):
@@ -60,6 +57,15 @@ class WebSearchScraper(PlaywrightScraper):
             if not results:
                 results = await page.query_selector_all('a.result__url, a.result__snippet')
 
+            if not results:
+                # Bing search fallback
+                bing_url = f"https://www.bing.com/search?q={encoded_query}"
+                try:
+                    await page.goto(bing_url, wait_until="domcontentloaded", timeout=15000)
+                    results = await page.query_selector_all('li.b_algo, div.b_algo, .b_algo')
+                except Exception:
+                    pass
+
             for res in results[:target_limit]:
                 if len(leads) >= target_limit or not memory_tracker.is_memory_safe():
                     break
@@ -86,7 +92,7 @@ class WebSearchScraper(PlaywrightScraper):
                     if website and any(agg in website.lower() for agg in ["duckduckgo", "google.", "wikipedia", "youtube", "facebook.com/search"]):
                         continue
 
-                    snippet_el = await res.query_selector('.result__snippet, .snippet')
+                    snippet_el = await res.query_selector('.result__snippet, .snippet, .b_caption p, p')
                     snippet_text = clean_text(await snippet_el.inner_text()) if snippet_el else ""
 
                     email: Optional[str] = None
@@ -100,7 +106,7 @@ class WebSearchScraper(PlaywrightScraper):
                         p_clean = p.strip()
                         digits = sum(ch.isdigit() for ch in p_clean)
                         if 8 <= digits <= 15 and not p_clean.startswith(('19', '20')):
-                            phone = p_clean
+                            phone, _ = normalize_global_phone(p_clean, location=location)
                             break
 
                     leads.append(DiscoveredLead(

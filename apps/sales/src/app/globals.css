@@ -42,6 +42,8 @@
     --color-secondary: var(--secondary);
     --color-primary-foreground: var(--primary-foreground);
     --color-primary: var(--primary);
+    --color-brand-foreground: var(--brand-foreground);
+    --color-brand: var(--brand);
     --color-popover-foreground: var(--popover-foreground);
     --color-popover: var(--popover);
     --color-card-foreground: var(--card-foreground);
@@ -52,8 +54,21 @@
     /* Semantic extension tokens */
     --color-success: var(--success);
     --color-success-foreground: var(--success-foreground);
+    --color-success-muted: var(--success-muted);
     --color-warning: var(--warning);
     --color-warning-foreground: var(--warning-foreground);
+    --color-warning-muted: var(--warning-muted);
+    --color-info: var(--info);
+    --color-info-foreground: var(--info-foreground);
+    --color-info-muted: var(--info-muted);
+    --color-destructive-muted: var(--destructive-muted);
+
+    /* Elevation & Overlay Tokens (ChatGPT Reference) */
+    --shadow-elevated: var(--shadow-elevated);
+    --shadow-modal: var(--shadow-modal);
+    --shadow-sheet: var(--shadow-sheet);
+    --shadow-tooltip: var(--shadow-tooltip);
+    --color-backdrop: var(--backdrop-overlay);
 
     /* Mobbin Border Radius */
     --radius-sm: calc(var(--radius) * 0.6);
@@ -65,151 +80,256 @@
     --radius-full: 9999px;
 }
 
-/* ── LIGHT MODE ─────────────────────────────────────────────
- * Color palette: Mobbin Achromatic System
+/* ── LIGHT MODE (ChatGPT Reference Source of Truth) ─────────
+ * Exact color values from apps/sales/chatgpt themes/root-iqrdn5v7.css
  * ─────────────────────────────────────────────────────────── */
 :root {
     color-scheme: light;
 
-    /* Mobbin Core Colors */
-    --color-midnight-ink: #141414;
-    --color-pure-canvas: #ffffff;
-    --color-graphite: #707070;
-    --color-ash: #adadad;
-    --color-fog: #ededed;
-    --color-mist: #f2f2f2;
-    --color-silver: #c2c2c2;
+    /* Reference Grayscale Scale */
+    --gray-0: #ffffff;
+    --gray-25: #fcfcfc;
+    --gray-50: #f9f9f9;
+    --gray-75: #f3f3f3;
+    --gray-100: #ededed;
+    --gray-150: #dfdfdf;
+    --gray-200: #cdcdcd;
+    --gray-250: #b9b9b9;
+    --gray-300: #afafaf;
+    --gray-350: #9f9f9f;
+    --gray-400: #8f8f8f;
+    --gray-450: #767676;
+    --gray-500: #5d5d5d;
+    --gray-550: #4f4f4f;
+    --gray-600: #414141;
+    --gray-650: #393939;
+    --gray-700: #303030;
+    --gray-750: #282828;
+    --gray-800: #212121;
+    --gray-850: #1c1c1c;
+    --gray-900: #181818;
+    --gray-925: #161616;
+    --gray-950: #131313;
+    --gray-975: #101010;
+    --gray-1000: #0d0d0d;
 
-    /* Surfaces */
-    --background: var(--color-pure-canvas);
-    --foreground: var(--color-midnight-ink);
-    --card: var(--color-pure-canvas);
-    --card-foreground: var(--color-midnight-ink);
-    --popover: var(--color-pure-canvas);
-    --popover-foreground: var(--color-midnight-ink);
+    /* Reference Colors */
+    --blue-25: #f6fafe;
+    --blue-50: #e8f3fe;
+    --blue-75: #d1e5fd;
+    --blue-100: #a4cdfb;
+    --blue-200: #63a8f8;
+    --blue-300: #539af8;
+    --blue-400: #3a83f7;
+    --blue-500: #2c67c5;
+    --blue-600: #1f4e94;
+    --blue-a50: #0285ff21;
+    --blue-a75: #0285ff40;
 
-    /* Brand - Achromatic */
-    --primary: var(--color-midnight-ink);
-    --primary-foreground: var(--color-pure-canvas);
+    --green-25: #effaf3;
+    --green-50: #def3e5;
+    --green-100: #9fddb1;
+    --green-400: #53b559;
+    --green-500: #48a04c;
+    --green-800: #1f4e25;
 
-    /* Secondary surface — used for chips, tags, secondary buttons */
-    --secondary: var(--color-mist);
-    --secondary-foreground: var(--color-midnight-ink);
+    --orange-25: #fdf5f1;
+    --orange-50: #fbe8db;
+    --orange-100: #f4ba96;
+    --orange-200: #f1a275;
+    --orange-400: #ee7c37;
+    --orange-500: #d25e28;
+    --orange-900: #45240d;
+
+    --red-25: #fff0f0;
+    --red-50: #ffe1e0;
+    --red-100: #ffa4a2;
+    --red-200: #ff8583;
+    --red-400: #fa423e;
+    --red-500: #ff002a;
+    --red-600: #ba2623;
+    --red-900: #4d100e;
+
+    /* Core Semantic Surfaces — ChatGPT Light Mode */
+    --background: #ffffff;
+    --foreground: #0d0d0d;
+    --card: #f9f9f9;
+    --card-foreground: #0d0d0d;
+    --popover: #ffffff;
+    --popover-foreground: #0d0d0d;
+
+    /* Brand / Primary Blue */
+    --brand: #3a83f7;
+    --brand-foreground: #ffffff;
+    --primary: #3a83f7;
+    --primary-foreground: #ffffff;
+
+    /* Secondary surface — chips, tabs, search inputs, sub-cards */
+    --secondary: #f4f4f4;
+    --secondary-foreground: #0d0d0d;
 
     /* Muted surfaces and secondary text */
-    --muted: var(--color-mist);
-    --muted-foreground: var(--color-graphite);
+    --muted: #f4f4f4;
+    --muted-foreground: #5d5d5d;
 
-    /* Accent — used for hover states on menus, ghost buttons, etc. */
-    --accent: var(--color-mist);
-    --accent-foreground: var(--color-midnight-ink);
+    /* Accent — hover / active */
+    --accent: #ececec;
+    --accent-foreground: #0d0d0d;
 
-    /* Semantic meaning tokens - Apple standard colors */
-    --destructive: #FF3B30;
+    /* Semantic Meaning Tokens */
+    --destructive: #ff002a;
     --destructive-foreground: #ffffff;
-    --success: #34C759;
+    --destructive-muted: #fff0f0;
+    --success: #1f4e25;
     --success-foreground: #ffffff;
-    --warning: #FF9500;
+    --success-muted: #def3e5;
+    --warning: #d25e28;
     --warning-foreground: #ffffff;
+    --warning-muted: #fdf5f1;
+    --info: #3a83f7;
+    --info-foreground: #ffffff;
+    --info-muted: #e8f3fe;
 
-    /* Structural */
-    --border: var(--color-fog);
-    --input: var(--color-mist);
-    --ring: var(--color-midnight-ink);
+    /* Structural Hairlines */
+    --border: #00000014;
+    --input: #00000014;
+    --ring: #3a83f7;
     --radius: 0.5rem; /* 8px */
 
-    /* Data visualization - Grayscale */
-    --chart-1: #141414;
-    --chart-2: #707070;
-    --chart-3: #adadad;
-    --chart-4: #c2c2c2;
-    --chart-5: #e0e0e0;
+    /* Data visualization */
+    --chart-1: #0d0d0d;
+    --chart-2: #5d5d5d;
+    --chart-3: #8f8f8f;
+    --chart-4: #cdcdcd;
+    --chart-5: #ededed;
 
-    /* Sidebar */
-    --sidebar: var(--color-pure-canvas);
-    --sidebar-foreground: var(--color-midnight-ink);
-    --sidebar-primary: var(--color-midnight-ink);
-    --sidebar-primary-foreground: var(--color-pure-canvas);
-    --sidebar-accent: var(--color-mist);
-    --sidebar-accent-foreground: var(--color-midnight-ink);
-    --sidebar-border: var(--color-fog);
-    --sidebar-ring: var(--color-midnight-ink);
+    /* Sidebar — Seamless with Main Page Canvas */
+    --sidebar: #ffffff;
+    --sidebar-foreground: #0d0d0d;
+    --sidebar-primary: #3a83f7;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #ececec;
+    --sidebar-accent-foreground: #0d0d0d;
+    --sidebar-border: #0000000f;
+    --sidebar-ring: #3a83f7;
 
-    /* Dropdown / Popover Elevation Shadows (ChatGPT inspired) */
-    --popover-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04), 0 12px 24px rgba(0, 0, 0, 0.08);
+    /* Reference Elevation Tokens (Light Mode) */
+    --shadow-elevated: 0 12px 24px -4px rgba(0, 0, 0, 0.12), 0 4px 8px -2px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.08);
+    --shadow-modal: 0 16px 32px -4px rgba(0, 0, 0, 0.14), 0 4px 12px 0 rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.08);
+    --shadow-sheet: 0 -12px 24px -4px rgba(0, 0, 0, 0.12), 0 -4px 8px -2px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.08);
+    --shadow-tooltip: 0 8px 16px -2px rgba(0, 0, 0, 0.12), 0 2px 4px -1px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.08);
+    --backdrop-overlay: rgba(0, 0, 0, 0.3);
+
+    /* Flat, clean, restrained elevation - No Shadows */
+    --popover-shadow: none;
 }
 
-/* ── DARK MODE ──────────────────────────────────────────────
- * Dark mode: Inverted Achromatic Palette
+/* ── DARK MODE (ChatGPT Reference Source of Truth) ──────────
+ * Exact color values from apps/sales/chatgpt themes/root-iqrdn5v7.css
  * ─────────────────────────────────────────────────────────── */
 .dark {
     color-scheme: dark;
 
-    --color-midnight-ink: #ffffff;
-    --color-pure-canvas: #0a0a0a;
-    --color-graphite: #a3a3a3;
-    --color-ash: #737373;
-    --color-fog: #262626;
-    --color-mist: #171717;
-    --color-silver: #404040;
+    /* Reference Grayscale Scale (Inverted in dark mode per reference) */
+    --gray-0: #0d0d0d;
+    --gray-25: #101010;
+    --gray-50: #131313;
+    --gray-75: #161616;
+    --gray-100: #181818;
+    --gray-150: #1c1c1c;
+    --gray-200: #212121;
+    --gray-250: #282828;
+    --gray-300: #303030;
+    --gray-350: #393939;
+    --gray-400: #414141;
+    --gray-450: #4f4f4f;
+    --gray-500: #5d5d5d;
+    --gray-550: #767676;
+    --gray-600: #8f8f8f;
+    --gray-650: #9f9f9f;
+    --gray-700: #afafaf;
+    --gray-750: #b9b9b9;
+    --gray-800: #cdcdcd;
+    --gray-850: #dcdcdc;
+    --gray-900: #ededed;
+    --gray-925: #f3f3f3;
+    --gray-950: #f3f3f3;
+    --gray-975: #f9f9f9;
+    --gray-1000: #ffffff;
 
-    /* Surfaces */
-    --background: var(--color-pure-canvas);
-    --foreground: var(--color-midnight-ink);
-    --card: var(--color-pure-canvas);
-    --card-foreground: var(--color-midnight-ink);
-    --popover: var(--color-pure-canvas);
-    --popover-foreground: var(--color-midnight-ink);
+    /* Core Semantic Surfaces — ChatGPT OLED / Deep Dark Mode */
+    --background: #0d0d0d;
+    --foreground: #ececec;
+    --card: #212121;
+    --card-foreground: #ececec;
+    --popover: #2f2f2f;
+    --popover-foreground: #ececec;
 
-    /* Brand */
-    --primary: var(--color-midnight-ink);
-    --primary-foreground: var(--color-pure-canvas);
+    /* Brand / Primary Blue */
+    --brand: #3a83f7;
+    --brand-foreground: #ffffff;
+    --primary: #3a83f7;
+    --primary-foreground: #ffffff;
 
-    /* Secondary surface */
-    --secondary: var(--color-mist);
-    --secondary-foreground: var(--color-midnight-ink);
+    /* Secondary surface — chips, tabs, search inputs, sub-cards */
+    --secondary: #212121;
+    --secondary-foreground: #ececec;
 
     /* Muted surfaces and secondary text */
-    --muted: var(--color-mist);
-    --muted-foreground: var(--color-graphite);
+    --muted: #212121;
+    --muted-foreground: #b4b4b4;
 
-    /* Accent */
-    --accent: var(--color-mist);
-    --accent-foreground: var(--color-midnight-ink);
+    /* Accent — hover / active */
+    --accent: #2f2f2f;
+    --accent-foreground: #ffffff;
 
-    /* Semantic meaning tokens - Apple standard dark mode colors */
-    --destructive: #FF453A;
+    /* Semantic Meaning Tokens */
+    --destructive: #ff8583;
     --destructive-foreground: #ffffff;
-    --success: #30D158;
-    --success-foreground: #ffffff;
-    --warning: #FF9F0A;
-    --warning-foreground: #ffffff;
+    --destructive-muted: #4d100e;
+    --success: #effaf3;
+    --success-foreground: #0d0d0d;
+    --success-muted: #1f4e25;
+    --warning: #f1a275;
+    --warning-foreground: #0d0d0d;
+    --warning-muted: #45240d;
+    --info: #63a8f8;
+    --info-foreground: #ffffff;
+    --info-muted: #133463;
 
-    /* Structural */
-    --border: var(--color-fog);
-    --input: var(--color-mist);
-    --ring: var(--color-midnight-ink);
+    /* Structural Hairlines */
+    --border: #ffffff14;
+    --input: #ffffff14;
+    --ring: #3a83f7;
 
     /* Data visualization */
     --chart-1: #ffffff;
-    --chart-2: #a3a3a3;
-    --chart-3: #737373;
-    --chart-4: #404040;
-    --chart-5: #262626;
+    --chart-2: #cdcdcd;
+    --chart-3: #afafaf;
+    --chart-4: #414141;
+    --chart-5: #303030;
 
-    /* Sidebar */
-    --sidebar: var(--color-pure-canvas);
-    --sidebar-foreground: var(--color-midnight-ink);
-    --sidebar-primary: var(--color-midnight-ink);
-    --sidebar-primary-foreground: var(--color-pure-canvas);
-    --sidebar-accent: var(--color-mist);
-    --sidebar-accent-foreground: var(--color-midnight-ink);
-    --sidebar-border: var(--color-fog);
-    --sidebar-ring: var(--color-midnight-ink);
+    /* Sidebar — Deep Black seamless with Canvas */
+    --sidebar: #0d0d0d;
+    --sidebar-foreground: #ececec;
+    --sidebar-primary: #3a83f7;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #212121;
+    --sidebar-accent-foreground: #ffffff;
+    --sidebar-border: #ffffff0a;
+    --sidebar-ring: #3a83f7;
 
-    /* Dropdown / Popover Elevation Shadows (ChatGPT inspired) */
-    --popover-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12), 0 16px 36px -4px rgba(0, 0, 0, 0.85), 0 6px 16px -2px rgba(0, 0, 0, 0.65), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    /* Reference Elevation Tokens (Dark Mode) */
+    --shadow-elevated: 0 10px 15px -3px rgba(0, 0, 0, 0.35), 0 4px 6px -4px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.1), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+    --shadow-modal: 0 8px 16px 0 rgba(0, 0, 0, 0.35), 0 2px 8px 0 rgba(0, 0, 0, 0.25), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    --shadow-sheet: 0 -8px 16px 0 rgba(0, 0, 0, 0.35), 0 -2px 8px 0 rgba(0, 0, 0, 0.25), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    --shadow-tooltip: 0 10px 15px -3px rgba(0, 0, 0, 0.35), 0 4px 6px -4px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.1);
+    --backdrop-overlay: rgba(0, 0, 0, 0.5);
+
+    /* Flat, clean, restrained elevation - No Shadows */
+    --popover-shadow: none;
 }
+
 
 @layer base {
     * {
@@ -390,6 +510,28 @@ svg.lucide.lucide-search.size-4 {
     [data-slot="hover-card-content"],
     .popover-shadow {
         box-shadow: var(--popover-shadow) !important;
+    }
+
+    /* Standardized Semantic Status Badges & Pills */
+    .status-badge-success {
+        background-color: var(--success-muted);
+        color: var(--success);
+    }
+    .status-badge-warning {
+        background-color: var(--warning-muted);
+        color: var(--warning);
+    }
+    .status-badge-destructive {
+        background-color: var(--destructive-muted);
+        color: var(--destructive);
+    }
+    .status-badge-info {
+        background-color: var(--info-muted);
+        color: var(--info);
+    }
+    .status-badge-neutral {
+        background-color: var(--muted);
+        color: var(--muted-foreground);
     }
 }
 

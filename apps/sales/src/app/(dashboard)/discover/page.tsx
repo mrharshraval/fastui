@@ -168,7 +168,7 @@ export default function DiscoverPage() {
                   </button>
                 </PopoverTrigger>
                 <PopoverContent 
-                  className="w-[var(--radix-popover-trigger-width)] p-0 rounded-[22px] shadow-xl overflow-hidden border border-border/60 bg-background" 
+                  className="w-[var(--radix-popover-trigger-width)] p-0 rounded-[22px] shadow-none overflow-hidden border-none bg-popover text-popover-foreground" 
                   align="start" 
                   side="bottom"
                   sideOffset={-44}
@@ -223,7 +223,7 @@ export default function DiscoverPage() {
               <button
                 type="button"
                 onClick={handleContinueBusiness}
-                className="h-[44px] w-full max-w-[280px] rounded-full bg-[#007AFF] text-white hover:bg-[#0055CC] active:scale-[0.98] transition-all font-semibold text-[15px] shadow-sm cursor-pointer"
+                className="h-[44px] w-full max-w-[280px] rounded-full bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-all font-semibold text-[15px] cursor-pointer"
               >
                 Continue
               </button>
@@ -258,7 +258,7 @@ export default function DiscoverPage() {
               <button
                 type="button"
                 onClick={handleContinueLocation}
-                className="h-[44px] w-full max-w-[280px] rounded-full bg-[#007AFF] text-white hover:bg-[#0055CC] active:scale-[0.98] transition-all font-semibold text-[15px] shadow-sm cursor-pointer"
+                className="h-[44px] w-full max-w-[280px] rounded-full bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-all font-semibold text-[15px] cursor-pointer"
               >
                 Continue
               </button>

@@ -80,7 +80,13 @@ export default function ProspectsPage() {
           website: b.website || undefined,
           phone: b.phone || undefined,
           email: b.email || undefined,
-          whatsapp: b.phone ? b.phone.replace(/[^0-9]/g, "") : undefined,
+          whatsapp: b.phone
+            ? (() => {
+                const digits = b.phone.replace(/[^0-9]/g, "")
+                const clean = digits.startsWith("0") && digits.length === 11 ? digits.slice(1) : digits
+                return clean.length === 10 ? `91${clean}` : clean
+              })()
+            : undefined,
           qualification_status: b.qualification_status ? b.qualification_status.toLowerCase() : "unqualified",
           source: b.source_platform || "discover",
           created_at: b.created_at || new Date().toISOString()
@@ -183,19 +189,39 @@ export default function ProspectsPage() {
 
   // Bulk Qualification status handler
   const handleBulkQualify = async (status: string) => {
+    const ids = Array.from(selectedProspects)
     setProspects(prev => prev.map(p => selectedProspects.has(p.id) ? { ...p, qualification_status: status } : p))
     selectedProspects.clear()
     setSelectedProspects(new Set())
+    for (const id of ids) {
+      const numId = parseInt(id.replace(/[^0-9]/g, ""), 10)
+      if (!isNaN(numId) && numId > 0) {
+        api.patch(`/prospects/${numId}/qualify`, { qualification_status: status }).catch(() => {})
+      }
+    }
   }
 
-  const handleDeleteSelected = () => {
+  const handleDeleteSelected = async () => {
+    const ids = Array.from(selectedProspects)
+    const numericIds = ids.map(id => parseInt(id.replace(/[^0-9]/g, ""), 10)).filter(n => !isNaN(n) && n > 0)
     setProspects(prev => prev.filter(p => !selectedProspects.has(p.id)))
     selectedProspects.clear()
     setSelectedProspects(new Set())
+    if (numericIds.length > 0) {
+      try {
+        await api.post("/businesses/bulk-delete", { business_ids: numericIds })
+      } catch {}
+    }
   }
 
-  const handleSingleDelete = (id: string) => {
+  const handleSingleDelete = async (id: string) => {
     setProspects(prev => prev.filter(p => p.id !== id))
+    const numId = parseInt(id.replace(/[^0-9]/g, ""), 10)
+    if (!isNaN(numId) && numId > 0) {
+      try {
+        await api.delete(`/businesses/${numId}`)
+      } catch {}
+    }
   }
 
 
@@ -282,7 +308,7 @@ export default function ProspectsPage() {
       </DropdownMenuSubTrigger>
       <DropdownMenuPortal>
         <DropdownMenuSubContent 
-          className="w-48 p-2 rounded-2xl border border-border/40 shadow-xl bg-background"
+          className="w-48"
           sideOffset={8}
         >
           <div className="flex flex-col gap-1">
@@ -312,7 +338,7 @@ export default function ProspectsPage() {
         >
           <ListFilter size={18} />
           {activeFilterCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 size-4 rounded-full bg-neutral-900 text-white dark:bg-white dark:text-black text-[10px] flex items-center justify-center font-bold shadow-sm pointer-events-none">
+            <span className="absolute -top-0.5 -right-0.5 size-4 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-bold pointer-events-none">
               {activeFilterCount}
             </span>
           )}
@@ -320,7 +346,7 @@ export default function ProspectsPage() {
       </DropdownMenuTrigger>
       <DropdownMenuContent 
         align="end" 
-        className="w-56 p-2 rounded-2xl border border-border/40 shadow-xl bg-background"
+        className="w-56"
       >
         <div className="flex items-center justify-between px-3 py-1.5 border-b border-border/40 mb-1">
           <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Filters</span>
@@ -412,7 +438,7 @@ export default function ProspectsPage() {
         </div>
 
         {/* 3. Sticky Filter Bar */}
-        <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-md px-4 py-2.5 border-b border-border/30 flex items-center justify-between gap-2 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+        <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-md px-4 py-2.5 border-b border-border/30 flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 min-w-0 flex-1">
             {["all", "unqualified", "reviewing", "qualified", "disqualified"].map((tab) => (
               <button
@@ -421,7 +447,7 @@ export default function ProspectsPage() {
                 onClick={() => setStatusTab(tab)}
                 className={`h-9 px-3.5 rounded-full text-sm capitalize transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
                   statusTab === tab
-                    ? "bg-neutral-900 text-white dark:bg-white dark:text-black font-semibold shadow-sm"
+                    ? "bg-primary text-primary-foreground font-semibold"
                     : "text-muted-foreground hover:text-foreground font-medium"
                 }`}
               >
@@ -485,7 +511,7 @@ export default function ProspectsPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent 
                           align="end" 
-                          className="w-48 p-2 rounded-2xl border border-border/40 shadow-xl bg-background"
+                          className="w-48"
                         >
                           <div className="flex flex-col gap-1">
                             <DropdownMenuItem
@@ -500,14 +526,14 @@ export default function ProspectsPage() {
                                 Qualification
                               </DropdownMenuSubTrigger>
                               <DropdownMenuPortal>
-                                <DropdownMenuSubContent className="w-40 p-2 rounded-2xl border border-border/40 shadow-xl bg-background">
+                                <DropdownMenuSubContent className="w-40">
                                   {["unqualified", "reviewing", "qualified", "disqualified"].map((st) => (
                                     <DropdownMenuItem
                                       key={st}
                                       onClick={() => handleSingleQualify(prospect.id, st)}
                                       className="flex items-center justify-between min-h-9 px-2.5 rounded-xl cursor-pointer text-[13px] font-[500] capitalize"
                                     >
-                                      {st}
+                                      <span>{st}</span>
                                       {prospect.qualification_status === st && <Check className="size-3.5" />}
                                     </DropdownMenuItem>
                                   ))}
@@ -517,7 +543,7 @@ export default function ProspectsPage() {
 
                             <DropdownMenuItem
                               onClick={() => handleSingleDelete(prospect.id)}
-                              className="flex items-center min-h-9 px-2.5 rounded-xl cursor-pointer text-[13px] font-[500] text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                              className="flex items-center min-h-9 px-2.5 rounded-xl cursor-pointer text-[13px] font-[500] text-destructive hover:bg-destructive-muted"
                             >
                               Delete
                             </DropdownMenuItem>
@@ -573,7 +599,7 @@ export default function ProspectsPage() {
                         window.open(`https://wa.me/${targetPhone}`, "_blank", "noopener,noreferrer")
                         handleAction(prospect, "whatsapp", prospect.whatsapp || prospect.phone!)
                       }}
-                      className="inline-flex items-center h-7 px-2.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 transition-colors shrink-0 cursor-pointer"
+                      className="inline-flex items-center h-7 px-2.5 rounded-full text-xs font-medium bg-success-muted text-success hover:bg-success/20 transition-colors shrink-0 cursor-pointer"
                     >
                       WhatsApp
                     </button>
@@ -621,7 +647,7 @@ export default function ProspectsPage() {
                     onClick={() => setStatusTab(tab)}
                     className={`h-9 px-3.5 rounded-full text-sm capitalize transition-colors cursor-pointer ${
                       statusTab === tab
-                        ? "bg-neutral-100 dark:bg-neutral-800 text-foreground font-semibold"
+                        ? "bg-secondary text-foreground font-semibold"
                         : "text-muted-foreground hover:text-foreground font-medium"
                     }`}
                   >
@@ -642,7 +668,7 @@ export default function ProspectsPage() {
                 <button
                   type="button"
                   onClick={handleBulkAddToLeads}
-                  className="flex items-center justify-center h-9 px-4 rounded-full bg-[#007AFF] text-white hover:bg-[#0055CC] active:scale-95 text-sm font-medium transition-all shadow-xs cursor-pointer"
+                  className="flex items-center justify-center h-9 px-4 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95 text-sm font-medium transition-all cursor-pointer"
                 >
                   <span>Approve</span>
                 </button>
@@ -652,12 +678,12 @@ export default function ProspectsPage() {
                   <DropdownMenuTrigger asChild>
                     <button 
                       type="button"
-                      className="h-9 px-3.5 rounded-full bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-sm font-medium text-foreground transition-colors cursor-pointer"
+                      className="h-9 px-3.5 rounded-full bg-secondary hover:bg-accent text-sm font-medium text-foreground transition-colors cursor-pointer"
                     >
                       Qualify
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-44 p-2 rounded-2xl border border-border/40 shadow-xl bg-background">
+                  <DropdownMenuContent align="start" className="w-44">
                     <div className="flex flex-col gap-1">
                       {["unqualified", "reviewing", "qualified", "disqualified"].map((st) => (
                         <DropdownMenuItem
@@ -676,20 +702,20 @@ export default function ProspectsPage() {
                 <button 
                   type="button"
                   onClick={handleDeleteSelected}
-                  className="h-9 px-3.5 rounded-full border border-rose-400 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-sm font-medium transition-colors cursor-pointer"
+                  className="h-9 px-3.5 rounded-full border border-destructive/30 text-destructive hover:bg-destructive-muted text-sm font-medium transition-colors cursor-pointer"
                 >
                   Delete
                 </button>
               </div>
 
               <div className="flex items-center gap-3">
-                <span className="text-sm text-neutral-500 font-normal">
+                <span className="text-sm text-muted-foreground font-normal">
                   {selectedProspects.size} selected
                 </span>
                 <button
                   type="button"
                   onClick={clearSelection}
-                  className="flex items-center justify-center size-7 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  className="flex items-center justify-center size-7 rounded-full hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                   title="Clear selection"
                 >
                   <X size={20} />
@@ -762,9 +788,9 @@ export default function ProspectsPage() {
                 let selectionRounding = "rounded-xl"
                 if (isSelected) {
                   if (!prevSelected && nextSelected) {
-                    selectionRounding = "rounded-t-xl border-b border-neutral-200/50 dark:border-neutral-700/40"
+                    selectionRounding = "rounded-t-xl border-b border-border/40"
                   } else if (prevSelected && nextSelected) {
-                    selectionRounding = "rounded-none border-b border-neutral-200/50 dark:border-neutral-700/40"
+                    selectionRounding = "rounded-none border-b border-border/40"
                   } else if (prevSelected && !nextSelected) {
                     selectionRounding = "rounded-b-xl"
                   } else {
@@ -800,8 +826,8 @@ export default function ProspectsPage() {
                       onClick={() => toggleProspect(prospect.id)}
                       className={`flex-1 grid grid-cols-[minmax(180px,2fr)_minmax(140px,1.4fr)_minmax(140px,1.3fr)_minmax(140px,1.3fr)_minmax(170px,1.5fr)_minmax(90px,0.9fr)_minmax(80px,0.8fr)] gap-4 px-3 py-3 text-sm items-center transition-colors cursor-pointer ${
                         isSelected 
-                          ? `bg-neutral-100/90 dark:bg-neutral-800/80 ${selectionRounding}` 
-                          : "hover:bg-neutral-100/50 dark:hover:bg-neutral-800/40 rounded-xl"
+                          ? `bg-secondary text-foreground ${selectionRounding}` 
+                          : "hover:bg-accent/50 rounded-xl"
                       }`}
                     >
                       {/* 1. Business */}
@@ -891,7 +917,7 @@ export default function ProspectsPage() {
                               window.open(`https://wa.me/${targetNumber}`, "_blank", "noopener,noreferrer")
                               handleAction(prospect, "whatsapp", prospect.whatsapp || prospect.phone!)
                             }}
-                            className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 active:scale-95 transition-all cursor-pointer"
+                            className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-success-muted text-success hover:bg-success/20 active:scale-95 transition-all cursor-pointer"
                             title={`Chat on WhatsApp (${prospect.whatsapp || prospect.phone})`}
                           >
                             <span>Chat</span>

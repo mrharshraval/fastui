@@ -24,6 +24,9 @@ class VerifyOTPRequest(BaseModel):
     email: EmailStr
     otp: str
 
+class UserProfileUpdateRequest(BaseModel):
+    name: Optional[str] = None
+
 class TokenResponse(BaseModel):
     message: str
     user: "UserSummary"
@@ -32,8 +35,10 @@ class UserSummary(BaseModel):
     id: int
     email: str
     role: str
+    name: Optional[str] = None
 
 class TokenData(BaseModel):
     user_id: int
     email: str
     role: str
+    name: Optional[str] = None

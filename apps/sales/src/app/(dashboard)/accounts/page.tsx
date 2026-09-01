@@ -123,23 +123,36 @@ export default function AccountsPage() {
  setCurrentSelection(new Set())
  }
 
- const handleDeleteSelected = () => {
- if (activeTab === "companies") {
- setCompanies(companies.filter(c => !selectedCompanies.has(c.id)))
- setSelectedCompanies(new Set())
- } else {
- setContacts(contacts.filter(c => !selectedContacts.has(c.id)))
- setSelectedContacts(new Set())
- }
- }
+  const handleDeleteSelected = async () => {
+    if (activeTab === "companies") {
+      const ids = Array.from(selectedCompanies)
+      const numericIds = ids.map(id => parseInt(id.replace(/[^0-9]/g, ""), 10)).filter(n => !isNaN(n) && n > 0)
+      setCompanies(companies.filter(c => !selectedCompanies.has(c.id)))
+      setSelectedCompanies(new Set())
+      if (numericIds.length > 0) {
+        try {
+          await api.post("/businesses/bulk-delete", { business_ids: numericIds })
+        } catch {}
+      }
+    } else {
+      setContacts(contacts.filter(c => !selectedContacts.has(c.id)))
+      setSelectedContacts(new Set())
+    }
+  }
 
- const handleSingleDeleteCompany = (id: string) => {
- setCompanies(companies.filter(c => c.id !== id))
- }
+  const handleSingleDeleteCompany = async (id: string) => {
+    setCompanies(companies.filter(c => c.id !== id))
+    const numId = parseInt(id.replace(/[^0-9]/g, ""), 10)
+    if (!isNaN(numId) && numId > 0) {
+      try {
+        await api.delete(`/businesses/${numId}`)
+      } catch {}
+    }
+  }
 
- const handleSingleDeleteContact = (id: string) => {
- setContacts(contacts.filter(c => c.id !== id))
- }
+  const handleSingleDeleteContact = (id: string) => {
+    setContacts(contacts.filter(c => c.id !== id))
+  }
 
  const initials = (name: string) =>
  name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
@@ -171,13 +184,13 @@ export default function AccountsPage() {
  </div>
 
  {/* 3. Sticky Tab Bar (Scrolls up to top, locks stickily overlapping header, z-30) */}
- <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-md px-4 py-2 border-b border-border/30 flex items-center gap-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+ <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-md px-4 py-2 border-b border-border/30 flex items-center gap-1.5">
  <button
  type="button"
  onClick={() => { setActiveTab("companies"); setSearch("") }}
  className={`h-9 px-3.5 rounded-full text-sm transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
  activeTab === "companies"
- ? "bg-neutral-900 text-white dark:bg-white dark:text-black font-semibold shadow-sm"
+ ? "bg-primary text-primary-foreground font-semibold"
  : "text-muted-foreground hover:text-foreground font-medium"
  }`}
 >
@@ -188,7 +201,7 @@ export default function AccountsPage() {
  onClick={() => { setActiveTab("contacts"); setSearch("") }}
  className={`h-9 px-3.5 rounded-full text-sm transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
  activeTab === "contacts"
- ? "bg-neutral-900 text-white dark:bg-white dark:text-black font-semibold shadow-sm"
+ ? "bg-primary text-primary-foreground font-semibold"
  : "text-muted-foreground hover:text-foreground font-medium"
  }`}
 >
@@ -244,10 +257,10 @@ export default function AccountsPage() {
  <MoreHorizontal size={18} />
  </button>
  </DropdownMenuTrigger>
- <DropdownMenuContent align="end" className="w-44 p-2 rounded-2xl border border-border/40 shadow-xl bg-background">
+ <DropdownMenuContent align="end" className="w-44">
  <DropdownMenuItem
  onClick={() => handleSingleDeleteCompany(c.id)}
- className="flex items-center min-h-9 px-2.5 rounded-xl cursor-pointer text-[13px] font-[500] text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+ className="flex items-center min-h-9 px-2.5 rounded-xl cursor-pointer text-[13px] font-[500] text-destructive hover:bg-destructive-muted"
 >
  Delete Company
  </DropdownMenuItem>
@@ -308,10 +321,10 @@ export default function AccountsPage() {
  <MoreHorizontal size={18} />
  </button>
  </DropdownMenuTrigger>
- <DropdownMenuContent align="end" className="w-44 p-2 rounded-2xl border border-border/40 shadow-xl bg-background">
+ <DropdownMenuContent align="end" className="w-44">
  <DropdownMenuItem
  onClick={() => handleSingleDeleteContact(c.id)}
- className="flex items-center min-h-9 px-2.5 rounded-xl cursor-pointer text-[13px] font-[500] text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+ className="flex items-center min-h-9 px-2.5 rounded-xl cursor-pointer text-[13px] font-[500] text-destructive hover:bg-destructive-muted"
 >
  Delete Contact
  </DropdownMenuItem>
@@ -357,7 +370,7 @@ export default function AccountsPage() {
  onClick={() => { setActiveTab("companies"); setSearch("") }}
  className={`h-9 px-3.5 rounded-full text-sm transition-colors cursor-pointer ${
  activeTab === "companies"
- ? "bg-neutral-100 dark:bg-neutral-800 text-foreground font-semibold"
+ ? "bg-muted text-foreground font-semibold"
  : "text-muted-foreground hover:text-foreground font-medium"
  }`}
 >
@@ -368,7 +381,7 @@ export default function AccountsPage() {
  onClick={() => { setActiveTab("contacts"); setSearch("") }}
  className={`h-9 px-3.5 rounded-full text-sm transition-colors cursor-pointer ${
  activeTab === "contacts"
- ? "bg-neutral-100 dark:bg-neutral-800 text-foreground font-semibold"
+ ? "bg-muted text-foreground font-semibold"
  : "text-muted-foreground hover:text-foreground font-medium"
  }`}
 >
@@ -380,26 +393,26 @@ export default function AccountsPage() {
  <div className="flex items-center gap-2">
  <button 
  type="button"
- className="h-9 px-4 rounded-full bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-sm font-medium text-foreground transition-colors cursor-pointer"
+ className="h-9 px-4 rounded-full bg-muted hover:bg-muted/80 text-sm font-medium text-foreground transition-colors cursor-pointer"
 >
  Assign
  </button>
  <button 
  type="button"
  onClick={handleDeleteSelected}
- className="h-9 px-4 rounded-full border border-rose-400 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-sm font-medium transition-colors cursor-pointer"
+ className="h-9 px-4 rounded-full border border-destructive/30 text-destructive hover:bg-destructive/10 text-sm font-medium transition-colors cursor-pointer"
 >
  Delete
  </button>
  </div>
  <div className="flex items-center gap-3">
- <span className="text-sm text-neutral-500 font-normal">
+ <span className="text-sm text-muted-foreground font-normal">
  {currentSelection.size} selected
  </span>
  <button
  type="button"
  onClick={clearSelection}
- className="flex items-center justify-center size-7 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+ className="flex items-center justify-center size-7 rounded-full hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
  title="Clear selection"
 >
  <X size={20} />
@@ -461,15 +474,15 @@ export default function AccountsPage() {
  ) : (
  filteredCompanies.map((c, idx) => {
  const isSelected = selectedCompanies.has(c.id)
- const prevSelected = idx> 0 && selectedCompanies.has(filteredCompanies[idx - 1].id)
+ const prevSelected = idx > 0 && selectedCompanies.has(filteredCompanies[idx - 1].id)
  const nextSelected = idx < filteredCompanies.length - 1 && selectedCompanies.has(filteredCompanies[idx + 1].id)
 
  let selectionRounding = "rounded-xl"
  if (isSelected) {
  if (!prevSelected && nextSelected) {
- selectionRounding = "rounded-t-xl border-b border-neutral-200/50 dark:border-neutral-700/40"
+ selectionRounding = "rounded-t-xl border-b border-border/40"
  } else if (prevSelected && nextSelected) {
- selectionRounding = "rounded-none border-b border-neutral-200/50 dark:border-neutral-700/40"
+ selectionRounding = "rounded-none border-b border-border/40"
  } else if (prevSelected && !nextSelected) {
  selectionRounding = "rounded-b-xl"
  } else {
@@ -498,8 +511,8 @@ export default function AccountsPage() {
  onClick={() => toggleItem(c.id)}
  className={`flex-1 grid grid-cols-12 gap-4 px-3 py-3 text-sm items-center transition-colors cursor-pointer ${
  isSelected 
- ? `bg-neutral-100/90 dark:bg-neutral-800/80 ${selectionRounding}` 
- : "hover:bg-neutral-100/50 dark:hover:bg-neutral-800/40 rounded-xl"
+ ? `bg-secondary text-foreground ${selectionRounding}` 
+ : "hover:bg-accent/50 rounded-xl"
  }`}
 >
  <div className="col-span-4 font-medium text-foreground truncate">
@@ -575,15 +588,15 @@ export default function AccountsPage() {
  ) : (
  filteredContacts.map((c, idx) => {
  const isSelected = selectedContacts.has(c.id)
- const prevSelected = idx> 0 && selectedContacts.has(filteredContacts[idx - 1].id)
+ const prevSelected = idx > 0 && selectedContacts.has(filteredContacts[idx - 1].id)
  const nextSelected = idx < filteredContacts.length - 1 && selectedContacts.has(filteredContacts[idx + 1].id)
 
  let selectionRounding = "rounded-xl"
  if (isSelected) {
  if (!prevSelected && nextSelected) {
- selectionRounding = "rounded-t-xl border-b border-neutral-200/50 dark:border-neutral-700/40"
+ selectionRounding = "rounded-t-xl border-b border-border/40"
  } else if (prevSelected && nextSelected) {
- selectionRounding = "rounded-none border-b border-neutral-200/50 dark:border-neutral-700/40"
+ selectionRounding = "rounded-none border-b border-border/40"
  } else if (prevSelected && !nextSelected) {
  selectionRounding = "rounded-b-xl"
  } else {
@@ -612,8 +625,8 @@ export default function AccountsPage() {
  onClick={() => toggleItem(c.id)}
  className={`flex-1 grid grid-cols-12 gap-4 px-3 py-3 text-sm items-center transition-colors cursor-pointer ${
  isSelected 
- ? `bg-neutral-100/90 dark:bg-neutral-800/80 ${selectionRounding}` 
- : "hover:bg-neutral-100/50 dark:hover:bg-neutral-800/40 rounded-xl"
+ ? `bg-secondary text-foreground ${selectionRounding}` 
+ : "hover:bg-accent/50 rounded-xl"
  }`}
 >
  <div className="col-span-4 flex items-center gap-2.5 truncate">

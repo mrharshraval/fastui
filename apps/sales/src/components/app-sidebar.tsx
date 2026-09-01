@@ -98,10 +98,10 @@ export function AppSidebar() {
       .catch(() => {})
   }, [])
 
-  const userEmail = currentUser?.email || "team@fastui.in"
-  const rawUsername = userEmail.split("@")[0]
+  const userEmail = currentUser?.email ?? ""
+  const rawUsername = userEmail ? userEmail.split("@")[0] : "Account"
   const displayName = rawUsername.charAt(0).toUpperCase() + rawUsername.slice(1)
-  const initials = getUserInitials(displayName, userEmail)
+  const initials = getUserInitials(displayName || null, userEmail || null)
 
   const side = isMobile ? "top" : (state === "collapsed" ? "right" : "top")
   const align = isMobile ? "center" : (state === "collapsed" ? "end" : "start")
@@ -117,14 +117,15 @@ export function AppSidebar() {
   const handleLogout = async () => {
     try {
       localStorage.removeItem("fastui_user")
-      document.cookie = "access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0;"
+      // Note: HttpOnly cookies cannot be cleared from JavaScript.
+      // The authoritative cookie deletion happens server-side via /auth/logout.
       await api.post("/auth/logout", {})
     } catch {}
     window.location.href = "/login"
   }
 
   return (
-    <Sidebar collapsible="icon" className="border-none" onClick={handleSidebarClick}>
+    <Sidebar collapsible="icon" onClick={handleSidebarClick}>
 
       {/* Header */}
       <SidebarHeader className="flex-row items-center px-1.5 h-12 shrink-0 relative">
@@ -273,49 +274,32 @@ export function AppSidebar() {
               <DropdownMenuContent
                 side={side}
                 align={align}
-                sideOffset={10}
+                sideOffset={8}
                 className={cn(
-                  "p-1 rounded-xl bg-popover shadow-none border-none",
                   state === "collapsed" && !isMobile ? "w-56" : "w-(--radix-dropdown-menu-trigger-width)"
                 )}
               >
                 <DropdownMenuGroup>
-                  <DropdownMenuItem
-                    onClick={() => router.push("/settings")}
-                    className="h-10 rounded-xl text-sm px-2 gap-2 cursor-pointer"
-                  >
-                    <div className="flex items-center justify-center size-8 shrink-0">
-                      <UserCircle className="size-4" />
-                    </div>
+                  <DropdownMenuItem onClick={() => router.push("/settings")}>
+                    <UserCircle className="size-4 shrink-0 text-muted-foreground" />
                     <span>Profile</span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => router.push("/settings")}
-                    className="h-10 rounded-xl text-sm px-2 gap-2 cursor-pointer"
-                  >
-                    <div className="flex items-center justify-center size-8 shrink-0">
-                      <Settings className="size-4" />
-                    </div>
+                  <DropdownMenuItem onClick={() => router.push("/settings")}>
+                    <Settings className="size-4 shrink-0 text-muted-foreground" />
                     <span>Settings</span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-                    className="h-10 rounded-xl text-sm px-2 gap-2 cursor-pointer"
-                  >
-                    <div className="flex items-center justify-center size-8 shrink-0">
-                      {resolvedTheme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
-                    </div>
+                  <DropdownMenuItem onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}>
+                    {resolvedTheme === "dark" ? (
+                      <Sun className="size-4 shrink-0 text-muted-foreground" />
+                    ) : (
+                      <Moon className="size-4 shrink-0 text-muted-foreground" />
+                    )}
                     <span>{resolvedTheme === "dark" ? "Light mode" : "Dark mode"}</span>
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
-                <DropdownMenuSeparator className="my-1 bg-border/50" />
-                <DropdownMenuItem
-                  onClick={handleLogout}
-                  className="h-10 rounded-xl text-sm px-2 gap-2 cursor-pointer focus:text-destructive focus:bg-destructive/10"
-                >
-                  <div className="flex items-center justify-center size-8 shrink-0">
-                    <LogOut className="size-4" />
-                  </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout}>
+                  <LogOut className="size-4 shrink-0 text-muted-foreground" />
                   <span>Sign out</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>

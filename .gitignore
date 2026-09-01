@@ -89,3 +89,6 @@ Thumbs.db
 .idea/
 *.sublime-project
 *.sublime-workspace
+
+# Design Reference Assets (Local Only)
+apps/sales/chatgpt themes/

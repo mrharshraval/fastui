@@ -143,7 +143,7 @@ export function VerifyOtpForm({
         {error && <FieldError message={error} />}
 
         {resendSuccess && (
-          <div className="flex items-center gap-1.5 mt-3 text-emerald-400 text-sm font-medium">
+          <div className="flex items-center gap-1.5 mt-3 text-success text-sm font-medium">
             <CheckCircle2 className="w-4 h-4 shrink-0" />
             <span>A new code has been sent to your email.</span>
           </div>

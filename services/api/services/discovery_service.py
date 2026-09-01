@@ -214,7 +214,7 @@ class DiscoveryService:
                     # 5. Authoritative normalization, deduplication & incremental persistence
                     for lead in batch_leads:
                         name_norm = BusinessNameNormalizer.normalize(lead.name)
-                        norm_phone = LeadDeduplicator.normalize_phone(lead.phone)
+                        norm_phone = LeadDeduplicator.normalize_phone(lead.phone, location=location_str)
                         norm_web = LeadDeduplicator.normalize_website(lead.website)
 
                         existing_biz = await LeadDeduplicator.find_duplicate(
@@ -227,13 +227,15 @@ class DiscoveryService:
                             source_place_id=lead.source_place_id,
                         )
 
+                        display_phone = LeadDeduplicator.format_display_phone(lead.phone, location=location_str)
+
                         if existing_biz:
                             job.duplicates += 1
                             dups_in_batch += 1
 
                             # Provenance & signal enrichment on existing business
-                            if not existing_biz.phone and lead.phone:
-                                existing_biz.phone = lead.phone
+                            if not existing_biz.phone and display_phone:
+                                existing_biz.phone = display_phone
                                 existing_biz.normalized_phone = norm_phone
                             if not existing_biz.website and lead.website:
                                 existing_biz.website = lead.website
@@ -255,12 +257,12 @@ class DiscoveryService:
                                 city=loc_city or getattr(lead, "city", None) or location_str,
                                 state=loc_state or getattr(lead, "state", None),
                                 country=loc_country or getattr(lead, "country", None),
-                                phone=lead.phone,
+                                phone=display_phone,
                                 email=lead.email,
                                 website=lead.website,
                                 normalized_phone=norm_phone,
                                 normalized_website=norm_web,
-                                has_whatsapp=bool(lead.phone),
+                                has_whatsapp=bool(display_phone),
                                 website_status=web_status,
                                 qualification_status="unqualified",
                                 source_platform=lead.source_platform or "google_maps",

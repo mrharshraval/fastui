@@ -96,7 +96,13 @@ export default function LeadsPage() {
             website: b.website || undefined,
             phone: b.phone || undefined,
             email: b.email || undefined,
-            whatsapp: b.phone ? b.phone.replace(/[^0-9]/g, "") : undefined,
+            whatsapp: b.phone
+              ? (() => {
+                  const digits = b.phone.replace(/[^0-9]/g, "")
+                  const clean = digits.startsWith("0") && digits.length === 11 ? digits.slice(1) : digits
+                  return clean.length === 10 ? `91${clean}` : clean
+                })()
+              : undefined,
             status: b.pipeline_stage ? b.pipeline_stage.toLowerCase() : "new",
             priority: b.priority || "medium",
             signal: b.signal || "warm",
@@ -218,9 +224,16 @@ export default function LeadsPage() {
   }
 
   // Bulk handlers (Desktop)
-  const handleBulkStatusChange = (newStatus: string) => {
+  const handleBulkStatusChange = async (newStatus: string) => {
+    const ids = Array.from(selectedLeads)
     setLeads(leads.map(l => selectedLeads.has(l.id) ? { ...l, status: newStatus } : l))
     clearSelection()
+    for (const id of ids) {
+      const numId = parseInt(id.replace(/[^0-9]/g, ""), 10)
+      if (!isNaN(numId) && numId > 0) {
+        api.patch(`/businesses/${numId}/stage`, { stage: newStatus }).catch(() => {})
+      }
+    }
   }
 
   const handleBulkFollowUp = (followUpTime: string) => {
@@ -233,14 +246,27 @@ export default function LeadsPage() {
     clearSelection()
   }
 
-  const handleDeleteSelected = () => {
+  const handleDeleteSelected = async () => {
+    const ids = Array.from(selectedLeads)
+    const numericIds = ids.map(id => parseInt(id.replace(/[^0-9]/g, ""), 10)).filter(n => !isNaN(n) && n > 0)
     setLeads(leads.filter(l => !selectedLeads.has(l.id)))
     clearSelection()
+    if (numericIds.length > 0) {
+      try {
+        await api.post("/businesses/bulk-delete", { business_ids: numericIds })
+      } catch {}
+    }
   }
 
   // Single item action handlers (Mobile ⋯ menu)
-  const handleSingleStatusChange = (id: string, newStatus: string) => {
+  const handleSingleStatusChange = async (id: string, newStatus: string) => {
     setLeads(leads.map(l => l.id === id ? { ...l, status: newStatus } : l))
+    const numId = parseInt(id.replace(/[^0-9]/g, ""), 10)
+    if (!isNaN(numId) && numId > 0) {
+      try {
+        await api.patch(`/businesses/${numId}/stage`, { stage: newStatus })
+      } catch {}
+    }
   }
 
   const handleSingleFollowUp = (id: string, followUpTime: string) => {
@@ -251,8 +277,14 @@ export default function LeadsPage() {
     setLeads(leads.map(l => l.id === id ? { ...l, follow_up: `Reminder: ${reminderTime}` } : l))
   }
 
-  const handleSingleDelete = (id: string) => {
+  const handleSingleDelete = async (id: string) => {
     setLeads(leads.filter(l => l.id !== id))
+    const numId = parseInt(id.replace(/[^0-9]/g, ""), 10)
+    if (!isNaN(numId) && numId > 0) {
+      try {
+        await api.delete(`/businesses/${numId}`)
+      } catch {}
+    }
   }
 
   const renderSubMenu = (
@@ -269,7 +301,7 @@ export default function LeadsPage() {
       </DropdownMenuSubTrigger>
       <DropdownMenuPortal>
         <DropdownMenuSubContent 
-          className="w-48 p-2 rounded-3xl border border-border/40 shadow-xl bg-background"
+          className="w-48"
           sideOffset={8}
         >
           <div className="flex flex-col gap-1">
@@ -277,7 +309,7 @@ export default function LeadsPage() {
               <DropdownMenuItem
                 key={opt.id}
                 onClick={() => onChange(opt.id)}
-                className="flex items-center justify-between min-h-9 px-2.5 rounded-2xl cursor-pointer text-[14px] font-[500] transition-colors outline-none border-none hover:bg-accent/60 text-foreground"
+                className="flex items-center justify-between min-h-9 px-2.5 rounded-xl cursor-pointer text-[14px] font-[500] transition-colors outline-none border-none hover:bg-accent/60 text-foreground"
               >
                 {opt.label}
                 {currentValue === opt.id && <Check size={20} className="shrink-0" />}
@@ -299,7 +331,7 @@ export default function LeadsPage() {
         >
           <ListFilter size={18} />
           {activeFilterCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 size-4 rounded-full bg-neutral-900 text-white dark:bg-white dark:text-black text-[10px] flex items-center justify-center font-bold shadow-sm pointer-events-none">
+            <span className="absolute -top-0.5 -right-0.5 size-4 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-bold pointer-events-none">
               {activeFilterCount}
             </span>
           )}
@@ -307,7 +339,7 @@ export default function LeadsPage() {
       </DropdownMenuTrigger>
       <DropdownMenuContent 
         align="end" 
-        className="w-56 p-2 rounded-3xl border border-border/40 shadow-xl bg-background"
+        className="w-56"
       >
         <div className="flex items-center justify-between px-3 py-1.5 border-b border-border/40 mb-1">
           <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Filters</span>
@@ -430,7 +462,7 @@ export default function LeadsPage() {
         </div>
 
         {/* 3. Sticky Filter Bar */}
-        <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-md px-4 py-2.5 border-b border-border/30 flex items-center justify-between gap-2 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+        <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-md px-4 py-2.5 border-b border-border/30 flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 min-w-0 flex-1">
             {["all", "new", "active", "closed"].map((tab) => (
               <button
@@ -439,7 +471,7 @@ export default function LeadsPage() {
                 onClick={() => setStatusTab(tab)}
                 className={`h-9 px-3.5 rounded-full text-sm capitalize transition-colors cursor-pointer shrink-0 whitespace-nowrap ${
                   statusTab === tab
-                    ? "bg-neutral-900 text-white dark:bg-white dark:text-black font-semibold shadow-sm"
+                    ? "bg-primary text-primary-foreground font-semibold"
                     : "text-muted-foreground hover:text-foreground font-medium"
                 }`}
               >
@@ -503,7 +535,7 @@ export default function LeadsPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent 
                           align="end" 
-                          className="w-48 p-2 rounded-2xl border border-border/40 shadow-xl bg-background"
+                          className="w-48"
                         >
                           <div className="flex flex-col gap-1">
                             <DropdownMenuSub>
@@ -511,7 +543,7 @@ export default function LeadsPage() {
                                 Change Status
                               </DropdownMenuSubTrigger>
                               <DropdownMenuPortal>
-                                <DropdownMenuSubContent className="w-40 p-2 rounded-2xl border border-border/40 shadow-xl bg-background">
+                                <DropdownMenuSubContent className="w-40">
                                   {["new", "contacted", "qualified", "proposal", "won", "lost"].map((st) => (
                                     <DropdownMenuItem
                                       key={st}
@@ -528,7 +560,7 @@ export default function LeadsPage() {
 
                             <DropdownMenuItem
                               onClick={() => handleSingleDelete(lead.id)}
-                              className="flex items-center min-h-9 px-2.5 rounded-xl cursor-pointer text-[13px] font-[500] text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                              className="flex items-center min-h-9 px-2.5 rounded-xl cursor-pointer text-[13px] font-[500] text-destructive hover:bg-destructive-muted"
                             >
                               Delete
                             </DropdownMenuItem>
@@ -584,7 +616,7 @@ export default function LeadsPage() {
                         window.open(`https://wa.me/${targetPhone}`, "_blank", "noopener,noreferrer")
                         handleAction(lead, "whatsapp", lead.whatsapp || lead.phone!)
                       }}
-                      className="inline-flex items-center h-7 px-2.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 transition-colors shrink-0 cursor-pointer"
+                      className="inline-flex items-center h-7 px-2.5 rounded-full text-xs font-medium bg-success-muted text-success hover:bg-success/20 transition-colors shrink-0 cursor-pointer"
                     >
                       WhatsApp
                     </button>
@@ -632,7 +664,7 @@ export default function LeadsPage() {
                     onClick={() => setStatusTab(tab)}
                     className={`h-9 px-3.5 rounded-full text-sm capitalize transition-colors cursor-pointer ${
                       statusTab === tab
-                        ? "bg-neutral-100 dark:bg-neutral-800 text-foreground font-semibold"
+                        ? "bg-secondary text-foreground font-semibold"
                         : "text-muted-foreground hover:text-foreground font-medium"
                     }`}
                   >
@@ -654,12 +686,12 @@ export default function LeadsPage() {
                   <DropdownMenuTrigger asChild>
                     <button 
                       type="button"
-                      className="h-9 px-3.5 rounded-full bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-sm font-medium text-foreground transition-colors cursor-pointer"
+                      className="h-9 px-3.5 rounded-full bg-secondary hover:bg-accent text-sm font-medium text-foreground transition-colors cursor-pointer"
                     >
                       Change Status
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-44 p-2 rounded-2xl border border-border/40 shadow-xl bg-background">
+                  <DropdownMenuContent align="start" className="w-44">
                     <div className="flex flex-col gap-1">
                       {["new", "contacted", "qualified", "proposal", "won", "lost"].map((st) => (
                         <DropdownMenuItem
@@ -679,12 +711,12 @@ export default function LeadsPage() {
                   <DropdownMenuTrigger asChild>
                     <button 
                       type="button"
-                      className="h-9 px-3.5 rounded-full bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-sm font-medium text-foreground transition-colors cursor-pointer"
+                      className="h-9 px-3.5 rounded-full bg-secondary hover:bg-accent text-sm font-medium text-foreground transition-colors cursor-pointer"
                     >
                       Add Follow-up
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-44 p-2 rounded-2xl border border-border/40 shadow-xl bg-background">
+                  <DropdownMenuContent align="start" className="w-44">
                     <div className="flex flex-col gap-1">
                       {[
                         { id: "Tomorrow", label: "Tomorrow" },
@@ -709,12 +741,12 @@ export default function LeadsPage() {
                   <DropdownMenuTrigger asChild>
                     <button 
                       type="button"
-                      className="h-9 px-3.5 rounded-full bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-sm font-medium text-foreground transition-colors cursor-pointer"
+                      className="h-9 px-3.5 rounded-full bg-secondary hover:bg-accent text-sm font-medium text-foreground transition-colors cursor-pointer"
                     >
                       Add Reminder
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-44 p-2 rounded-2xl border border-border/40 shadow-xl bg-background">
+                  <DropdownMenuContent align="start" className="w-44">
                     <div className="flex flex-col gap-1">
                       {[
                         { id: "In 1 hour", label: "In 1 hour" },
@@ -738,19 +770,19 @@ export default function LeadsPage() {
                 <button 
                   type="button"
                   onClick={handleDeleteSelected}
-                  className="h-9 px-3.5 rounded-full border border-rose-400 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-sm font-medium transition-colors cursor-pointer"
+                  className="h-9 px-3.5 rounded-full border border-destructive/30 text-destructive hover:bg-destructive-muted text-sm font-medium transition-colors cursor-pointer"
                 >
                   Delete
                 </button>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-sm text-neutral-500 font-normal">
+                <span className="text-sm text-muted-foreground font-normal">
                   {selectedLeads.size} selected
                 </span>
                 <button
                   type="button"
                   onClick={clearSelection}
-                  className="flex items-center justify-center size-7 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  className="flex items-center justify-center size-7 rounded-full hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                   title="Clear selection"
                 >
                   <X size={20} />
@@ -823,9 +855,9 @@ export default function LeadsPage() {
                 let selectionRounding = "rounded-xl"
                 if (isSelected) {
                   if (!prevSelected && nextSelected) {
-                    selectionRounding = "rounded-t-xl border-b border-neutral-200/50 dark:border-neutral-700/40"
+                    selectionRounding = "rounded-t-xl border-b border-border/40"
                   } else if (prevSelected && nextSelected) {
-                    selectionRounding = "rounded-none border-b border-neutral-200/50 dark:border-neutral-700/40"
+                    selectionRounding = "rounded-none border-b border-border/40"
                   } else if (prevSelected && !nextSelected) {
                     selectionRounding = "rounded-b-xl"
                   } else {
@@ -861,8 +893,8 @@ export default function LeadsPage() {
                       onClick={() => toggleLead(lead.id)}
                       className={`flex-1 grid grid-cols-[minmax(180px,2fr)_minmax(140px,1.4fr)_minmax(140px,1.3fr)_minmax(140px,1.3fr)_minmax(170px,1.5fr)_minmax(90px,0.9fr)_minmax(80px,0.8fr)] gap-4 px-3 py-3 text-sm items-center transition-colors cursor-pointer ${
                         isSelected 
-                          ? `bg-neutral-100/90 dark:bg-neutral-800/80 ${selectionRounding}` 
-                          : "hover:bg-neutral-100/50 dark:hover:bg-neutral-800/40 rounded-xl"
+                          ? `bg-secondary text-foreground ${selectionRounding}` 
+                          : "hover:bg-accent/50 rounded-xl"
                       }`}
                     >
                       {/* 1. Business */}
@@ -952,7 +984,7 @@ export default function LeadsPage() {
                               window.open(`https://wa.me/${targetNumber}`, "_blank", "noopener,noreferrer")
                               handleAction(lead, "whatsapp", lead.whatsapp || lead.phone!)
                             }}
-                            className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 active:scale-95 transition-all cursor-pointer"
+                            className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-success-muted text-success hover:bg-success/20 active:scale-95 transition-all cursor-pointer"
                             title={`Chat on WhatsApp (${lead.whatsapp || lead.phone})`}
                           >
                             <span>Chat</span>

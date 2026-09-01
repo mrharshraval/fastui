@@ -87,6 +87,10 @@ POSTGRES_MIGRATIONS = [
     "ALTER TABLE activities ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;",
     "ALTER TABLE activities ADD COLUMN IF NOT EXISTS metadata_json JSON;",
     "ALTER TABLE activities ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL;",
+
+    # Clean existing phone numbers starting with '0' to start with country code '+91 '
+    "UPDATE businesses SET phone = '+91 ' || SUBSTRING(REGEXP_REPLACE(phone, '[^0-9]', '', 'g') FROM 2 FOR 5) || ' ' || SUBSTRING(REGEXP_REPLACE(phone, '[^0-9]', '', 'g') FROM 7) WHERE phone ~ '^0[6-9][0-9]{9}$';",
+    "UPDATE businesses SET phone = '+91 ' || SUBSTRING(REGEXP_REPLACE(phone, '[^0-9]', '', 'g') FROM 1 FOR 5) || ' ' || SUBSTRING(REGEXP_REPLACE(phone, '[^0-9]', '', 'g') FROM 6) WHERE phone ~ '^[6-9][0-9]{9}$';",
 ]
 
 async def run_safe_migrations(engine: AsyncEngine):

@@ -6,12 +6,15 @@ const API_BASE =
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`
   const url = `${API_BASE}${normalizedPath}`
+  const correlationId = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : undefined
+
   const res = await fetch(url, {
     ...init,
     credentials: "include",
     cache: "no-store",
     headers: {
       "Content-Type": "application/json",
+      ...(correlationId ? { "X-Correlation-ID": correlationId } : {}),
       ...init?.headers,
     },
   })

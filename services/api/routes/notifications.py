@@ -96,8 +96,12 @@ async def unsubscribe_push_notifications(
 ):
     """
     Removes a push subscription for the active user.
+    Scoped to current user — cannot remove another user's subscription.
     """
-    stmt = delete(PushSubscription).where(PushSubscription.endpoint == endpoint)
+    stmt = delete(PushSubscription).where(
+        PushSubscription.endpoint == endpoint,
+        PushSubscription.user_id == current_user.user_id
+    )
     await db.execute(stmt)
     await db.commit()
     return {"status": "unsubscribed"}
