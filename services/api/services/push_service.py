@@ -1,8 +1,9 @@
+import base64
 import json
 import logging
-from pathlib import Path
 from typing import Any, Dict, Optional
 
+from cryptography.hazmat.primitives import serialization
 from pywebpush import webpush, WebPushException
 from py_vapid import Vapid
 
@@ -10,35 +11,28 @@ from core.config import settings
 
 logger = logging.getLogger(__name__)
 
-VAPID_CACHE_FILE = Path(__file__).resolve().parent.parent / ".vapid_keys.json"
+# Ephemeral in-memory fallback for local development or testing when environment variables are omitted
+_in_memory_vapid_keys: Optional[tuple[str, str]] = None
 
 
 def get_or_create_vapid_keys() -> tuple[str, str]:
     """
     Returns (public_key_base64, private_key_pem_or_base64).
-    If keys are set in settings/environment, uses them.
-    Otherwise, generates and persists local keys to .vapid_keys.json.
+    Strictly uses VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY from environment variables / settings.
+    Falls back to ephemeral in-memory generated keys for local dev / testing.
     """
+    global _in_memory_vapid_keys
+
     if settings.VAPID_PUBLIC_KEY and settings.VAPID_PRIVATE_KEY:
         return settings.VAPID_PUBLIC_KEY, settings.VAPID_PRIVATE_KEY
 
-    # Check local cache file
-    if VAPID_CACHE_FILE.exists():
-        try:
-            with open(VAPID_CACHE_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                if data.get("public_key") and data.get("private_key"):
-                    return data["public_key"], data["private_key"]
-        except Exception as e:
-            logger.warning(f"Failed to read cached VAPID keys: {e}")
+    # In-memory cached keypair (e.g. for dev/testing when env vars aren't provided)
+    if _in_memory_vapid_keys:
+        return _in_memory_vapid_keys
 
-    # Generate new VAPID keypair
+    logger.warning("VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY not found in environment; generating ephemeral in-memory keypair.")
     vapid = Vapid()
     vapid.generate_keys()
-    
-    # Export public key as URL-safe base64 string for browser PushManager
-    import base64
-    from cryptography.hazmat.primitives import serialization
 
     raw_bytes = vapid.public_key.public_bytes(
         encoding=serialization.Encoding.X962,
@@ -47,17 +41,8 @@ def get_or_create_vapid_keys() -> tuple[str, str]:
     pub_b64_str = base64.urlsafe_b64encode(raw_bytes).decode("utf-8").rstrip("=")
     priv_pem = vapid.private_pem().decode("utf-8")
 
-
-    try:
-        with open(VAPID_CACHE_FILE, "w", encoding="utf-8") as f:
-            json.dump({
-                "public_key": pub_b64_str,
-                "private_key": priv_pem,
-            }, f, indent=2)
-    except Exception as e:
-        logger.warning(f"Could not persist generated VAPID keys: {e}")
-
-    return pub_b64_str, priv_pem
+    _in_memory_vapid_keys = (pub_b64_str, priv_pem)
+    return _in_memory_vapid_keys
 
 
 class PushNotificationService:
