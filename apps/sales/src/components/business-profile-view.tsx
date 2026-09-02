@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation"
 import { Plus, ChevronDown, MoreHorizontal, ArrowLeft, X, Check } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getNotificationPermissionState, subscribeToPushNotifications } from "@/lib/push-notifications"
+import { IOSWheelPicker } from "@/components/ui/ios-wheel-picker"
 
 
 import { cn } from "@/lib/utils"
@@ -229,25 +230,38 @@ export function BusinessProfileView() {
   const [reminderDate, setReminderDate] = React.useState(() => {
     const d = new Date()
     d.setDate(d.getDate() + 1)
-    return d.toISOString().split("T")[0]
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, "0")
+    const day = String(d.getDate()).padStart(2, "0")
+    return `${y}-${m}-${day}`
   })
   const [reminderTime, setReminderTime] = React.useState("10:00")
   const [reminderContact, setReminderContact] = React.useState("")
-  const [reminderPickerMode, setReminderPickerMode] = React.useState<"date" | "time" | null>(null)
+  const [pickerStep, setPickerStep] = React.useState<"date" | "time" | null>(null)
+  const [tempDate, setTempDate] = React.useState(reminderDate)
+  const [tempTime, setTempTime] = React.useState(reminderTime)
   const [submittingReminder, setSubmittingReminder] = React.useState(false)
-  const pickerTimerRef = React.useRef<NodeJS.Timeout | null>(null)
-  const pickerRef = React.useRef<HTMLDivElement | null>(null)
   const reminderTextareaRef = React.useRef<HTMLTextAreaElement | null>(null)
   const noteTextareaRef = React.useRef<HTMLTextAreaElement | null>(null)
 
   // Auto-resize reminder textarea up to 4 lines (96px max) then fix height & scroll
   React.useEffect(() => {
-    if (activeSheet === "reminder" && reminderTextareaRef.current) {
+    if (activeSheet === "reminder" && !pickerStep && reminderTextareaRef.current) {
       const el = reminderTextareaRef.current
       el.style.height = "auto"
       el.style.height = `${Math.min(el.scrollHeight, 96)}px`
     }
-  }, [reminderText, activeSheet])
+  }, [reminderText, activeSheet, pickerStep])
+
+  // Refocus textarea when wheel picker closes
+  React.useEffect(() => {
+    if (activeSheet === "reminder" && !pickerStep) {
+      const timer = setTimeout(() => {
+        reminderTextareaRef.current?.focus()
+      }, 50)
+      return () => clearTimeout(timer)
+    }
+  }, [pickerStep, activeSheet])
 
   // Auto-resize note textarea up to 4 lines (96px max) then fix height & scroll
   React.useEffect(() => {
@@ -258,61 +272,89 @@ export function BusinessProfileView() {
     }
   }, [noteInput, activeSheet])
 
-  // Reset inactivity timer on any interaction (4s)
-  const resetPickerTimer = React.useCallback(() => {
-    if (pickerTimerRef.current) {
-      clearTimeout(pickerTimerRef.current)
-      pickerTimerRef.current = null
-    }
-
-    if (reminderPickerMode) {
-      pickerTimerRef.current = setTimeout(() => {
-        setReminderPickerMode(null)
-      }, 4000)
-    }
-  }, [reminderPickerMode])
-
+  // Reset picker state whenever activeSheet closes
   React.useEffect(() => {
-    resetPickerTimer()
-    return () => {
-      if (pickerTimerRef.current) {
-        clearTimeout(pickerTimerRef.current)
-      }
+    if (!activeSheet) {
+      setPickerStep(null)
     }
-  }, [reminderPickerMode, resetPickerTimer])
+  }, [activeSheet])
 
-  // Next 14 days generator for inline scheduling
-  const NEXT_DAYS = React.useMemo(() => {
-    const days: { dateStr: string; label: string }[] = []
+  // Check if a given date and time is in the past (minute-level precision)
+  const isDateTimeInPast = React.useCallback((dStr: string, tStr: string) => {
+    try {
+      const [y, m, d] = dStr.split("-").map(Number)
+      const [h, min] = tStr.split(":").map(Number)
+      const target = new Date(y, m - 1, d, h, min, 0, 0)
+      const now = new Date()
+      const currentMinute = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes(), 0, 0)
+      return target.getTime() < currentMinute.getTime()
+    } catch {
+      return false
+    }
+  }, [])
+
+  // Nearest future time
+  const getNextValidTime = React.useCallback(() => {
     const now = new Date()
-    for (let i = 0; i < 14; i++) {
-      const d = new Date(now)
-      d.setDate(now.getDate() + i)
-      const year = d.getFullYear()
-      const month = String(d.getMonth() + 1).padStart(2, "0")
-      const day = String(d.getDate()).padStart(2, "0")
-      const dateStr = `${year}-${month}-${day}`
-      const label = i === 0 ? "Today" : i === 1 ? "Tomorrow" : d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
-      days.push({ dateStr, label })
-    }
-    return days
+    const remainder = 5 - (now.getMinutes() % 5)
+    now.setMinutes(now.getMinutes() + (remainder === 0 ? 5 : remainder))
+    return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`
   }, [])
 
-  // All day time slots in 30-minute intervals (7:00 AM to 10:00 PM)
-  const TIME_SLOTS = React.useMemo(() => {
-    const slots: { label: string; val: string }[] = []
-    for (let hour = 7; hour <= 22; hour++) {
-      for (const min of [0, 30]) {
-        if (hour === 22 && min > 0) break
-        const val = `${String(hour).padStart(2, "0")}:${String(min).padStart(2, "0")}`
-        const dummyDate = new Date()
-        dummyDate.setHours(hour, min, 0, 0)
-        const label = dummyDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
-        slots.push({ label, val })
-      }
+  // Tapping Date plain control opens date picker
+  const handleDateControlClick = () => {
+    if (pickerStep === "date") {
+      setPickerStep(null)
+      return
     }
-    return slots
-  }, [])
+    // Only initialize temp from saved if opening from closed state
+    if (!pickerStep) {
+      setTempDate(reminderDate)
+      setTempTime(reminderTime)
+    }
+    setPickerStep("date")
+  }
+
+  // Tapping Time plain control opens time picker
+  const handleTimeControlClick = () => {
+    if (pickerStep === "time") {
+      setPickerStep(null)
+      return
+    }
+    // Only initialize temp from saved if opening from closed state
+    if (!pickerStep) {
+      let t = reminderTime
+      const d = reminderDate
+      if (isDateTimeInPast(d, t)) {
+        t = getNextValidTime()
+      }
+      setTempDate(d)
+      setTempTime(t)
+    }
+    setPickerStep("time")
+  }
+
+  // Step 1: Confirm Date (moves from date picker -> time picker)
+  const handleConfirmDate = () => {
+    let t = tempTime
+    if (isDateTimeInPast(tempDate, t)) {
+      t = getNextValidTime()
+    }
+    setTempTime(t)
+    setPickerStep("time")
+  }
+
+  // Step 2: Confirm Time (commits date/time and closes picker)
+  const handleConfirm = () => {
+    let d = tempDate
+    let t = tempTime
+    if (isDateTimeInPast(d, t)) {
+      t = getNextValidTime()
+    }
+    setReminderDate(d)
+    setReminderTime(t)
+    setPickerStep(null)
+  }
 
   // Keyboard viewport listener
   React.useEffect(() => {
@@ -585,13 +627,18 @@ export function BusinessProfileView() {
     try {
       const [year, month, day] = reminderDate.split("-").map(Number)
       const d = new Date(year, month - 1, day)
-      const monthDay = d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+      const isCurrentYear = year === new Date().getFullYear()
+      const monthDay = d.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: isCurrentYear ? undefined : "numeric",
+      })
       
       const [hour, minute] = reminderTime.split(":").map(Number)
       d.setHours(hour, minute, 0, 0)
       isoDue = d.toISOString()
       const timeDisplay = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
-      formattedDue = `${monthDay} · ${timeDisplay}`
+      formattedDue = `${monthDay}, ${timeDisplay}`
     } catch {
       formattedDue = `${reminderDate} ${reminderTime}`
     }
@@ -612,13 +659,14 @@ export function BusinessProfileView() {
       id: `act-reminder-${Date.now()}`,
       user_name: currentUserName,
       action: "Reminder set",
-      notes: `${text} (${formattedDue})${reminderContact ? ` · Contact: ${reminderContact}` : ""}`,
+      notes: `${text} (${formattedDue})${reminderContact ? `, Contact: ${reminderContact}` : ""}`,
       timestamp: formatActivityTimestamp(new Date())
     }
 
     setActivities((prev) => [newActivity, ...prev])
     setReminderText("")
     setActiveSheet(null)
+    setPickerStep(null)
     setSubmittingReminder(false)
 
     // Persist to API
@@ -1167,14 +1215,6 @@ export function BusinessProfileView() {
 
           {/* Floating Sheet Surface */}
           <div
-            onClick={(e) => {
-              if (reminderPickerMode && pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
-                const isTrigger = (e.target as HTMLElement).closest("[data-picker-trigger]")
-                if (!isTrigger) {
-                  setReminderPickerMode(null)
-                }
-              }
-            }}
             className="relative z-10 w-full max-w-md bg-card rounded-[28px] shadow-sheet border border-border/30 p-5 pt-3 pb-4 animate-in slide-in-from-bottom-6 duration-200 flex flex-col max-h-[calc(100dvh-3rem)] overflow-hidden"
           >
             {/* Subtle Drag Handle */}
@@ -1230,151 +1270,128 @@ export function BusinessProfileView() {
             {/* Content for Add Reminder */}
             {activeSheet === "reminder" && (
               <div className="flex flex-col pt-3 gap-3.5">
-                {/* Borderless Reminder Text Area (Auto-expands up to 4 lines, then scrolls internally) */}
-                <textarea
-                  ref={reminderTextareaRef}
-                  autoFocus
-                  placeholder="Follow up with Sarah…"
-                  value={reminderText}
-                  onChange={(e) => {
-                    setReminderText(e.target.value)
-                    const target = e.target
-                    target.style.height = "auto"
-                    target.style.height = `${Math.min(target.scrollHeight, 96)}px`
-                  }}
-                  rows={1}
-                  className="w-full max-h-[96px] overflow-y-auto p-0 bg-transparent border-0 focus:outline-none focus:ring-0 text-sm text-foreground placeholder:text-muted-foreground/50 resize-none leading-relaxed overscroll-contain apple-scrollbar"
-                />
-
-                {/* Inline Date Picker */}
-                {reminderPickerMode === "date" && (
-                  <div
-                    ref={pickerRef}
-                    onScroll={resetPickerTimer}
-                    onTouchStart={resetPickerTimer}
-                    onTouchMove={resetPickerTimer}
-                    onPointerDown={resetPickerTimer}
-                    onPointerMove={resetPickerTimer}
-                    onWheel={resetPickerTimer}
-                    className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 -mx-1 px-1 border-t border-border/20 pt-2.5 animate-in fade-in duration-150"
-                  >
-                    {NEXT_DAYS.map((d) => {
-                      const isSelected = reminderDate === d.dateStr
-                      return (
-                        <button
-                          key={d.dateStr}
-                          type="button"
-                          onClick={() => {
-                            setReminderDate(d.dateStr)
-                            setReminderPickerMode(null)
-                          }}
-                          className={cn(
-                            "h-7 px-3 rounded-full text-xs transition-colors cursor-pointer shrink-0 whitespace-nowrap select-none",
-                            isSelected
-                              ? "bg-primary text-primary-foreground font-semibold"
-                              : "bg-secondary hover:bg-secondary/80 text-muted-foreground hover:text-foreground font-medium"
-                          )}
-                        >
-                          {d.label}
-                        </button>
-                      )
-                    })}
+                {/* When picker is active: hide textarea and show wheel picker (date or time) */}
+                {pickerStep ? (
+                  <div className="w-full flex flex-col items-center justify-center animate-in fade-in zoom-in-[0.98] duration-150 py-0.5">
+                    <IOSWheelPicker
+                      mode={pickerStep}
+                      date={tempDate}
+                      time={tempTime}
+                      onChange={(newDate, newTime) => {
+                        setTempDate(newDate)
+                        setTempTime(newTime)
+                      }}
+                    />
                   </div>
+                ) : (
+                  /* Borderless Reminder Text Area (Auto-expands up to 4 lines, then scrolls internally) */
+                  <textarea
+                    ref={reminderTextareaRef}
+                    autoFocus
+                    placeholder="Follow up with Sarah…"
+                    value={reminderText}
+                    onChange={(e) => {
+                      setReminderText(e.target.value)
+                      const target = e.target
+                      target.style.height = "auto"
+                      target.style.height = `${Math.min(target.scrollHeight, 96)}px`
+                    }}
+                    rows={1}
+                    className="w-full max-h-[96px] overflow-y-auto p-0 bg-transparent border-0 focus:outline-none focus:ring-0 text-sm text-foreground placeholder:text-muted-foreground/50 resize-none leading-relaxed overscroll-contain apple-scrollbar"
+                  />
                 )}
 
-                {/* Inline Time Picker */}
-                {reminderPickerMode === "time" && (
-                  <div
-                    ref={pickerRef}
-                    onScroll={resetPickerTimer}
-                    onTouchStart={resetPickerTimer}
-                    onTouchMove={resetPickerTimer}
-                    onPointerDown={resetPickerTimer}
-                    onPointerMove={resetPickerTimer}
-                    onWheel={resetPickerTimer}
-                    className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 -mx-1 px-1 border-t border-border/20 pt-2.5 animate-in fade-in duration-150"
-                  >
-                    {TIME_SLOTS.map((t) => {
-                      const isSelected = reminderTime === t.val
-                      return (
-                        <button
-                          key={t.val}
-                          type="button"
-                          onClick={() => {
-                            setReminderTime(t.val)
-                            setReminderPickerMode(null)
-                          }}
-                          className={cn(
-                            "h-7 px-3 rounded-full text-xs transition-colors cursor-pointer shrink-0 whitespace-nowrap select-none",
-                            isSelected
-                              ? "bg-primary text-primary-foreground font-semibold"
-                              : "bg-secondary hover:bg-secondary/80 text-muted-foreground hover:text-foreground font-medium"
-                          )}
-                        >
-                          {t.label}
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
-
-                {/* Bottom Row: Simple Borderless Date & Time Triggers at Bottom-Left, Save at Bottom-Right */}
+                {/* Bottom Row: Date & Time Plain Controls at Bottom-Left, Action Button at Bottom-Right */}
                 <div className="flex items-center justify-between pt-2 mt-1 border-t border-border/20 shrink-0">
-                  <div className="flex items-center gap-1.5 text-xs select-none">
+                  <div className="flex items-center gap-3 text-xs select-none">
+                    {/* Date Plain Control (NOT a pill) */}
                     <button
                       type="button"
-                      data-picker-trigger
-                      onClick={() => setReminderPickerMode((prev) => (prev === "date" ? null : "date"))}
+                      onClick={handleDateControlClick}
                       className={cn(
                         "transition-colors cursor-pointer p-0 bg-transparent border-0 focus:outline-none",
-                        reminderPickerMode === "date"
-                          ? "text-foreground font-semibold"
+                        pickerStep === "date"
+                          ? "text-primary font-semibold"
                           : "text-muted-foreground hover:text-foreground font-normal"
                       )}
                     >
                       {(() => {
+                        const targetDate = pickerStep ? tempDate : reminderDate
                         try {
-                          const [y, m, d] = reminderDate.split("-").map(Number)
+                          const [y, m, d] = targetDate.split("-").map(Number)
                           const dateObj = new Date(y, m - 1, d)
-                          return dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                          const today = new Date()
+                          today.setHours(0, 0, 0, 0)
+                          const checkDate = new Date(dateObj)
+                          checkDate.setHours(0, 0, 0, 0)
+                          const diffDays = Math.round((checkDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+                          if (diffDays === 0) return "Today"
+                          if (diffDays === 1) return "Tomorrow"
+                          const isCurrentYear = checkDate.getFullYear() === today.getFullYear()
+                          return dateObj.toLocaleDateString("en-US", {
+                            weekday: "short",
+                            month: "short",
+                            day: "numeric",
+                            year: isCurrentYear ? undefined : "numeric",
+                          })
                         } catch {
-                          return reminderDate
+                          return targetDate
                         }
                       })()}
                     </button>
 
+                    {/* Time Plain Control (NOT a pill) */}
                     <button
                       type="button"
-                      data-picker-trigger
-                      onClick={() => setReminderPickerMode((prev) => (prev === "time" ? null : "time"))}
+                      onClick={handleTimeControlClick}
                       className={cn(
                         "transition-colors cursor-pointer p-0 bg-transparent border-0 focus:outline-none",
-                        reminderPickerMode === "time"
-                          ? "text-foreground font-semibold"
+                        pickerStep === "time"
+                          ? "text-primary font-semibold"
                           : "text-muted-foreground hover:text-foreground font-normal"
                       )}
                     >
                       {(() => {
+                        const targetTime = pickerStep ? tempTime : reminderTime
                         try {
-                          const [h, min] = reminderTime.split(":").map(Number)
+                          const [h, min] = targetTime.split(":").map(Number)
                           const timeObj = new Date()
                           timeObj.setHours(h, min)
                           return timeObj.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
                         } catch {
-                          return reminderTime
+                          return targetTime
                         }
                       })()}
                     </button>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={handleSaveReminder}
-                    disabled={!reminderText.trim() || submittingReminder}
-                    className="h-8 px-4 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs transition-all cursor-pointer disabled:opacity-35 active:scale-[0.98]"
-                  >
-                    Save
-                  </button>
+                  {/* Bottom Action Button: Save -> Confirm (Date) -> Confirm (Time) -> Save */}
+                  {pickerStep === "date" ? (
+                    <button
+                      type="button"
+                      onClick={handleConfirmDate}
+                      className="h-8 px-4 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs transition-all cursor-pointer active:scale-[0.98]"
+                    >
+                      Confirm
+                    </button>
+                  ) : pickerStep === "time" ? (
+                    <button
+                      type="button"
+                      onClick={handleConfirm}
+                      className="h-8 px-4 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs transition-all cursor-pointer active:scale-[0.98]"
+                    >
+                      Confirm
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleSaveReminder}
+                      disabled={!reminderText.trim() || submittingReminder}
+                      className="h-8 px-4 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs transition-all cursor-pointer disabled:opacity-35 active:scale-[0.98]"
+                    >
+                      Save
+                    </button>
+                  )}
                 </div>
               </div>
             )}
