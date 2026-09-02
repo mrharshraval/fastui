@@ -16,19 +16,15 @@ export function authenticateWorker(req: Request, config: AppConfig): AuthResult 
     throw new UnauthorizedError("Missing apikey or Authorization header")
   }
 
-  // Collect valid authorized keys
+  // Collect valid authorized secret keys from SUPABASE_SECRET_KEYS
   const validSecretKeys: string[] = Object.values(config.secretKeysMap).filter(
     (k): k is string => Boolean(k) && typeof k === "string"
   )
 
-  // Backward-compatibility fallbacks
-  if (config.cronSecret) validSecretKeys.push(config.cronSecret)
-  if (config.legacyServiceRole) validSecretKeys.push(config.legacyServiceRole)
-
   const isAuthorized = validSecretKeys.length > 0 && validSecretKeys.includes(callerKey)
 
   if (!isAuthorized) {
-    throw new UnauthorizedError()
+    throw new UnauthorizedError("Invalid or unauthorized Secret Key")
   }
 
   return {

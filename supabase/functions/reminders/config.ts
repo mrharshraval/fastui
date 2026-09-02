@@ -7,28 +7,33 @@ export function loadConfig(): AppConfig {
     throw new ConfigError("Missing SUPABASE_URL environment variable")
   }
 
-  // Parse built-in SUPABASE_SECRET_KEYS dictionary
+  // Parse modern built-in SUPABASE_SECRET_KEYS dictionary
   let secretKeysMap: Record<string, string> = {}
-  try {
-    const rawKeys = Deno.env.get("SUPABASE_SECRET_KEYS")
-    if (rawKeys) {
-      secretKeysMap = JSON.parse(rawKeys)
+  const rawKeys = Deno.env.get("SUPABASE_SECRET_KEYS")
+  if (rawKeys) {
+    try {
+      const parsed = JSON.parse(rawKeys)
+      if (Array.isArray(parsed)) {
+        parsed.forEach((k, idx) => {
+          if (typeof k === "string") secretKeysMap[`key_${idx}`] = k
+        })
+      } else if (typeof parsed === "object" && parsed !== null) {
+        secretKeysMap = parsed as Record<string, string>
+      } else if (typeof parsed === "string") {
+        secretKeysMap["default"] = parsed
+      }
+    } catch {
+      secretKeysMap["default"] = rawKeys.trim()
     }
-  } catch (err: unknown) {
-    console.warn("Could not parse SUPABASE_SECRET_KEYS environment variable:", err)
   }
-
-  const legacyServiceRole = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
-  const cronSecret = Deno.env.get("CRON_SECRET")
 
   const defaultSecretKey =
     secretKeysMap["default"] ||
     (Object.values(secretKeysMap)[0] as string) ||
-    legacyServiceRole ||
     ""
 
   if (!defaultSecretKey) {
-    throw new ConfigError("Missing valid Secret Key configuration (SUPABASE_SECRET_KEYS['default'])")
+    throw new ConfigError("Missing valid Secret Key configuration in SUPABASE_SECRET_KEYS")
   }
 
   // VAPID configuration
@@ -49,7 +54,5 @@ export function loadConfig(): AppConfig {
       privateKey: vapidPrivateKey,
       subject: vapidSubject,
     },
-    cronSecret: cronSecret || undefined,
-    legacyServiceRole: legacyServiceRole || undefined,
   }
 }

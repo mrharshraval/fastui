@@ -47,6 +47,4 @@ export interface AppConfig {
   secretKeysMap: Record<string, string>
   defaultSecretKey: string
   vapid: VapidConfig
-  cronSecret?: string
-  legacyServiceRole?: string
 }
