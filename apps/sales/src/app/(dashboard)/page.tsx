@@ -51,6 +51,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
+import { formatReminderDisplay, getReminderUrgency } from "@/lib/date-utils";
 
 interface Stats {
  total_leads?: number;
@@ -186,13 +187,13 @@ export default function DashboardPage() {
         if (Array.isArray(res)) {
           const mapped: FollowUpAction[] = res.map((f: any) => ({
             id: String(f.id),
-            contactName: f.lead_name || "Contact",
-            company: f.company || "Company",
-            lastInteraction: f.note || "Pending touchpoint",
-            nextAction: f.note || "Follow up",
-            dueDate: f.due_date || "Upcoming",
-            bucket: (f.status === "overdue" ? "overdue" : f.status === "done" ? "waiting" : "due_today"),
-            done: f.status === "done",
+            contactName: f.contact_name || f.business_name || f.title || "Contact",
+            company: f.business_name || "Company",
+            lastInteraction: f.notes || f.title || "Pending touchpoint",
+            nextAction: f.notes || f.title || "Follow up",
+            dueDate: f.due_at ? formatReminderDisplay(f.due_at) : (f.due_date || "Upcoming"),
+            bucket: getReminderUrgency(f.due_at),
+            done: f.status?.toLowerCase() === "completed" || f.status?.toLowerCase() === "done",
             dealValue: undefined,
           }));
           setFollowUps(mapped);

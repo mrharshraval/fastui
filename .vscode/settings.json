@@ -2,5 +2,10 @@
     "python.defaultInterpreterPath": "services/api/venv/Scripts/python.exe",
     "python.analysis.extraPaths": [
         "services/api"
-    ]
+    ],
+    "deno.enable": true,
+    "deno.enablePaths": [
+        "./supabase/functions"
+    ],
+    "deno.importMap": "./supabase/functions/deno.json"
 }

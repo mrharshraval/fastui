@@ -65,3 +65,43 @@ async def test_update_pipeline_stage(auth_client: AsyncClient, db_session: Async
     # Verify update persisted
     get_res = await auth_client.get("/businesses")
     assert get_res.json()[0]["pipeline_stage"].lower() == "proposal"
+
+@pytest.mark.asyncio
+async def test_business_reminders_crud_and_timezone(auth_client: AsyncClient, db_session: AsyncSession):
+    b = Business(business_name="Test Health Clinic", category="Clinic", city="Ahmedabad")
+    db_session.add(b)
+    await db_session.commit()
+    await db_session.refresh(b)
+
+    # 1. Create reminder with explicit UTC ISO timestamp
+    payload = {
+        "title": "Follow up on proposal",
+        "notes": "Call Dr. Sharma",
+        "due_at": "2026-09-02T20:50:08Z"
+    }
+    create_res = await auth_client.post(f"/businesses/{b.id}/reminders", json=payload)
+    assert create_res.status_code == 200
+    rem_data = create_res.json()
+    assert rem_data["title"] == "Follow up on proposal"
+    assert rem_data["business_id"] == b.id
+    assert "+00:00" in rem_data["due_at"] or rem_data["due_at"].endswith("Z")
+
+    # 2. Fetch business-specific reminders via GET /businesses/{id}/reminders
+    list_res = await auth_client.get(f"/businesses/{b.id}/reminders")
+    assert list_res.status_code == 200
+    rems = list_res.json()
+    assert len(rems) == 1
+    assert rems[0]["title"] == "Follow up on proposal"
+    assert "+00:00" in rems[0]["due_at"] or rems[0]["due_at"].endswith("Z")
+    assert rems[0]["business_name"] == "Test Health Clinic"
+
+    # 3. Update reminder due_at
+    update_res = await auth_client.patch(
+        f"/reminders/{rem_data['id']}",
+        json={"due_at": "2026-09-05T14:30:00Z", "status": "completed"}
+    )
+    assert update_res.status_code == 200
+    updated = update_res.json()
+    assert updated["status"].lower() == "completed"
+    assert "2026-09-05T14:30:00" in updated["due_at"]
+

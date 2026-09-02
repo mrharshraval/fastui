@@ -261,6 +261,8 @@ class ReminderResponse(BaseModel):
     notes: Optional[str] = None
     due_at: Union[datetime, str]
     status: str
+    business_name: Optional[str] = None
+    contact_name: Optional[str] = None
     completed_at: Optional[Union[datetime, str]] = None
     created_at: Optional[Union[datetime, str]] = None
 

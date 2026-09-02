@@ -8,7 +8,11 @@
     "lint": "turbo run lint"
   },
   "devDependencies": {
-    "turbo": "^2.0.0"
+    "@supabase/supabase-js": "^2.114.0",
+    "@types/deno": "^2.7.0",
+    "@types/web-push": "^3.6.4",
+    "turbo": "^2.0.0",
+    "web-push": "^3.6.7"
   },
   "packageManager": "pnpm@9.0.0"
 }

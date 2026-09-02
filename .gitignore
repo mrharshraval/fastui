@@ -79,6 +79,9 @@ scratch/
 services/api/scratch/
 tmp/
 temp/
+.temp/
+supabase/.temp/
+supabase/supabase/
 
 # Operating System & IDEs
 .DS_Store

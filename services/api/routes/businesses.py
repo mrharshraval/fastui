@@ -1,4 +1,5 @@
 from typing import List, Optional
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -518,6 +519,15 @@ async def delete_task(
 # 7. REMINDERS & FOLLOW-UPS
 # ─────────────────────────────────────────────────────────────
 
+def _to_utc_iso(dt: Optional[datetime]) -> Optional[str]:
+    if not dt:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    else:
+        dt = dt.astimezone(timezone.utc)
+    return dt.isoformat()
+
 @router.post("/businesses/{business_id}/reminders", response_model=ReminderResponse)
 async def create_reminder(
     business_id: int,
@@ -539,11 +549,43 @@ async def create_reminder(
         task_id=reminder.task_id,
         title=reminder.title,
         notes=reminder.notes,
-        due_at=reminder.due_at.isoformat() if reminder.due_at else None,
+        due_at=_to_utc_iso(reminder.due_at),
         status=reminder.status.value if hasattr(reminder.status, 'value') else str(reminder.status),
-        completed_at=reminder.completed_at.isoformat() if reminder.completed_at else None,
-        created_at=reminder.created_at.isoformat() if reminder.created_at else None
+        business_name=reminder.business.business_name if reminder.business else None,
+        contact_name=reminder.contact.name if reminder.contact else None,
+        completed_at=_to_utc_iso(reminder.completed_at),
+        created_at=_to_utc_iso(reminder.created_at)
     )
+
+@router.get("/businesses/{business_id}/reminders", response_model=List[ReminderResponse])
+async def list_business_reminders(
+    business_id: int,
+    session: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user)
+):
+    reminders = await BusinessService.get_business_reminders(
+        session=session,
+        business_id=business_id,
+        user_id=current_user.user_id
+    )
+    return [
+        ReminderResponse(
+            id=r.id,
+            business_id=r.business_id,
+            contact_id=r.contact_id,
+            user_id=r.user_id,
+            task_id=r.task_id,
+            title=r.title,
+            notes=r.notes,
+            due_at=_to_utc_iso(r.due_at),
+            status=r.status.value if hasattr(r.status, 'value') else str(r.status),
+            business_name=r.business.business_name if r.business else None,
+            contact_name=r.contact.name if r.contact else None,
+            completed_at=_to_utc_iso(r.completed_at),
+            created_at=_to_utc_iso(r.created_at)
+        )
+        for r in reminders
+    ]
 
 @router.get("/reminders", response_model=List[ReminderResponse])
 @router.get("/follow-ups", response_model=List[ReminderResponse])
@@ -566,10 +608,12 @@ async def list_all_reminders(
             task_id=r.task_id,
             title=r.title,
             notes=r.notes,
-            due_at=r.due_at.isoformat() if r.due_at else None,
+            due_at=_to_utc_iso(r.due_at),
             status=r.status.value if hasattr(r.status, 'value') else str(r.status),
-            completed_at=r.completed_at.isoformat() if r.completed_at else None,
-            created_at=r.created_at.isoformat() if r.created_at else None
+            business_name=r.business.business_name if r.business else None,
+            contact_name=r.contact.name if r.contact else None,
+            completed_at=_to_utc_iso(r.completed_at),
+            created_at=_to_utc_iso(r.created_at)
         )
         for r in reminders
     ]
@@ -596,10 +640,12 @@ async def update_reminder(
         task_id=reminder.task_id,
         title=reminder.title,
         notes=reminder.notes,
-        due_at=reminder.due_at.isoformat() if reminder.due_at else None,
+        due_at=_to_utc_iso(reminder.due_at),
         status=reminder.status.value if hasattr(reminder.status, 'value') else str(reminder.status),
-        completed_at=reminder.completed_at.isoformat() if reminder.completed_at else None,
-        created_at=reminder.created_at.isoformat() if reminder.created_at else None
+        business_name=reminder.business.business_name if reminder.business else None,
+        contact_name=reminder.contact.name if reminder.contact else None,
+        completed_at=_to_utc_iso(reminder.completed_at),
+        created_at=_to_utc_iso(reminder.created_at)
     )
 
 @router.delete("/reminders/{reminder_id}")

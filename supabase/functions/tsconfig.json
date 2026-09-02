@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "lib": ["ESNext", "DOM"],
+    "types": ["deno", "web-push"],
+    "skipLibCheck": true,
+    "allowJs": true,
+    "noEmit": true
+  },
+  "include": ["**/*.ts", "**/*.d.ts"]
+}

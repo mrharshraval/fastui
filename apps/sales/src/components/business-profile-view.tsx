@@ -7,7 +7,7 @@ import { Plus, ChevronDown, MoreHorizontal, ArrowLeft, X, Check } from "lucide-r
 import { Skeleton } from "@/components/ui/skeleton"
 import { getNotificationPermissionState, subscribeToPushNotifications } from "@/lib/push-notifications"
 import { IOSWheelPicker } from "@/components/ui/ios-wheel-picker"
-
+import { localPartsToUtcIso, formatReminderDisplay } from "@/lib/date-utils"
 
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api"
@@ -49,6 +49,7 @@ interface ReminderItem {
   id: string
   title: string
   due_date: string
+  raw_due_at?: string
   notes?: string
   status?: "pending" | "completed"
   user_name?: string
@@ -458,9 +459,10 @@ export function BusinessProfileView() {
                   rems.map((r: any) => ({
                     id: String(r.id),
                     title: r.title,
-                    due_date: r.due_at ? formatActivityTimestamp(new Date(r.due_at)) : "No date",
+                    due_date: formatReminderDisplay(r.due_at),
+                    raw_due_at: r.due_at,
                     notes: r.notes || undefined,
-                    status: r.status || "pending",
+                    status: (r.status?.toLowerCase() === "completed" ? "completed" : "pending") as "pending" | "completed",
                     // Use server-returned user_name if present, else current user name
                     user_name: r.user_name || currentUserName,
                     timestamp: formatActivityTimestamp(r.created_at ? new Date(r.created_at) : new Date())
@@ -622,31 +624,14 @@ export function BusinessProfileView() {
     setSubmittingReminder(true)
 
     const text = reminderText.trim()
-    let formattedDue = reminderDate
-    let isoDue = new Date().toISOString()
-    try {
-      const [year, month, day] = reminderDate.split("-").map(Number)
-      const d = new Date(year, month - 1, day)
-      const isCurrentYear = year === new Date().getFullYear()
-      const monthDay = d.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: isCurrentYear ? undefined : "numeric",
-      })
-      
-      const [hour, minute] = reminderTime.split(":").map(Number)
-      d.setHours(hour, minute, 0, 0)
-      isoDue = d.toISOString()
-      const timeDisplay = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
-      formattedDue = `${monthDay}, ${timeDisplay}`
-    } catch {
-      formattedDue = `${reminderDate} ${reminderTime}`
-    }
+    const isoDue = localPartsToUtcIso(reminderDate, reminderTime)
+    const formattedDue = formatReminderDisplay(isoDue)
 
     const newReminder: ReminderItem = {
       id: `rem-${Date.now()}`,
       title: text,
       due_date: formattedDue,
+      raw_due_at: isoDue,
       notes: reminderContact ? `Contact: ${reminderContact}` : undefined,
       status: "pending",
       user_name: currentUserName,
@@ -1056,8 +1041,8 @@ export function BusinessProfileView() {
                       </span>
 
                       <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-xs text-muted-foreground/70 font-normal">
-                          {rem.timestamp || "Aug 28"}
+                        <span className="text-xs text-muted-foreground/80 font-normal tabular-nums">
+                          {rem.due_date}
                         </span>
 
                         <DropdownMenu>

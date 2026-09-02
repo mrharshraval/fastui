@@ -1,0 +1,7 @@
+# Supabase CLI Project Configuration
+# Configures Edge Functions and local development settings.
+
+[functions.reminders]
+# Server-to-server function authenticated via secret key (apikey header) rather than user JWT.
+# Disables platform gateway user-JWT verification; authentication is enforced in function code via SUPABASE_SECRET_KEYS.
+verify_jwt = false

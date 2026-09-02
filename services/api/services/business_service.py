@@ -771,12 +771,24 @@ class BusinessService:
         if not business:
             raise EntityNotFoundException("Business", business_id)
 
-        due_at_dt = req.due_at if isinstance(req.due_at, datetime) else datetime.now(timezone.utc)
-        if isinstance(req.due_at, str):
+        # Strict UTC normalization
+        if isinstance(req.due_at, datetime):
+            if req.due_at.tzinfo is None:
+                due_at_dt = req.due_at.replace(tzinfo=timezone.utc)
+            else:
+                due_at_dt = req.due_at.astimezone(timezone.utc)
+        elif isinstance(req.due_at, str):
             try:
-                due_at_dt = datetime.fromisoformat(req.due_at.replace("Z", "+00:00"))
+                raw_str = req.due_at.strip().replace("Z", "+00:00")
+                parsed_dt = datetime.fromisoformat(raw_str)
+                if parsed_dt.tzinfo is None:
+                    due_at_dt = parsed_dt.replace(tzinfo=timezone.utc)
+                else:
+                    due_at_dt = parsed_dt.astimezone(timezone.utc)
             except Exception:
                 due_at_dt = datetime.now(timezone.utc)
+        else:
+            due_at_dt = datetime.now(timezone.utc)
 
         reminder = Reminder(
             business_id=business_id,
@@ -822,6 +834,22 @@ class BusinessService:
             reminder.title = req.title
         if req.notes is not None:
             reminder.notes = req.notes
+        if req.due_at is not None:
+            if isinstance(req.due_at, datetime):
+                if req.due_at.tzinfo is None:
+                    reminder.due_at = req.due_at.replace(tzinfo=timezone.utc)
+                else:
+                    reminder.due_at = req.due_at.astimezone(timezone.utc)
+            elif isinstance(req.due_at, str):
+                try:
+                    raw_str = req.due_at.strip().replace("Z", "+00:00")
+                    parsed_dt = datetime.fromisoformat(raw_str)
+                    if parsed_dt.tzinfo is None:
+                        reminder.due_at = parsed_dt.replace(tzinfo=timezone.utc)
+                    else:
+                        reminder.due_at = parsed_dt.astimezone(timezone.utc)
+                except Exception:
+                    pass
         if req.status is not None:
             for st in ReminderStatus:
                 if st.value == req.status.lower():
@@ -847,13 +875,34 @@ class BusinessService:
         return reminder
 
     @staticmethod
+    async def get_business_reminders(
+        session: AsyncSession,
+        business_id: int,
+        user_id: Optional[int] = None
+    ) -> List[Reminder]:
+        """Returns reminders for a specific business, ordered by due_at ascending."""
+        query = (
+            select(Reminder)
+            .options(selectinload(Reminder.business), selectinload(Reminder.contact))
+            .where(Reminder.business_id == business_id)
+        )
+        if user_id is not None:
+            query = query.where(Reminder.user_id == user_id)
+        query = query.order_by(asc(Reminder.due_at))
+        result = await session.execute(query)
+        return list(result.scalars().all())
+
+    @staticmethod
     async def get_all_reminders(
         session: AsyncSession,
         status: Optional[str] = None,
         user_id: Optional[int] = None
     ) -> List[Reminder]:
         """Returns reminders scoped to the authenticated user."""
-        query = select(Reminder)
+        query = (
+            select(Reminder)
+            .options(selectinload(Reminder.business), selectinload(Reminder.contact))
+        )
         # Scope to current user — never leak cross-user reminders
         if user_id is not None:
             query = query.where(Reminder.user_id == user_id)
