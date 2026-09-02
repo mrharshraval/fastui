@@ -7,7 +7,7 @@ export function loadConfig(): AppConfig {
     throw new ConfigError("Missing SUPABASE_URL environment variable")
   }
 
-  // Parse modern built-in SUPABASE_SECRET_KEYS dictionary
+  // Parse modern built-in SUPABASE_SECRET_KEYS dictionary & SUPABASE_SERVICE_ROLE_KEY
   let secretKeysMap: Record<string, string> = {}
   const rawKeys = Deno.env.get("SUPABASE_SECRET_KEYS")
   if (rawKeys) {
@@ -27,13 +27,19 @@ export function loadConfig(): AppConfig {
     }
   }
 
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
+  if (serviceRoleKey) {
+    secretKeysMap["service_role"] = serviceRoleKey
+  }
+
   const defaultSecretKey =
     secretKeysMap["default"] ||
+    serviceRoleKey ||
     (Object.values(secretKeysMap)[0] as string) ||
     ""
 
   if (!defaultSecretKey) {
-    throw new ConfigError("Missing valid Secret Key configuration in SUPABASE_SECRET_KEYS")
+    throw new ConfigError("Missing valid Secret Key configuration (SUPABASE_SECRET_KEYS or SUPABASE_SERVICE_ROLE_KEY)")
   }
 
   // VAPID configuration
