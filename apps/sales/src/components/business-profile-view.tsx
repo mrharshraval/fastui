@@ -668,9 +668,9 @@ export function BusinessProfileView() {
       // Ignore API errors
     }
 
-    // Seamlessly request push notification permission if default
+    // Seamlessly ensure push notification subscription on reminder save
     try {
-      if (getNotificationPermissionState() === "default") {
+      if (getNotificationPermissionState() !== "denied") {
         subscribeToPushNotifications().catch(() => {})
       }
     } catch {
