@@ -23,6 +23,13 @@ import {
   DropdownMenuSubContent,
   DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu"
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  SheetDescription,
+  SheetClose,
+} from "@/components/ui/sheet"
 
 export interface Prospect {
   id: string
@@ -65,6 +72,15 @@ export default function ProspectsPage() {
     website: "all",
     source: "all"
   })
+
+  // Mobile bottom-sheet filter state
+  const [mobileFiltersOpen, setMobileFiltersOpen] = React.useState(false)
+  const [pendingFilters, setPendingFilters] = React.useState({
+    website: "all",
+    source: "all"
+  })
+
+  const activeSecondaryFilterCount = [filters.website, filters.source].filter(v => v !== "all").length
 
   // Selection state (Desktop only)
   const [selectedProspects, setSelectedProspects] = React.useState<Set<string>>(new Set())
@@ -456,20 +472,178 @@ export default function ProspectsPage() {
             ))}
           </div>
 
-          {filterDropdownMenu}
+          {/* Mobile Filter Button (opens bottom sheet) */}
+          <button
+            type="button"
+            aria-label="Filter"
+            onClick={() => {
+              setPendingFilters({
+                website: filters.website,
+                source: filters.source
+              })
+              setMobileFiltersOpen(true)
+            }}
+            className="relative flex items-center justify-center size-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent/60 active:scale-95 transition-colors cursor-pointer shrink-0"
+          >
+            <ListFilter size={18} />
+            {activeSecondaryFilterCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 size-4 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-bold pointer-events-none">
+                {activeSecondaryFilterCount}
+              </span>
+            )}
+          </button>
         </div>
 
-        {/* Mobile Prospect List Rows */}
-        <div className="flex flex-col w-full divide-y divide-border/30">
-          {loading ? (
-            Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="flex flex-col gap-2 py-3.5 px-4">
-                <div className="flex items-center justify-between">
-                  <Skeleton className="h-4 w-40 rounded" />
-                  <Skeleton className="size-4 rounded-full" />
+        {/* Mobile Filter Bottom Sheet */}
+        <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
+          <SheetContent 
+            side="bottom" 
+            className="max-h-[85vh] p-0 flex flex-col bg-background border-t border-border/50 rounded-t-[28px] outline-none"
+            showCloseButton={false}
+          >
+            {/* iOS-style grab handle */}
+            <div className="flex justify-center pt-3 pb-1 shrink-0">
+              <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
+            </div>
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 pt-2 pb-3 border-b border-border/30 shrink-0">
+              <SheetTitle className="text-base font-semibold text-foreground">
+                Filter
+              </SheetTitle>
+              <SheetClose asChild>
+                <button
+                  type="button"
+                  aria-label="Close filter"
+                  className="flex items-center justify-center size-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent/60 active:scale-95 transition-all cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </SheetClose>
+            </div>
+            <SheetDescription className="sr-only">
+              Filter prospects by website and source
+            </SheetDescription>
+
+            {/* Body: Grouped Filter Rows */}
+            <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-5">
+              {/* Group 1: Website */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1">
+                  Website
+                </span>
+                <div className="rounded-2xl border border-border/50 divide-y divide-border/30 overflow-hidden">
+                  {[
+                    { id: "all", label: "Any" },
+                    { id: "has_website", label: "Has Website" },
+                    { id: "no_website", label: "No Website" }
+                  ].map((opt) => {
+                    const isSelected = pendingFilters.website === opt.id
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setPendingFilters(prev => ({ ...prev, website: opt.id }))}
+                        className="w-full flex items-center justify-between min-h-[48px] px-4 text-left transition-colors hover:bg-accent/40 active:bg-accent/60 cursor-pointer"
+                      >
+                        <span className={`text-[14px] ${isSelected ? "font-semibold text-foreground" : "font-normal text-muted-foreground"}`}>
+                          {opt.label}
+                        </span>
+                        {isSelected && (
+                          <Check className="size-4 text-primary shrink-0 stroke-[2.5]" />
+                        )}
+                      </button>
+                    )
+                  })}
                 </div>
-                <Skeleton className="h-3 w-28 rounded" />
-                <Skeleton className="h-4 w-20 rounded-full mt-1" />
+              </div>
+
+              {/* Group 2: Source */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1">
+                  Source
+                </span>
+                <div className="rounded-2xl border border-border/50 divide-y divide-border/30 overflow-hidden">
+                  {[
+                    { id: "all", label: "All Sources" },
+                    { id: "discover", label: "Discover" },
+                    { id: "import", label: "Import" },
+                    { id: "manual", label: "Manual" }
+                  ].map((opt) => {
+                    const isSelected = pendingFilters.source === opt.id
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setPendingFilters(prev => ({ ...prev, source: opt.id }))}
+                        className="w-full flex items-center justify-between min-h-[48px] px-4 text-left transition-colors hover:bg-accent/40 active:bg-accent/60 cursor-pointer"
+                      >
+                        <span className={`text-[14px] ${isSelected ? "font-semibold text-foreground" : "font-normal text-muted-foreground"}`}>
+                          {opt.label}
+                        </span>
+                        {isSelected && (
+                          <Check className="size-4 text-primary shrink-0 stroke-[2.5]" />
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Sticky Bottom Actions */}
+            <div className="sticky bottom-0 bg-background/95 backdrop-blur-md border-t border-border/30 px-5 py-3.5 flex items-center gap-3 mt-auto shrink-0 pb-[max(0.875rem,env(safe-area-inset-bottom))]">
+              <button
+                type="button"
+                onClick={() => {
+                  setPendingFilters({ website: "all", source: "all" })
+                }}
+                disabled={pendingFilters.website === "all" && pendingFilters.source === "all"}
+                className="flex-1 h-11 rounded-full border border-border/60 hover:bg-accent active:scale-95 text-foreground text-sm font-medium transition-all cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
+              >
+                Clear all
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFilters(prev => ({
+                    ...prev,
+                    website: pendingFilters.website,
+                    source: pendingFilters.source
+                  }))
+                  setMobileFiltersOpen(false)
+                }}
+                className="flex-1 h-11 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95 text-sm font-medium transition-all cursor-pointer shadow-xs"
+              >
+                Apply
+              </button>
+            </div>
+          </SheetContent>
+        </Sheet>
+
+        {/* Mobile Prospect Cards */}
+        <div className="flex flex-col gap-3 p-4">
+          {loading ? (
+            Array.from({ length: 5 }).map((_, i) => (
+              <div
+                key={i}
+                className="bg-card text-card-foreground rounded-2xl border border-border/50 p-4 flex flex-col gap-3"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex flex-col gap-1.5 min-w-0 flex-1 pr-3">
+                    <Skeleton className="h-4 w-40 rounded" />
+                    <Skeleton className="h-3 w-28 rounded" />
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Skeleton className="h-3 w-10 rounded" />
+                    <Skeleton className="size-8 rounded-full" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 pt-0.5">
+                  <Skeleton className="h-7 w-16 rounded-full" />
+                  <Skeleton className="h-7 w-12 rounded-full" />
+                  <Skeleton className="h-7 w-14 rounded-full" />
+                </div>
               </div>
             ))
           ) : filteredItems.length === 0 ? (
@@ -481,7 +655,7 @@ export default function ProspectsPage() {
               <div
                 key={prospect.id}
                 onClick={() => router.push(`/business/${prospect.id}`)}
-                className="flex flex-col gap-2 py-3.5 px-4 active:bg-accent/40 transition-colors cursor-pointer"
+                className="bg-card text-card-foreground rounded-2xl border border-border/50 p-4 flex flex-col gap-2.5 transition-colors cursor-pointer hover:border-border active:bg-accent/30"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex flex-col min-w-0 pr-3 flex-1">
@@ -555,56 +729,58 @@ export default function ProspectsPage() {
                 </div>
 
                 {/* Mobile Actionable Contact Buttons */}
-                <div 
-                  onClick={(e) => e.stopPropagation()} 
-                  className="flex items-center gap-2 pt-1 overflow-x-auto no-scrollbar"
-                >
-                  {prospect.website && (
-                    <a
-                      href={prospect.website.startsWith("http") ? prospect.website : `https://${prospect.website}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => handleAction(prospect, "website", prospect.website!)}
-                      className="inline-flex items-center h-7 px-2.5 rounded-full text-xs font-medium bg-accent/60 hover:bg-accent text-foreground transition-colors shrink-0"
-                    >
-                      Website
-                    </a>
-                  )}
+                {(prospect.website || prospect.phone || prospect.email || prospect.whatsapp) && (
+                  <div 
+                    onClick={(e) => e.stopPropagation()} 
+                    className="flex items-center gap-2 pt-1 overflow-x-auto no-scrollbar"
+                  >
+                    {prospect.website && (
+                      <a
+                        href={prospect.website.startsWith("http") ? prospect.website : `https://${prospect.website}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => handleAction(prospect, "website", prospect.website!)}
+                        className="inline-flex items-center h-7 px-2.5 rounded-full text-xs font-medium bg-accent/60 hover:bg-accent text-foreground transition-colors shrink-0"
+                      >
+                        Website
+                      </a>
+                    )}
 
-                  {prospect.phone && (
-                    <a
-                      href={`tel:${prospect.phone}`}
-                      onClick={() => handleAction(prospect, "call", prospect.phone!)}
-                      className="inline-flex items-center h-7 px-2.5 rounded-full text-xs font-medium bg-accent/60 hover:bg-accent text-foreground transition-colors shrink-0"
-                    >
-                      Call
-                    </a>
-                  )}
+                    {prospect.phone && (
+                      <a
+                        href={`tel:${prospect.phone}`}
+                        onClick={() => handleAction(prospect, "call", prospect.phone!)}
+                        className="inline-flex items-center h-7 px-2.5 rounded-full text-xs font-medium bg-accent/60 hover:bg-accent text-foreground transition-colors shrink-0"
+                      >
+                        Call
+                      </a>
+                    )}
 
-                  {prospect.email && (
-                    <a
-                      href={`mailto:${prospect.email}`}
-                      onClick={() => handleAction(prospect, "email", prospect.email!)}
-                      className="inline-flex items-center h-7 px-2.5 rounded-full text-xs font-medium bg-accent/60 hover:bg-accent text-foreground transition-colors shrink-0"
-                    >
-                      Email
-                    </a>
-                  )}
+                    {prospect.email && (
+                      <a
+                        href={`mailto:${prospect.email}`}
+                        onClick={() => handleAction(prospect, "email", prospect.email!)}
+                        className="inline-flex items-center h-7 px-2.5 rounded-full text-xs font-medium bg-accent/60 hover:bg-accent text-foreground transition-colors shrink-0"
+                      >
+                        Email
+                      </a>
+                    )}
 
-                  {(prospect.whatsapp || prospect.phone) && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const targetPhone = (prospect.whatsapp || prospect.phone || "").replace(/[^0-9]/g, "")
-                        window.open(`https://wa.me/${targetPhone}`, "_blank", "noopener,noreferrer")
-                        handleAction(prospect, "whatsapp", prospect.whatsapp || prospect.phone!)
-                      }}
-                      className="inline-flex items-center h-7 px-2.5 rounded-full text-xs font-medium bg-success-muted text-success hover:bg-success/20 transition-colors shrink-0 cursor-pointer"
-                    >
-                      WhatsApp
-                    </button>
-                  )}
-                </div>
+                    {(prospect.whatsapp || prospect.phone) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const targetPhone = (prospect.whatsapp || prospect.phone || "").replace(/[^0-9]/g, "")
+                          window.open(`https://wa.me/${targetPhone}`, "_blank", "noopener,noreferrer")
+                          handleAction(prospect, "whatsapp", prospect.whatsapp || prospect.phone!)
+                        }}
+                        className="inline-flex items-center h-7 px-2.5 rounded-full text-xs font-medium bg-success-muted text-success hover:bg-success/20 transition-colors shrink-0 cursor-pointer"
+                      >
+                        WhatsApp
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             ))
           )}

@@ -1,6 +1,6 @@
 {
-  "name": "FastUI Sales",
-  "short_name": "FastUI",
+  "name": "fastui sales",
+  "short_name": "fastui",
   "description": "Sales intelligence, prospecting, and pipeline management.",
   "start_url": "/",
   "display": "standalone",
@@ -9,16 +9,28 @@
   "orientation": "portrait-primary",
   "icons": [
     {
+      "src": "/assets/brand/wordmark/monochrome/splash-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/brand/wordmark/monochrome/splash-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
       "src": "/assets/brand/icon/brand/primary/filled.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "maskable"
     },
     {
       "src": "/assets/brand/icon/brand/primary/filled.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "maskable"
     }
   ]
 }

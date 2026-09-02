@@ -26,7 +26,12 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "FastUI Sales",
+    title: "fastui sales",
+    startupImage: [
+      {
+        url: "/assets/brand/wordmark/monochrome/splash-ios.png",
+      },
+    ],
   },
   icons: {
     icon: [
