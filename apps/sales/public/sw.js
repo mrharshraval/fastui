@@ -38,7 +38,10 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close()
 
-  const targetUrl = (event.notification.data && event.notification.data.url) || "/prospects"
+  const data = event.notification.data || {}
+  const targetUrl = data.business_id
+    ? `/business/${data.business_id}`
+    : (data.url || "/prospects")
 
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
