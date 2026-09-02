@@ -18,7 +18,7 @@ ALTER TABLE reminders ADD COLUMN IF NOT EXISTS notification_processing_at timest
 -- High-Performance Partial Index for Due Pending Reminders
 CREATE INDEX IF NOT EXISTS idx_reminders_due_processing 
 ON reminders (due_at) 
-WHERE (status = 'PENDING' OR status = 'pending') AND notification_sent_at IS NULL;
+WHERE status = 'PENDING' AND notification_sent_at IS NULL;
 
 -- 2. Atomic Stored Procedure: claim_due_reminders
 -- Atomically selects due unnotified reminders, acquires a 5-minute processing lease
@@ -46,7 +46,7 @@ BEGIN
     WITH due AS (
         SELECT r.id
         FROM reminders r
-        WHERE (r.status::text = 'PENDING' OR r.status::text = 'pending')
+        WHERE r.status = 'PENDING'
           AND r.due_at <= NOW()
           AND r.notification_sent_at IS NULL
           AND (r.notification_processing_at IS NULL OR r.notification_processing_at < NOW() - INTERVAL '5 minutes')
@@ -128,7 +128,7 @@ SELECT cron.schedule(
         -- Fast zero-cost exit: only proceed if an unnotified reminder is due and not leased
         IF EXISTS (
             SELECT 1 FROM reminders 
-            WHERE (status::text = 'PENDING' OR status::text = 'pending')
+            WHERE status = 'PENDING'
               AND due_at <= NOW() 
               AND notification_sent_at IS NULL
               AND (notification_processing_at IS NULL OR notification_processing_at < NOW() - INTERVAL '5 minutes')
