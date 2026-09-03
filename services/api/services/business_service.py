@@ -766,10 +766,13 @@ class BusinessService:
         business_id: int,
         req: ReminderCreateRequest,
         current_user: TokenData
-    ) -> Reminder:
+    ) -> tuple:
+        """Returns (Reminder, business_name) to avoid lazy-loading the relationship."""
         business = await session.get(Business, business_id)
         if not business:
             raise EntityNotFoundException("Business", business_id)
+
+        business_name: Optional[str] = getattr(business, "business_name", None)
 
         # Strict UTC normalization
         if isinstance(req.due_at, datetime):
@@ -817,7 +820,7 @@ class BusinessService:
 
         await session.commit()
         await session.refresh(reminder)
-        return reminder
+        return reminder, business_name
 
     @staticmethod
     async def update_reminder(

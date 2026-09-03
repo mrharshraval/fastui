@@ -171,3 +171,4 @@ async def send_test_notification(
         "dispatched_devices": dispatched,
         "total_registered": len(subscriptions),
     }
+

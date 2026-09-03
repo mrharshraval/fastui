@@ -535,7 +535,7 @@ async def create_reminder(
     session: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user)
 ):
-    reminder = await BusinessService.create_reminder(
+    reminder, business_name = await BusinessService.create_reminder(
         session=session,
         business_id=business_id,
         req=request,
@@ -551,8 +551,8 @@ async def create_reminder(
         notes=reminder.notes,
         due_at=_to_utc_iso(reminder.due_at),
         status=reminder.status.value if hasattr(reminder.status, 'value') else str(reminder.status),
-        business_name=reminder.business.business_name if reminder.business else None,
-        contact_name=reminder.contact.name if reminder.contact else None,
+        business_name=business_name,
+        contact_name=None,
         completed_at=_to_utc_iso(reminder.completed_at),
         created_at=_to_utc_iso(reminder.created_at)
     )
