@@ -61,6 +61,7 @@ export async function subscribeToPushNotifications(): Promise<{
   error?: string
 }> {
   if (!isPushNotificationSupported()) {
+    console.warn("[Push] Not supported on this browser/device.")
     return {
       success: false,
       error: "Push notifications are not supported on this browser/device.",
@@ -69,7 +70,9 @@ export async function subscribeToPushNotifications(): Promise<{
 
   try {
     // 1. Request user permission
+    console.log("[Push] Step 1: Requesting notification permission...")
     const permission = await Notification.requestPermission()
+    console.log("[Push] Permission result:", permission)
     if (permission !== "granted") {
       return {
         success: false,
@@ -77,8 +80,10 @@ export async function subscribeToPushNotifications(): Promise<{
       }
     }
 
-    // 2. Fetch VAPID public key
+    // 2. Fetch VAPID public key from API
+    console.log("[Push] Step 2: Fetching VAPID public key from /notifications/vapid-public-key...")
     const vapidRes = await api.get<{ public_key: string }>("/notifications/vapid-public-key")
+    console.log("[Push] VAPID key received:", vapidRes?.public_key?.substring(0, 20) + "...")
     if (!vapidRes || !vapidRes.public_key) {
       return {
         success: false,
@@ -87,13 +92,15 @@ export async function subscribeToPushNotifications(): Promise<{
     }
 
     // 3. Register service worker and wait for active state
+    console.log("[Push] Step 3: Registering service worker /sw.js...")
     try {
       await navigator.serviceWorker.register("/sw.js", { scope: "/" })
     } catch (e) {
-      console.warn("Service worker register call note:", e)
+      console.warn("[Push] Service worker register note:", e)
     }
 
     const registration = await navigator.serviceWorker.ready
+    console.log("[Push] Service worker ready:", registration.active?.state)
 
     if (!registration.active) {
       await new Promise<void>((resolve) => {
@@ -102,7 +109,6 @@ export async function subscribeToPushNotifications(): Promise<{
           worker.addEventListener("statechange", () => {
             if (worker.state === "activated") resolve()
           })
-          // Fallback timeout in case statechange fired already
           setTimeout(resolve, 500)
         } else {
           resolve()
@@ -110,37 +116,39 @@ export async function subscribeToPushNotifications(): Promise<{
       })
     }
 
+    // 4. Subscribe via PushManager
+    console.log("[Push] Step 4: Calling pushManager.subscribe()...")
     const applicationServerKey = urlBase64ToUint8Array(vapidRes.public_key)
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: applicationServerKey as BufferSource,
     })
-
+    console.log("[Push] PushManager subscription obtained:", subscription.endpoint.substring(0, 60) + "...")
 
     const subscriptionJson = subscription.toJSON()
     const p256dh = subscriptionJson.keys?.p256dh
     const auth = subscriptionJson.keys?.auth
 
     if (!p256dh || !auth) {
+      console.error("[Push] Missing subscription keys:", { p256dh: !!p256dh, auth: !!auth })
       return {
         success: false,
         error: "Invalid subscription keys returned by browser.",
       }
     }
 
-    // 4. Send subscription to API
+    // 5. Send subscription to API for persistence
+    console.log("[Push] Step 5: Saving subscription to API POST /notifications/subscribe...")
     await api.post("/notifications/subscribe", {
       endpoint: subscription.endpoint,
-      keys: {
-        p256dh,
-        auth,
-      },
+      keys: { p256dh, auth },
       user_agent: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
     })
+    console.log("[Push] ✅ Subscription saved successfully.")
 
     return { success: true }
   } catch (error: any) {
-    console.error("Failed to subscribe to push notifications:", error)
+    console.error("[Push] ❌ subscribeToPushNotifications failed:", error)
     return {
       success: false,
       error: error?.message || "Failed to enable notifications.",
