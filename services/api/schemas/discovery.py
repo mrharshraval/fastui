@@ -4,7 +4,7 @@ FastUI Discovery & Lead Prospecting Schemas
 Data transfer objects for lead discovery queries and extracted business leads.
 """
 
-from typing import Optional
+from typing import Any, Optional, Union
 from pydantic import BaseModel, Field
 
 
@@ -27,16 +27,25 @@ class DiscoveredLead(BaseModel):
     category: Optional[str] = None
     city: Optional[str] = None
     state: Optional[str] = None
+    postal_code: Optional[str] = None
     country: Optional[str] = None
     address: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[str] = None
     website: Optional[str] = None
+    has_whatsapp: bool = False
+    whatsapp: Optional[str] = None
     source_platform: str = Field(default="google_maps")
     source_place_id: Optional[str] = Field(default=None, description="Unique source place ID")
     source_url: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    google_place_id: Optional[str] = None
+    google_maps_url: Optional[str] = None
     rating: Optional[float] = None
     reviews_count: Optional[int] = None
+    opening_hours: Optional[Union[dict[str, Any], str]] = None
+    business_status: Optional[str] = None
 
 
 class DiscoverResponse(BaseModel):

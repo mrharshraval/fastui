@@ -85,3 +85,78 @@ async def test_discover_server_unconfigured_token_returns_401():
             resp = await client.post("/discover", json=payload, headers=headers)
             assert resp.status_code == 401
             assert "not configured" in resp.json().get("detail", "")
+
+
+@pytest.mark.asyncio
+async def test_enrich_missing_token_returns_401():
+    """Confirms POST /enrich returns 401 when X-Worker-Token header is missing."""
+    with patch("core.security.settings.WORKER_TOKEN", "secure-test-token-123"):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            payload = {"website": "https://apexdental.example.com"}
+            resp = await client.post("/enrich", json=payload)
+            assert resp.status_code == 401
+            assert "Missing" in resp.json().get("detail", "")
+
+
+@pytest.mark.asyncio
+async def test_enrich_invalid_token_returns_401():
+    """Confirms POST /enrich returns 401 when X-Worker-Token is incorrect."""
+    with patch("core.security.settings.WORKER_TOKEN", "secure-test-token-123"):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            payload = {"website": "https://apexdental.example.com"}
+            headers = {"X-Worker-Token": "wrong-token-xyz"}
+            resp = await client.post("/enrich", json=payload, headers=headers)
+            assert resp.status_code == 401
+            assert "Invalid" in resp.json().get("detail", "")
+
+
+@pytest.mark.asyncio
+async def test_enrich_valid_token_success():
+    """Confirms POST /enrich returns 200 and calls enrichment engine when authorized."""
+    from contracts import (
+        EnrichedBusinessProfile,
+        EnrichedBrand,
+        EnrichedDoctor,
+        EnrichedContact,
+        EnrichedTechnology,
+        EnrichedQualityAudit,
+        EnrichmentResponse,
+    )
+
+    mock_profile = EnrichedBusinessProfile(
+        website_url="https://apexdental.example.com",
+        brand=EnrichedBrand(logo_url="https://apexdental.example.com/logo.png"),
+        primary_doctor=EnrichedDoctor(name="Dr. Jane Smith", title="Senior Dentist"),
+        treatments={},
+        contact=EnrichedContact(emails=["contact@apexdental.com"]),
+        technology=EnrichedTechnology(),
+        quality=EnrichedQualityAudit(score=85),
+    )
+    mock_response = EnrichmentResponse(
+        success=True,
+        status="completed",
+        profile=mock_profile,
+        duration_ms=120.0,
+    )
+
+    with patch("core.security.settings.WORKER_TOKEN", "secure-test-token-123"):
+        with patch(
+            "enrichment.orchestrator.WebsiteEnrichmentEngine.enrich_website",
+            new_callable=AsyncMock,
+        ) as mock_enrich:
+            mock_enrich.return_value = mock_response
+
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                payload = {"website": "https://apexdental.example.com", "business_name": "Apex Dental"}
+                headers = {"X-Worker-Token": "secure-test-token-123"}
+                resp = await client.post("/enrich", json=payload, headers=headers)
+
+                assert resp.status_code == 200
+                data = resp.json()
+                assert data["status"] == "completed"
+                assert data["profile"]["brand"]["logo_url"] == "https://apexdental.example.com/logo.png"
+                assert data["profile"]["primary_doctor"]["name"] == "Dr. Jane Smith"
+

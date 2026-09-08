@@ -26,10 +26,11 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 
-from contracts import DiscoverResponse, DiscoverySearchParams
+from contracts import DiscoverResponse, DiscoverySearchParams, EnrichmentParams, EnrichmentResponse
 from core.config import settings
 from core.security import verify_worker_token
 from sources.aggregator import MultiSourceDiscoveryAggregator
+from enrichment import WebsiteEnrichmentEngine
 
 from core.logger import setup_worker_logging
 
@@ -158,6 +159,34 @@ async def discover(params: DiscoverySearchParams) -> DiscoverResponse:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Discovery failed: {str(e)}",
+        )
+
+
+@app.post(
+    "/enrich",
+    response_model=EnrichmentResponse,
+    tags=["enrichment"],
+    dependencies=[Depends(verify_worker_token)],
+)
+async def enrich(params: EnrichmentParams) -> EnrichmentResponse:
+    """
+    Asynchronously extracts rich branding, doctor credentials, treatments,
+    and website quality signals from a prospect's official website.
+    Requires a valid 'X-Worker-Token' authentication header.
+    """
+    logger.info(f"Received enrich request for website='{params.website}' (business='{params.business_name}')")
+    try:
+        engine = WebsiteEnrichmentEngine()
+        response = await engine.enrich_website(params)
+        return response
+    except Exception as e:
+        logger.error(f"Enrichment failed for '{params.website}': {e}", exc_info=True)
+        return EnrichmentResponse(
+            success=False,
+            status="failed",
+            error=str(e),
+            profile=None,
+            duration_ms=0.0,
         )
 
 

@@ -19,7 +19,13 @@ PHONE_REGEX = re.compile(
 )
 
 
-from utils.phone import normalize_global_phone
+from utils.phone import normalize_global_phone, is_mobile_phone, get_whatsapp_url
+
+
+def clean_text(text: Optional[str]) -> str:
+    if not text:
+        return ""
+    return text.replace('\u202f', ' ').replace('\xa0', ' ').replace('\u200b', ' ').strip()
 
 
 class WebSearchScraper(PlaywrightScraper):
@@ -109,12 +115,18 @@ class WebSearchScraper(PlaywrightScraper):
                             phone, _ = normalize_global_phone(p_clean, location=location)
                             break
 
+                    is_mobile = is_mobile_phone(phone, location=location) if phone else False
+                    has_whatsapp = is_mobile or "whatsapp" in snippet_text.lower() or "wa.me" in snippet_text.lower()
+                    whatsapp_val = get_whatsapp_url(phone, location=location) if (phone and has_whatsapp) else None
+
                     leads.append(DiscoveredLead(
                         name=name,
                         category=target_audience or "Business",
                         city=location,
                         website=website,
                         phone=phone,
+                        has_whatsapp=has_whatsapp,
+                        whatsapp=whatsapp_val,
                         email=email,
                         source_platform="web_search",
                         source_url=website or url

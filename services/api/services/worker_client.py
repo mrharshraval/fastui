@@ -21,11 +21,13 @@ import httpx
 
 from core.config import settings
 from schemas.discovery import DiscoveredLead, DiscoverySearchParams, DiscoverResponse
+from schemas.enrichment import EnrichmentParams, EnrichmentResponse
 
 logger = logging.getLogger(__name__)
 
 # Generous timeout — a full Playwright scrape can take 60-90 seconds
 _DISCOVER_TIMEOUT = httpx.Timeout(120.0, connect=10.0)
+_ENRICH_TIMEOUT = httpx.Timeout(45.0, connect=8.0)
 
 # GCP metadata server endpoint for fetching OIDC ID tokens (when running inside GCP)
 _METADATA_TOKEN_URL = (
@@ -183,4 +185,72 @@ class WorkerClient:
         """
         response = await WorkerClient.discover_batch(params)
         return response.leads
+
+    @staticmethod
+    async def enrich_business(website: str, business_name: Optional[str] = None) -> EnrichmentResponse:
+        """
+        Dispatches an asynchronous website enrichment request to the Cloud Run Worker.
+        Extracts brand assets (logo, colors), doctor credentials, treatments, contact,
+        technology stack, and website quality scores.
+        """
+        worker_url = os.getenv("WORKER_URL") or settings.WORKER_URL
+        if not worker_url:
+            raise ValueError(
+                "WORKER_URL is not configured. Worker service is required for enrichment."
+            )
+
+        worker_url = worker_url.rstrip("/")
+        endpoint = f"{worker_url}/enrich"
+
+        headers = {"Content-Type": "application/json"}
+
+        worker_token = os.getenv("WORKER_TOKEN") or settings.WORKER_TOKEN
+        if worker_token:
+            headers["X-Worker-Token"] = worker_token
+
+        from core.logger import correlation_id_ctx
+        corr_id = correlation_id_ctx.get()
+        if corr_id:
+            headers["X-Correlation-ID"] = corr_id
+            headers["X-Request-ID"] = corr_id
+
+        if worker_url.startswith("https://"):
+            oidc_token = await _fetch_oidc_token(audience=worker_url)
+            if oidc_token:
+                headers["Authorization"] = f"Bearer {oidc_token}"
+
+        params = EnrichmentParams(website=website, business_name=business_name)
+        payload = params.model_dump()
+
+        logger.info(f"Dispatching enrich request to worker: website='{website}' business='{business_name}'")
+
+        try:
+            async with httpx.AsyncClient(timeout=_ENRICH_TIMEOUT) as client:
+                response = await client.post(endpoint, json=payload, headers=headers)
+                response.raise_for_status()
+
+            data = response.json()
+            return EnrichmentResponse.model_validate(data)
+        except httpx.TimeoutException:
+            logger.error(f"Worker enrichment timed out after {_ENRICH_TIMEOUT.read}s for '{website}'.")
+            return EnrichmentResponse(
+                success=False,
+                status="failed",
+                error=f"Enrichment request timed out after {_ENRICH_TIMEOUT.read}s",
+            )
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Worker enrichment returned HTTP {e.response.status_code}: {e.response.text}")
+            return EnrichmentResponse(
+                success=False,
+                status="failed",
+                error=f"Worker HTTP {e.response.status_code}: {e.response.text[:200]}",
+            )
+        except Exception as e:
+            logger.error(f"Worker enrichment failed for '{website}': {e}", exc_info=True)
+            return EnrichmentResponse(
+                success=False,
+                status="failed",
+                error=str(e),
+            )
+
 

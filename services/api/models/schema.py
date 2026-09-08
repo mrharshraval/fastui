@@ -11,7 +11,8 @@ from sqlalchemy import (
     Boolean,
     Text,
     UniqueConstraint,
-    Index
+    Index,
+    Float
 )
 from sqlalchemy.orm import relationship
 from models.database import Base
@@ -155,8 +156,10 @@ class Business(Base):
     __tablename__ = "businesses"
     
     id = Column(Integer, primary_key=True, index=True)
-    business_name = Column(String(255), index=True, nullable=False) # Clean display name
-    raw_business_name = Column(String(500), nullable=True)          # Exact untouched scraped name
+    canonical_name = Column(String(255), index=True, nullable=True) # Clean canonical authoritative name
+    source_name = Column(String(500), nullable=True)                 # Untouched original scraped name
+    business_name = Column(String(255), index=True, nullable=False) # Clean display name (backward compatible)
+    raw_business_name = Column(String(500), nullable=True)          # Exact untouched scraped name (backward compatible)
     normalized_business_name = Column(String(255), index=True, nullable=True) # Canonical search key
     category = Column(String(255), index=True, nullable=True)
     
@@ -196,6 +199,7 @@ class Business(Base):
     outreaches = relationship("Outreach", back_populates="business", cascade="all, delete-orphan", order_by="desc(Outreach.attempted_at)")
     interactions = relationship("Interaction", back_populates="business", cascade="all, delete-orphan", order_by="desc(Interaction.occurred_at)")
     activities = relationship("Activity", back_populates="business", cascade="all, delete-orphan", order_by="desc(Activity.created_at)")
+    demos = relationship("ProspectDemo", back_populates="business", cascade="all, delete-orphan", order_by="desc(ProspectDemo.created_at)")
 
 # ─────────────────────────────────────────────────────────────
 # 3. LEAD MODEL (Sales Prospect State & Pipeline Qualification)
@@ -510,4 +514,78 @@ class PushSubscription(Base):
 
     # Relationships
     user = relationship("User", back_populates="push_subscriptions")
+
+# ─────────────────────────────────────────────────────────────
+# 15. PROSPECT DEMO & DEMO EVENT MODELS
+# ─────────────────────────────────────────────────────────────
+
+class ProspectDemo(Base):
+    __tablename__ = "prospect_demos"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, ForeignKey("businesses.id", ondelete="CASCADE"), nullable=False, index=True)
+    token = Column(String(64), unique=True, nullable=False, index=True)
+    status = Column(String(32), default="active", nullable=False)
+    template_id = Column(String(64), default="dental-default", nullable=False)
+    custom_overrides = Column(JSON, nullable=True)
+    view_count = Column(Integer, default=0, nullable=False)
+    last_viewed_at = Column(DateTime(timezone=True), nullable=True)
+    created_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)
+
+    # Relationships
+    business = relationship("Business", back_populates="demos")
+    created_by_user = relationship("User")
+    events = relationship("DemoEvent", back_populates="demo", cascade="all, delete-orphan", order_by="desc(DemoEvent.created_at)")
+
+
+class DemoEvent(Base):
+    __tablename__ = "demo_events"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    demo_id = Column(Integer, ForeignKey("prospect_demos.id", ondelete="CASCADE"), nullable=False, index=True)
+    event_type = Column(String(64), nullable=False, index=True)
+    session_id = Column(String(64), nullable=True)
+    page_path = Column(String(255), nullable=True)
+    referrer = Column(String(255), nullable=True)
+    user_agent = Column(String(500), nullable=True)
+    metadata_json = Column(JSON, nullable=True)
+    
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+    # Relationships
+    demo = relationship("ProspectDemo", back_populates="events")
+
+
+# ─────────────────────────────────────────────────────────────
+# 16. CRAWLED WEBSITE INTELLIGENCE MODEL
+# ─────────────────────────────────────────────────────────────
+
+class CrawledWebsite(Base):
+    """
+    Persists comprehensive multi-page website intelligence keyed by normalized domain
+    and location signature to support multi-branch practices and corroborated reuse.
+    """
+    __tablename__ = "crawled_websites"
+
+    id = Column(Integer, primary_key=True, index=True)
+    domain = Column(String(255), nullable=False, index=True)
+    location_signature = Column(String(255), nullable=True, index=True)
+    business_id = Column(Integer, ForeignKey("businesses.id", ondelete="SET NULL"), nullable=True, index=True)
+    canonical_url = Column(String(500), nullable=True)
+    branches = Column(JSON, nullable=True)
+    extracted_data = Column(JSON, nullable=False)
+    confidence_score = Column(Float, default=1.0, nullable=False)
+    
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)
+
+    __table_args__ = (
+        Index("ix_crawled_websites_domain_loc", "domain", "location_signature"),
+    )
+
+    # Relationships
+    business = relationship("Business")
 

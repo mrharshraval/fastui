@@ -17,6 +17,7 @@ from httpx import AsyncClient, ASGITransport
 
 import models.database
 import services.discovery_service
+import services.enrichment_service
 import services.export_service
 from models.schema import Base, User, UserRole
 from models.database import get_db
@@ -38,6 +39,7 @@ TestAsyncSessionLocal = sessionmaker(
 # Patch global session factories for background workers in tests
 models.database.AsyncSessionLocal = TestAsyncSessionLocal
 services.discovery_service.AsyncSessionLocal = TestAsyncSessionLocal
+services.enrichment_service.AsyncSessionLocal = TestAsyncSessionLocal
 services.export_service.AsyncSessionLocal = TestAsyncSessionLocal
 
 @pytest_asyncio.fixture(scope="function")

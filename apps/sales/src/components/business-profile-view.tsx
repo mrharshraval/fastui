@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
-import { Plus, ChevronDown, MoreHorizontal, ArrowLeft, X, Check } from "lucide-react"
+import { Plus, ChevronDown, MoreHorizontal, ArrowLeft, X, Check, ExternalLink, Copy, Sparkles } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getNotificationPermissionState, subscribeToPushNotifications } from "@/lib/push-notifications"
 import { IOSWheelPicker } from "@/components/ui/ios-wheel-picker"
@@ -17,6 +17,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
 
 export interface BusinessDetail {
   id: string
@@ -217,6 +225,18 @@ export function BusinessProfileView() {
   const [addingToLeads, setAddingToLeads] = React.useState(false)
   const [showBusinessDetails, setShowBusinessDetails] = React.useState(false)
   const [showContactDetails, setShowContactDetails] = React.useState(false)
+
+  // Demo link & modal state
+  const [demoData, setDemoData] = React.useState<{
+    id?: number
+    token: string
+    demo_url: string
+    view_count: number
+    last_viewed_at?: string
+  } | null>(null)
+  const [demoModalOpen, setDemoModalOpen] = React.useState(false)
+  const [loadingDemo, setLoadingDemo] = React.useState(false)
+  const [copiedLink, setCopiedLink] = React.useState(false)
   
   // Shared bottom sheet state
   const [activeSheet, setActiveSheet] = React.useState<"note" | "reminder" | null>(null)
@@ -474,6 +494,16 @@ export function BusinessProfileView() {
             } catch {
               setReminders([])
             }
+
+            // Fetch demo if exists
+            try {
+              const demo = await api.get<any>(`/businesses/${numericId}/demo`)
+              if (demo && demo.token) {
+                setDemoData(demo)
+              }
+            } catch {
+              // Demo not yet generated
+            }
             return
           }
         }
@@ -583,6 +613,41 @@ export function BusinessProfileView() {
       }
     } catch {
       // Ignore API errors
+    }
+  }
+
+  // Handle opening or generating prospect demo
+  const handleOpenDemo = async () => {
+    if (demoData) {
+      setDemoModalOpen(true)
+      return
+    }
+    if (!business) return
+    const numericId = parseInt(business.id.replace(/[^0-9]/g, ""), 10)
+    if (isNaN(numericId) || numericId <= 0) return
+
+    setLoadingDemo(true)
+    try {
+      const data = await api.post<any>(`/businesses/${numericId}/demo`, {})
+      if (data && data.token) {
+        setDemoData(data)
+        setDemoModalOpen(true)
+      }
+    } catch (err) {
+      console.error("Failed to generate demo:", err)
+    } finally {
+      setLoadingDemo(false)
+    }
+  }
+
+  const handleCopyDemoLink = async () => {
+    if (!demoData?.demo_url) return
+    try {
+      await navigator.clipboard.writeText(demoData.demo_url)
+      setCopiedLink(true)
+      setTimeout(() => setCopiedLink(false), 2000)
+    } catch {
+      // Fallback ignore
     }
   }
 
@@ -919,6 +984,22 @@ export function BusinessProfileView() {
                 WhatsApp
               </button>
             )}
+
+            {/* Demo Pill */}
+            <button
+              type="button"
+              onClick={handleOpenDemo}
+              disabled={loadingDemo}
+              className={cn(
+                "h-8 px-3.5 rounded-full text-sm font-medium transition-all active:scale-[0.98] cursor-pointer inline-flex items-center gap-1.5",
+                demoData
+                  ? "bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20"
+                  : "bg-accent/60 hover:bg-accent text-foreground"
+              )}
+            >
+              <Sparkles size={13} className={demoData ? "text-primary" : "text-muted-foreground"} />
+              <span>{loadingDemo ? "Creating…" : demoData ? "View Demo" : "Create Demo"}</span>
+            </button>
 
             {/* Contextual Action: Approve (for unconverted prospects) */}
             {!business.is_lead && (
@@ -1383,6 +1464,80 @@ export function BusinessProfileView() {
           </div>
         </div>
       )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          DEMO MODAL (Apple-Style Naming & Clean Presentation)
+         ───────────────────────────────────────────────────────────── */}
+      <Dialog open={demoModalOpen} onOpenChange={setDemoModalOpen}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle className="text-base font-semibold">Demo</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              {business?.business_name ? `Website demo for ${business.business_name}.` : "Website demo link."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3.5 py-1.5">
+            {/* Share link input and Copy button */}
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                readOnly
+                value={demoData?.demo_url || ""}
+                className="flex-1 h-9 px-3 text-xs rounded-xl border border-border/60 bg-muted/30 font-mono select-all focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={handleCopyDemoLink}
+                className="h-9 px-3.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-medium inline-flex items-center gap-1.5 transition-all shrink-0 cursor-pointer active:scale-95"
+              >
+                {copiedLink ? (
+                  <>
+                    <Check size={14} />
+                    <span>Copied</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy size={14} />
+                    <span>Copy Link</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Engagement Status Badge */}
+            <div className="p-3 rounded-xl bg-muted/40 border border-border/30 text-xs text-muted-foreground flex items-center justify-between">
+              <span>Status</span>
+              <span className="font-medium text-foreground">
+                {demoData && demoData.view_count > 0
+                  ? `🔥 Viewed ${demoData.view_count} ${demoData.view_count === 1 ? "time" : "times"}`
+                  : "Not viewed yet"}
+              </span>
+            </div>
+          </div>
+
+          <DialogFooter className="flex items-center justify-between sm:justify-between w-full pt-1.5">
+            {demoData?.demo_url && (
+              <a
+                href={demoData.demo_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="h-8 px-3.5 rounded-full bg-accent/60 hover:bg-accent text-foreground text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <ExternalLink size={13} />
+                <span>Preview</span>
+              </a>
+            )}
+            <button
+              type="button"
+              onClick={() => setDemoModalOpen(false)}
+              className="h-8 px-4 rounded-full bg-foreground text-background hover:bg-foreground/90 text-xs font-medium transition-colors cursor-pointer ml-auto"
+            >
+              Done
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -25,12 +25,12 @@ export function AuthFormContainer({
       {/* Brand Icon */}
       <div className="mb-8 flex justify-center">
         <img
-          src="/assets/brand/icon/monochrome/white/filled.svg"
+          src="/assets/brand/icon/monochrome/white/solid.svg"
           alt="fastui"
           className="size-12 hidden dark:block object-contain"
         />
         <img
-          src="/assets/brand/icon/monochrome/balck/filled.svg"
+          src="/assets/brand/icon/monochrome/balck/solid.svg"
           alt="fastui"
           className="size-12 dark:hidden object-contain"
         />

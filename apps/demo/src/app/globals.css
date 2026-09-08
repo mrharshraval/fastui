@@ -1,0 +1,214 @@
+/* dental demo theme - fastui/apps/sales theme colors */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Reference Grayscale Scale from apps/sales */
+    --gray-0: #ffffff;
+    --gray-25: #fcfcfc;
+    --gray-50: #f9f9f9;
+    --gray-75: #f3f3f3;
+    --gray-100: #ededed;
+    --gray-150: #dfdfdf;
+    --gray-200: #cdcdcd;
+    --gray-250: #b9b9b9;
+    --gray-300: #afafaf;
+    --gray-350: #9f9f9f;
+    --gray-400: #8f8f8f;
+    --gray-450: #767676;
+    --gray-500: #5d5d5d;
+    --gray-550: #4f4f4f;
+    --gray-600: #414141;
+    --gray-650: #393939;
+    --gray-700: #303030;
+    --gray-750: #282828;
+    --gray-800: #212121;
+    --gray-850: #1c1c1c;
+    --gray-900: #181818;
+    --gray-925: #161616;
+    --gray-950: #131313;
+    --gray-975: #101010;
+    --gray-1000: #0d0d0d;
+
+    /* Reference Colors from apps/sales */
+    --blue-25: #f6fafe;
+    --blue-50: #e8f3fe;
+    --blue-75: #d1e5fd;
+    --blue-100: #a4cdfb;
+    --blue-200: #63a8f8;
+    --blue-300: #539af8;
+    --blue-400: #3a83f7;
+    --blue-500: #2c67c5;
+    --blue-600: #1f4e94;
+    --blue-a50: #0285ff21;
+    --blue-a75: #0285ff40;
+
+    --green-25: #effaf3;
+    --green-50: #def3e5;
+    --green-100: #9fddb1;
+    --green-400: #53b559;
+    --green-500: #48a04c;
+    --green-800: #1f4e25;
+
+    --orange-25: #fdf5f1;
+    --orange-50: #fbe8db;
+    --orange-100: #f4ba96;
+    --orange-200: #f1a275;
+    --orange-400: #ee7c37;
+    --orange-500: #d25e28;
+    --orange-900: #45240d;
+
+    --red-25: #fff0f0;
+    --red-50: #ffe1e0;
+    --red-100: #ffa4a2;
+    --red-200: #ff8583;
+    --red-400: #fa423e;
+    --red-500: #ff002a;
+    --red-600: #ba2623;
+    --red-900: #4d100e;
+
+    /* Core Semantic Surfaces — apps/sales Light Mode */
+    --background: 0 0% 100%;           /* #ffffff */
+    --foreground: 0 0% 5.1%;           /* #0d0d0d */
+
+    --card: 0 0% 97.6%;                /* #f9f9f9 */
+    --card-foreground: 0 0% 5.1%;      /* #0d0d0d */
+
+    --popover: 0 0% 100%;              /* #ffffff */
+    --popover-foreground: 0 0% 5.1%;   /* #0d0d0d */
+
+    /* Brand / Primary Blue — FastUI Signature Blue (#3a83f7) */
+    --brand: 216.8 92.2% 59.8%;
+    --brand-foreground: 0 0% 100%;
+    --primary: 216.8 92.2% 59.8%;      /* #3a83f7 */
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary surface — chips, tabs, search inputs (#f4f4f4) */
+    --secondary: 0 0% 95.7%;
+    --secondary-foreground: 0 0% 5.1%;
+
+    /* Muted surfaces (#f4f4f4) and secondary text (#5d5d5d) */
+    --muted: 0 0% 95.7%;
+    --muted-foreground: 0 0% 36.5%;
+
+    /* Accent — hover / active (#ececec) */
+    --accent: 0 0% 92.5%;
+    --accent-foreground: 0 0% 5.1%;
+
+    /* Semantic Meaning Tokens */
+    --destructive: 350 100% 50%;       /* #ff002a */
+    --destructive-foreground: 0 0% 100%;
+
+    /* Structural Hairlines (#00000014) */
+    --border: 0 0% 92%;
+    --input: 0 0% 92%;
+    --ring: 216.8 92.2% 59.8%;
+
+    --radius: 0.5rem;                  /* 8px, matching apps/sales */
+
+    /* Sidebar — Seamless with Main Canvas */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 0 0% 5.1%;
+    --sidebar-primary: 216.8 92.2% 59.8%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 92.5%;
+    --sidebar-accent-foreground: 0 0% 5.1%;
+    --sidebar-border: 0 0% 94%;
+    --sidebar-ring: 216.8 92.2% 59.8%;
+  }
+
+  .dark {
+    /* Core Semantic Surfaces — apps/sales Dark Mode */
+    --background: 0 0% 5.1%;           /* #0d0d0d */
+    --foreground: 0 0% 92.5%;          /* #ececec */
+
+    --card: 0 0% 12.9%;                /* #212121 */
+    --card-foreground: 0 0% 92.5%;     /* #ececec */
+
+    --popover: 0 0% 18.4%;             /* #2f2f2f */
+    --popover-foreground: 0 0% 92.5%;  /* #ececec */
+
+    /* Brand / Primary Blue — #3a83f7 */
+    --brand: 216.8 92.2% 59.8%;
+    --brand-foreground: 0 0% 100%;
+    --primary: 216.8 92.2% 59.8%;      /* #3a83f7 */
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary surface (#212121) */
+    --secondary: 0 0% 12.9%;
+    --secondary-foreground: 0 0% 92.5%;
+
+    /* Muted surfaces (#212121) and secondary text (#b4b4b4) */
+    --muted: 0 0% 12.9%;
+    --muted-foreground: 0 0% 70.6%;
+
+    /* Accent (#2f2f2f) */
+    --accent: 0 0% 18.4%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Destructive (#ff8583) */
+    --destructive: 1 100% 75.7%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Structural Hairlines */
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 216.8 92.2% 59.8%;
+
+    --sidebar-background: 0 0% 5.1%;
+    --sidebar-foreground: 0 0% 92.5%;
+    --sidebar-primary: 216.8 92.2% 59.8%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 12.9%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 15%;
+    --sidebar-ring: 216.8 92.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Custom Scrollbar */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 5px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground));
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+}

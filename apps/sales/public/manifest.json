@@ -9,28 +9,22 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/assets/brand/wordmark/monochrome/splash-192.png",
+      "src": "/assets/brand/icon/monochrome/white/solid.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/assets/brand/wordmark/monochrome/splash-512.png",
+      "src": "/assets/brand/icon/monochrome/white/solid.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/assets/brand/icon/brand/primary/filled.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
-      "src": "/assets/brand/icon/brand/primary/filled.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
+      "src": "/assets/brand/icon/monochrome/white/solid.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ]
 }

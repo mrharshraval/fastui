@@ -54,7 +54,7 @@ export function Footer() {
       <div className="container max-w-7xl mx-auto mt-16 md:mt-32">
         <div className="w-full pt-8 pb-8">
           <img 
-            src="/brand/wordmark/monochrome/black%20filled.svg" 
+            src="/brand/wordmark/monochrome/black.svg" 
             alt="FastUI Logo" 
             className="w-full h-auto object-contain dark:invert"
           />

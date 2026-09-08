@@ -30,7 +30,7 @@ from core.exceptions import FastUIException
 from core.middleware import RequestCorrelationMiddleware
 from models.database import engine, Base, AsyncSessionLocal
 from core.database_migration import run_safe_migrations
-from routes import auth, prospecting, exports, businesses, stats, notifications
+from routes import auth, prospecting, exports, businesses, stats, notifications, public_demos
 from services.reminder_service import ReminderNotificationService
 
 async def _reminder_checker_loop():
@@ -162,4 +162,5 @@ app.include_router(exports.router)
 app.include_router(businesses.router)
 app.include_router(stats.router)
 app.include_router(notifications.router)
+app.include_router(public_demos.router)
 

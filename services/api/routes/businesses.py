@@ -1,9 +1,19 @@
+import secrets
 from typing import List, Optional
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException, status, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, and_
+from sqlalchemy.orm import selectinload
 
+from core.config import settings
 from models.database import get_db
+from models.schema import ProspectDemo, Business
+from schemas.demos import DemoCreateRequest, DemoResponse
+from schemas.enrichment import (
+    BusinessEnrichmentStatusResponse,
+    EnrichmentTriggerResponse,
+)
 from schemas.businesses import (
     BusinessResponse,
     BusinessUpdateRequest,
@@ -32,6 +42,7 @@ from schemas.businesses import (
 from schemas.auth import TokenData
 from services.auth_service import get_current_user
 from services.business_service import BusinessService
+from services.enrichment_service import EnrichmentService
 
 router = APIRouter(tags=["sales_domain"])
 
@@ -719,3 +730,233 @@ async def list_all_activities(
         )
         for row in enriched
     ]
+
+# ─────────────────────────────────────────────────────────────
+# 11. PROSPECT DEMO MANAGEMENT (Sales CRM Token Generation)
+# ─────────────────────────────────────────────────────────────
+
+@router.post("/businesses/{business_id}/demo", response_model=DemoResponse)
+async def create_or_get_prospect_demo(
+    business_id: int,
+    background_tasks: BackgroundTasks,
+    body: Optional[DemoCreateRequest] = None,
+    session: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user)
+):
+    """
+    Generate or retrieve the secure demo link for a prospect.
+    Creates an unguessable 24-character token bound to this business.
+    1. Inspects prospect source and available data.
+    2. Performs corroborated website intelligence lookup & reuse (or fresh crawl).
+    3. Personalizes the demo with authentic branding, doctors, services, and content.
+    """
+    stmt_bus = (
+        select(Business)
+        .where(Business.id == business_id)
+        .options(
+            selectinload(Business.sources),
+            selectinload(Business.demos),
+        )
+    )
+    res_bus = await session.execute(stmt_bus)
+    business = res_bus.scalars().first()
+    if not business:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Business not found"
+        )
+
+    # 1. Corroborated website intelligence retrieval (or cache reuse)
+    profile: Optional[EnrichedBusinessProfile] = None
+    is_cached = False
+    if business.website:
+        profile, is_cached = await EnrichmentService.get_or_enrich_website(
+            prospect=business,
+            session=session
+        )
+
+    # 2. Check for existing active demo
+    stmt_demo = select(ProspectDemo).where(
+        and_(ProspectDemo.business_id == business_id, ProspectDemo.status == "active")
+    ).order_by(ProspectDemo.created_at.desc())
+    res_demo = await session.execute(stmt_demo)
+    demo = res_demo.scalars().first()
+
+    base_overrides = body.custom_overrides if body and body.custom_overrides else {}
+    if profile:
+        merged_overrides = EnrichmentService.personalize_demo_overrides(
+            prospect=business,
+            profile=profile,
+            existing_overrides=base_overrides
+        )
+    else:
+        merged_overrides = base_overrides or None
+
+    if not demo:
+        token = secrets.token_urlsafe(24)
+        demo = ProspectDemo(
+            business_id=business_id,
+            token=token,
+            status="active",
+            template_id="dental-default",
+            custom_overrides=merged_overrides,
+            created_by_user_id=current_user.user_id
+        )
+        session.add(demo)
+        await session.commit()
+        await session.refresh(demo)
+    else:
+        # Update existing demo with personalized overrides
+        if merged_overrides:
+            existing = dict(demo.custom_overrides or {})
+            existing.update(merged_overrides)
+            demo.custom_overrides = existing
+            await session.commit()
+            await session.refresh(demo)
+
+    # Fallback to background enrichment if live crawl was skipped or timed out
+    if business.website and not profile:
+        background_tasks.add_task(
+            EnrichmentService.enrich_business_background,
+            business_id=business.id
+        )
+
+    base_url = settings.DEMO_BASE_URL.rstrip("/")
+    demo_url = f"{base_url}/{demo.token}"
+
+    return DemoResponse(
+        id=demo.id,
+        business_id=demo.business_id,
+        token=demo.token,
+        demo_url=demo_url,
+        status=demo.status,
+        template_id=demo.template_id,
+        custom_overrides=demo.custom_overrides,
+        view_count=demo.view_count,
+        last_viewed_at=demo.last_viewed_at,
+        created_at=demo.created_at,
+        updated_at=demo.updated_at
+    )
+
+
+@router.get("/businesses/{business_id}/demo", response_model=DemoResponse)
+async def get_business_demo(
+    business_id: int,
+    session: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user)
+):
+    """
+    Fetch current demo link and engagement metrics for a business.
+    """
+    stmt = select(ProspectDemo).where(
+        and_(ProspectDemo.business_id == business_id, ProspectDemo.status == "active")
+    ).order_by(ProspectDemo.created_at.desc())
+    res = await session.execute(stmt)
+    demo = res.scalars().first()
+
+    if not demo:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No active demo found for this business"
+        )
+
+    base_url = settings.DEMO_BASE_URL.rstrip("/")
+    demo_url = f"{base_url}/{demo.token}"
+
+    return DemoResponse(
+        id=demo.id,
+        business_id=demo.business_id,
+        token=demo.token,
+        demo_url=demo_url,
+        status=demo.status,
+        template_id=demo.template_id,
+        custom_overrides=demo.custom_overrides,
+        view_count=demo.view_count,
+        last_viewed_at=demo.last_viewed_at,
+        created_at=demo.created_at,
+        updated_at=demo.updated_at
+    )
+
+
+# ─────────────────────────────────────────────────────────────
+# 12. PROSPECT ENRICHMENT (Asynchronous Website Intelligence)
+# ─────────────────────────────────────────────────────────────
+
+@router.post("/businesses/{business_id}/enrich", response_model=EnrichmentTriggerResponse)
+async def trigger_business_enrichment(
+    business_id: int,
+    background_tasks: BackgroundTasks,
+    session: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user)
+):
+    """
+    Triggers asynchronous website enrichment for a business.
+    Extracts branding, doctor credentials, treatments, contact, and tech stack.
+    """
+    business = await session.get(Business, business_id)
+    if not business:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Business not found"
+        )
+
+    if not business.website:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Business does not have a website URL to enrich"
+        )
+
+    background_tasks.add_task(
+        EnrichmentService.enrich_business_background,
+        business_id=business.id
+    )
+
+    return EnrichmentTriggerResponse(
+        business_id=business.id,
+        status="queued",
+        message=f"Enrichment task queued for {business.website}"
+    )
+
+
+@router.get("/businesses/{business_id}/enrichment", response_model=BusinessEnrichmentStatusResponse)
+async def get_business_enrichment(
+    business_id: int,
+    session: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user)
+):
+    """
+    Fetches the enriched profile and quality audit results for a business.
+    """
+    stmt = (
+        select(Business)
+        .where(Business.id == business_id)
+        .options(selectinload(Business.sources))
+        .execution_options(populate_existing=True)
+    )
+    res = await session.execute(stmt)
+    business = res.scalars().first()
+
+    if not business:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Business not found"
+        )
+
+    profile = EnrichmentService.extract_enrichment_from_business(business)
+    if not profile:
+        return BusinessEnrichmentStatusResponse(
+            business_id=business.id,
+            is_enriched=False,
+            treatments_count=0
+        )
+
+    return BusinessEnrichmentStatusResponse(
+        business_id=business.id,
+        is_enriched=True,
+        enriched_at=profile.extracted_at,
+        quality_score=profile.quality.score if profile.quality else None,
+        brand=profile.brand,
+        primary_doctor=profile.primary_doctor,
+        treatments_count=len(profile.treatments),
+        profile=profile
+    )

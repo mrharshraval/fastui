@@ -95,3 +95,36 @@ class TestBusinessNameNormalizer:
         """
         result = BusinessNameNormalizer.normalize("Apex Dental Care - Apex Dental Care")
         assert result.display_name == "Apex Dental Care"
+
+    def test_trademark_and_emoji_stripping(self):
+        """
+        Input: 'Teeth Care Centre® 🦷 ⭐™'
+        Expected: 'Teeth Care Centre'
+        """
+        result = BusinessNameNormalizer.normalize("Teeth Care Centre® 🦷 ⭐™")
+        assert result.display_name == "Teeth Care Centre"
+        assert result.raw_name == "Teeth Care Centre® 🦷 ⭐™"
+
+    def test_bracketed_marketing_removal(self):
+        """
+        Input: 'Teeth Care Centre® Dental Hospital [High-end Dentistry]'
+        Expected: 'Teeth Care Centre Dental Hospital'
+        """
+        result = BusinessNameNormalizer.normalize("Teeth Care Centre® Dental Hospital [High-end Dentistry]")
+        assert result.display_name == "Teeth Care Centre Dental Hospital"
+        assert result.raw_name == "Teeth Care Centre® Dental Hospital [High-end Dentistry]"
+
+    def test_resolve_canonical_name_with_website_brand(self):
+        """
+        Tests resolving canonical name from scraped source name with embellished text
+        and authentic website evidence.
+        """
+        resolved = BusinessNameNormalizer.resolve_canonical_name(
+            source_name="Teeth Care Centre® Dental Hospital [High-end Dentistry]",
+            website_brand="Teeth Care Centre",
+            website_title="Teeth Care Centre - Premier Dental Hospital in Ahmedabad",
+            schema_name="Teeth Care Centre",
+        )
+        assert resolved.display_name == "Teeth Care Centre"
+        assert resolved.raw_name == "Teeth Care Centre® Dental Hospital [High-end Dentistry]"
+

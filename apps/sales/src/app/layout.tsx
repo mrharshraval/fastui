@@ -27,19 +27,15 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "fastui sales",
-    startupImage: [
-      {
-        url: "/assets/brand/wordmark/monochrome/splash-ios.png",
-      },
-    ],
   },
   icons: {
     icon: [
-      { url: "/assets/brand/favicon/brand/primary/filled.svg", type: "image/svg+xml" },
-      { url: "/assets/brand/favicon/brand/primary/filled.png", type: "image/png", sizes: "512x512" },
+      { url: "/assets/brand/favicon/monochrome/white/solid.svg", media: "(prefers-color-scheme: dark)", type: "image/svg+xml" },
+      { url: "/assets/brand/favicon/monochrome/balck/solid.svg", media: "(prefers-color-scheme: light)", type: "image/svg+xml" },
+      { url: "/assets/brand/favicon/monochrome/white/solid.png", type: "image/png", sizes: "512x512" },
     ],
-    shortcut: "/assets/brand/favicon/brand/primary/filled.png",
-    apple: "/assets/brand/favicon/brand/primary/filled.png",
+    shortcut: "/assets/brand/favicon/monochrome/white/solid.png",
+    apple: "/assets/brand/favicon/monochrome/white/solid.png",
   },
 }
 

@@ -33,6 +33,7 @@ from schemas.discovery import DiscoverySearchParams
 from services.business_name_normalizer import BusinessNameNormalizer
 from services.deduplication import LeadDeduplicator
 from services.worker_client import WorkerClient
+from utils.phone import is_mobile_phone, get_whatsapp_url
 
 logger = logging.getLogger(__name__)
 
@@ -225,9 +226,27 @@ class DiscoveryService:
                             city=loc_city or lead.city,
                             source_platform=lead.source_platform,
                             source_place_id=lead.source_place_id,
+                            address=getattr(lead, "address", None),
+                            postal_code=getattr(lead, "postal_code", None),
+                            latitude=getattr(lead, "latitude", None),
+                            longitude=getattr(lead, "longitude", None),
                         )
 
                         display_phone = LeadDeduplicator.format_display_phone(lead.phone, location=location_str)
+
+                        # Build structured raw payload for provenance and demo enrichment
+                        ext_place_id = getattr(lead, "google_place_id", None) or lead.source_place_id
+                        ext_source_url = getattr(lead, "google_maps_url", None) or lead.source_url
+                        raw_meta = {
+                            "rating": lead.rating,
+                            "reviews_count": lead.reviews_count,
+                            "latitude": getattr(lead, "latitude", None),
+                            "longitude": getattr(lead, "longitude", None),
+                            "place_id": ext_place_id,
+                            "google_maps_url": ext_source_url,
+                            "opening_hours": getattr(lead, "opening_hours", None),
+                            "business_status": getattr(lead, "business_status", None),
+                        }
 
                         if existing_biz:
                             job.duplicates += 1
@@ -237,18 +256,60 @@ class DiscoveryService:
                             if not existing_biz.phone and display_phone:
                                 existing_biz.phone = display_phone
                                 existing_biz.normalized_phone = norm_phone
+                            if not existing_biz.has_whatsapp:
+                                if getattr(lead, "has_whatsapp", False) or is_mobile_phone(display_phone, location=location_str):
+                                    existing_biz.has_whatsapp = True
                             if not existing_biz.website and lead.website:
                                 existing_biz.website = lead.website
                                 existing_biz.normalized_website = norm_web
                             if not existing_biz.email and lead.email:
                                 existing_biz.email = lead.email
+                            if not getattr(existing_biz, "postal_code", None) and getattr(lead, "postal_code", None):
+                                existing_biz.postal_code = lead.postal_code
+                            if lead.category and (not existing_biz.category or existing_biz.category.lower() in ["businesses", "dentist"]):
+                                existing_biz.category = lead.category
+
+                            # Update or link BusinessSource provenance
+                            platform_name = lead.source_platform or "google_maps"
+                            src_stmt = select(BusinessSource).where(
+                                BusinessSource.business_id == existing_biz.id,
+                                BusinessSource.platform == platform_name,
+                            )
+                            src_res = await session.execute(src_stmt)
+                            existing_src = src_res.scalars().first()
+                            if existing_src:
+                                cur_payload = dict(existing_src.raw_payload or {})
+                                for k, v in raw_meta.items():
+                                    if v is not None and cur_payload.get(k) is None:
+                                        cur_payload[k] = v
+                                existing_src.raw_payload = cur_payload
+                                if not existing_src.external_id and ext_place_id:
+                                    existing_src.external_id = ext_place_id
+                                if not existing_src.source_url and ext_source_url:
+                                    existing_src.source_url = ext_source_url
+                                existing_src.last_seen_at = datetime.now(timezone.utc)
+                            else:
+                                new_src = BusinessSource(
+                                    business_id=existing_biz.id,
+                                    discovery_job_id=job.id,
+                                    platform=platform_name,
+                                    source_url=ext_source_url,
+                                    external_id=ext_place_id,
+                                    raw_payload=raw_meta,
+                                )
+                                session.add(new_src)
                         else:
                             web_status = (
                                 WebsiteStatus.WEBSITE_FOUND
                                 if lead.website
                                 else WebsiteStatus.NO_WEBSITE
                             )
+                            is_mobile = is_mobile_phone(display_phone, location=location_str) if display_phone else False
+                            has_wa = bool(getattr(lead, "has_whatsapp", False) or is_mobile)
+
                             new_business = Business(
+                                canonical_name=name_norm.display_name,
+                                source_name=name_norm.raw_name,
                                 business_name=name_norm.display_name,
                                 raw_business_name=name_norm.raw_name,
                                 normalized_business_name=name_norm.normalized_name,
@@ -256,13 +317,14 @@ class DiscoveryService:
                                 address=getattr(lead, "address", None) or location_str,
                                 city=loc_city or getattr(lead, "city", None) or location_str,
                                 state=loc_state or getattr(lead, "state", None),
+                                postal_code=getattr(lead, "postal_code", None),
                                 country=loc_country or getattr(lead, "country", None),
                                 phone=display_phone,
                                 email=lead.email,
                                 website=lead.website,
                                 normalized_phone=norm_phone,
                                 normalized_website=norm_web,
-                                has_whatsapp=bool(display_phone),
+                                has_whatsapp=has_wa,
                                 website_status=web_status,
                                 qualification_status="unqualified",
                                 source_platform=lead.source_platform or "google_maps",
@@ -270,13 +332,14 @@ class DiscoveryService:
                             session.add(new_business)
                             await session.flush()
 
-                            # Persist business source provenance with external ID
+                            # Persist business source provenance with external ID and raw payload
                             business_source = BusinessSource(
                                 business_id=new_business.id,
                                 discovery_job_id=job.id,
                                 platform=lead.source_platform or "google_maps",
-                                source_url=lead.source_url,
-                                external_id=lead.source_place_id,
+                                source_url=ext_source_url,
+                                external_id=ext_place_id,
+                                raw_payload=raw_meta,
                             )
                             session.add(business_source)
 

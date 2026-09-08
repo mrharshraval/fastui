@@ -1,7 +1,8 @@
 """
 FastUI Business Name Normalizer
 ===============================
-Conservative, deterministic business name normalization service.
+Conservative, deterministic business name normalization service with multi-source
+evidence reconciliation (Google Maps, Schema.org, Website Brand Intelligence).
 """
 
 import re
@@ -39,6 +40,12 @@ class BusinessNameNormalizer:
 
     MAJOR_SEPARATORS = re.compile(r"\s*(?:\|\||\||//|--|—|–|•|·)\s*")
 
+    TRADEMARK_SYMBOLS = re.compile(r"[®™℠©]+")
+
+    DECORATIVE_GLYPHS = re.compile(r"[\u2600-\u27bf\U0001f300-\U0001f9ff\U0001fa00-\U0001faff★⭐✨🦷⚕✓✔]+")
+
+    BRACKETED_MARKETING_PATTERN = re.compile(r"\s*(\[[^\]]*\]|\([^\)]*\)|\{[^\}]*\}|<[^>]*>)\s*")
+
     SEO_SUFFIX_PATTERN = re.compile(
         r"^(?:best|top|famous|leading|trusted)?\s*(?:dentist|dental clinic|doctor|clinic|hospital|lawyer|plumber|bakery|restaurant|services|shop|store)\s+in\s+[\w\s,]+$",
         re.IGNORECASE
@@ -59,10 +66,21 @@ class BusinessNameNormalizer:
         if not text:
             return NormalizedBusinessName(raw_name=original_raw, display_name="", normalized_name="")
 
+        # 1. Strip trademark symbols and decorative glyphs
+        text = cls._strip_symbols_and_emojis(text)
+
+        # 2. Strip bracketed marketing text
+        text = cls._strip_bracketed_marketing(text)
+
+        # 3. Collapse whitespace and fix spacing around punctuation
         text = cls._collapse_whitespace(text)
         text = cls._fix_punctuation_spacing(text)
+
+        # 4. Clean delimiter-separated SEO suffixes and marketing descriptions
         text = cls._clean_delimiters_and_seo_suffixes(text)
         text = cls._deduplicate_repeated_fragments(text)
+
+        # 5. Smart casing and punctuation cleanup
         display_name = cls._apply_smart_casing(text)
         display_name = cls._clean_surrounding_punctuation(display_name)
         normalized_name = cls._generate_search_key(display_name)
@@ -72,6 +90,85 @@ class BusinessNameNormalizer:
             display_name=display_name,
             normalized_name=normalized_name
         )
+
+    @classmethod
+    def resolve_canonical_name(
+        cls,
+        source_name: Optional[str],
+        website_brand: Optional[str] = None,
+        website_title: Optional[str] = None,
+        schema_name: Optional[str] = None,
+    ) -> NormalizedBusinessName:
+        """
+        Evidence-based business name reconciliation.
+        Resolves the authoritative canonical name by cross-referencing scraped source display names
+        with authentic website brand evidence, metadata, and JSON-LD schema.
+        """
+        source_norm = cls.normalize(source_name)
+
+        # Gather website evidence in priority order
+        candidates = []
+        if schema_name:
+            candidates.append(schema_name)
+        if website_brand:
+            candidates.append(website_brand)
+        if website_title:
+            # Extract brand portion before delimiter
+            parts = cls.MAJOR_SEPARATORS.split(website_title)
+            if parts and parts[0].strip():
+                candidates.append(parts[0].strip())
+
+        for cand in candidates:
+            cand_norm = cls.normalize(cand)
+            if not cand_norm.display_name or len(cand_norm.display_name) < 2:
+                continue
+
+            cand_clean = cand_norm.normalized_name
+            source_clean = source_norm.normalized_name
+
+            if cand_clean and source_clean:
+                if cand_clean == source_clean:
+                    return cand_norm
+                # If website evidence is a clean, shorter subset of the embellished source name
+                # (e.g. source is "Teeth Care Centre Dental Hospital" and website brand is "Teeth Care Centre")
+                if cand_clean in source_clean and len(cand_clean) < len(source_clean):
+                    return NormalizedBusinessName(
+                        raw_name=source_norm.raw_name,
+                        display_name=cand_norm.display_name,
+                        normalized_name=cand_norm.normalized_name,
+                    )
+
+        return source_norm
+
+    @classmethod
+    def _strip_symbols_and_emojis(cls, text: str) -> str:
+        text = cls.TRADEMARK_SYMBOLS.sub("", text)
+        text = cls.DECORATIVE_GLYPHS.sub(" ", text)
+        return text
+
+    @classmethod
+    def _strip_bracketed_marketing(cls, text: str) -> str:
+        matches = cls.BRACKETED_MARKETING_PATTERN.findall(text)
+        if not matches:
+            return text
+
+        cleaned = text
+        for m in matches:
+            content = m[1:-1].strip().lower()
+            # Strip if contains marketing/procedural terms or ratings
+            marketing_indicators = (
+                "dentistry", "dental", "implant", "high-end", "award", "top", "best",
+                "dr", "branch", "rating", "star", "specialist", "hospital", "clinic",
+                "center", "centre", "care", "advanced", "cosmetic", "laser", "pvt", "ltd"
+            )
+            if any(ind in content for ind in marketing_indicators) or len(content) <= 30:
+                cleaned = cleaned.replace(m, " ")
+
+        cleaned = cls._collapse_whitespace(cleaned)
+        # If everything was stripped, revert to original text without outer brackets
+        if not cleaned:
+            return text.strip("[](){}<> ")
+        return cleaned
 
     @classmethod
     def _collapse_whitespace(cls, text: str) -> str:

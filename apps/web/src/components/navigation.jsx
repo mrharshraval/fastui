@@ -16,7 +16,7 @@ export function Navigation() {
       <div className="container max-w-7xl mx-auto h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center">
           <img 
-            src="/brand/wordmark/monochrome/black%20filled.svg" 
+            src="/brand/wordmark/monochrome/black.svg" 
             alt="FastUI" 
             className="h-8 w-auto dark:invert"
           />

@@ -24,8 +24,8 @@ self.addEventListener("push", (event) => {
   const title = payload.title || "FastUI Reminder"
   const options = {
     body: payload.body || "You have a sales follow-up reminder.",
-    icon: payload.icon || "/assets/brand/icon/brand/primary/filled.png",
-    badge: payload.badge || "/assets/brand/icon/brand/primary/filled.png",
+    icon: payload.icon || "/assets/brand/icon/monochrome/white/solid.png",
+    badge: payload.badge || "/assets/brand/notification/badge/monochrome/white/solid.png",
     vibrate: [100, 50, 100],
     data: payload.data || { url: "/prospects" },
     tag: payload.tag || "fastui-reminder",

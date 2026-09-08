@@ -35,8 +35,8 @@ export class PushService {
     return JSON.stringify({
       title: `Reminder: ${businessName}`,
       body: reminder.title + (reminder.notes ? ` · ${reminder.notes}` : ""),
-      icon: "/assets/brand/icon/brand/primary/filled.png",
-      badge: "/assets/brand/icon/brand/primary/filled.png",
+      icon: "/assets/brand/icon/monochrome/white/solid.png",
+      badge: "/assets/brand/notification/badge/monochrome/white/solid.png",
       data: {
         url: "/prospects",
         business_id: reminder.business_id,
@@ -73,7 +73,17 @@ export class PushService {
       const payload = this.buildPayload(reminder, businessName)
       const userSubs = reminder.user_id ? subscriptionsByUser.get(reminder.user_id) || [] : []
 
-      if (userSubs.length === 0) {
+      // Deduplicate subscriptions strictly by endpoint to prevent duplicate device delivery
+      const uniqueSubsMap = new Map<string, PushSubscriptionRecord>()
+      for (const sub of userSubs) {
+        const ep = (sub.endpoint || "").trim()
+        if (ep && !uniqueSubsMap.has(ep)) {
+          uniqueSubsMap.set(ep, sub)
+        }
+      }
+      const uniqueSubs = Array.from(uniqueSubsMap.values())
+
+      if (uniqueSubs.length === 0) {
         logger.info("notifications.skipped", {
           reminderId: reminder.id,
           userId: reminder.user_id,
@@ -82,7 +92,7 @@ export class PushService {
         continue
       }
 
-      for (const sub of userSubs) {
+      for (const sub of uniqueSubs) {
         const pushSubscription = {
           endpoint: sub.endpoint,
           keys: {

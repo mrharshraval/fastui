@@ -24,7 +24,11 @@ POSTGRES_MIGRATIONS = [
     "ALTER TABLE businesses ADD COLUMN IF NOT EXISTS raw_business_name VARCHAR(500);",
     "ALTER TABLE businesses ADD COLUMN IF NOT EXISTS normalized_business_name VARCHAR(255);",
     "ALTER TABLE businesses ADD COLUMN IF NOT EXISTS normalized_phone VARCHAR(64);",
-    "ALTER TABLE businesses ADD COLUMN IF NOT EXISTS normalized_website VARCHAR(255);",
+    "ALTER TABLE businesses ADD COLUMN IF NOT EXISTS canonical_name VARCHAR(255);",
+    "ALTER TABLE businesses ADD COLUMN IF NOT EXISTS source_name VARCHAR(500);",
+    "ALTER TABLE businesses ADD COLUMN IF NOT EXISTS has_whatsapp BOOLEAN DEFAULT FALSE NOT NULL;",
+    "UPDATE businesses SET canonical_name = business_name WHERE canonical_name IS NULL;",
+    "UPDATE businesses SET source_name = raw_business_name WHERE source_name IS NULL;",
     "ALTER TABLE businesses ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL;",
     "ALTER TABLE businesses ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL;",
 
@@ -87,6 +91,11 @@ POSTGRES_MIGRATIONS = [
     "ALTER TABLE activities ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;",
     "ALTER TABLE activities ADD COLUMN IF NOT EXISTS metadata_json JSON;",
     "ALTER TABLE activities ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL;",
+
+    # Crawled Websites table
+    "CREATE TABLE IF NOT EXISTS crawled_websites (id SERIAL PRIMARY KEY, domain VARCHAR(255) NOT NULL, location_signature VARCHAR(255), business_id INTEGER REFERENCES businesses(id) ON DELETE SET NULL, canonical_url VARCHAR(500), branches JSON, extracted_data JSON NOT NULL, confidence_score FLOAT DEFAULT 1.0 NOT NULL, created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL);",
+    "CREATE INDEX IF NOT EXISTS ix_crawled_websites_domain ON crawled_websites(domain);",
+    "CREATE INDEX IF NOT EXISTS ix_crawled_websites_domain_loc ON crawled_websites(domain, location_signature);",
 
     # Clean existing phone numbers starting with '0' to start with country code '+91 '
     "UPDATE businesses SET phone = '+91 ' || SUBSTRING(REGEXP_REPLACE(phone, '[^0-9]', '', 'g') FROM 2 FOR 5) || ' ' || SUBSTRING(REGEXP_REPLACE(phone, '[^0-9]', '', 'g') FROM 7) WHERE phone ~ '^0[6-9][0-9]{9}$';",

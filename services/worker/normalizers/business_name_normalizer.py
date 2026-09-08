@@ -1,13 +1,8 @@
 """
 FastUI Business Name Normalizer
 ===============================
-Production-grade, conservative business name normalization component.
-
-Design Principles:
-- Conservative: Cleans formatting and obvious SEO/location noise without stripping
-  legitimate business descriptors (e.g., 'Dental Clinic', 'Medical Group').
-- Deterministic: Immutable result object with raw, display, and search-normalized forms.
-- Brand Preservation: Protects intentional casing, abbreviations, and doctor prefixes.
+Conservative, deterministic business name normalization service with multi-source
+evidence reconciliation (Google Maps, Schema.org, Website Brand Intelligence).
 """
 
 import re
@@ -20,7 +15,6 @@ class NormalizedBusinessName:
     """
     Immutable value object encapsulating raw, display, and search-normalized name representations.
     """
-
     raw_name: str
     display_name: str
     normalized_name: str
@@ -34,22 +28,24 @@ class BusinessNameNormalizer:
     Conservative normalizer for business names discovered through web scraping.
     """
 
-    # Minor words kept in lowercase in title casing (unless at beginning of phrase)
     MINOR_WORDS: Set[str] = {
         "a", "an", "and", "as", "at", "but", "by", "for", "in", "nor", "of",
         "on", "or", "so", "the", "to", "up", "yet", "with", "via"
     }
 
-    # Known brand acronyms and title prefixes preserved in uppercase/specific casing
     PRESERVED_ACRONYMS: Set[str] = {
         "USA", "UK", "UAE", "IBM", "BMW", "LLC", "INC", "LTD", "PVT", "CORP",
         "MD", "DDS", "DMD", "BDS", "MDS", "ENT", "IVF", "MRI", "CT", "ICU", "3M"
     }
 
-    # Common delimiter patterns used in SEO-stuffed title strings
     MAJOR_SEPARATORS = re.compile(r"\s*(?:\|\||\||//|--|—|–|•|·)\s*")
 
-    # SEO descriptive suffix patterns
+    TRADEMARK_SYMBOLS = re.compile(r"[®™℠©]+")
+
+    DECORATIVE_GLYPHS = re.compile(r"[\u2600-\u27bf\U0001f300-\U0001f9ff\U0001fa00-\U0001faff★⭐✨🦷⚕✓✔]+")
+
+    BRACKETED_MARKETING_PATTERN = re.compile(r"\s*(\[[^\]]*\]|\([^\)]*\)|\{[^\}]*\}|<[^>]*>)\s*")
+
     SEO_SUFFIX_PATTERN = re.compile(
         r"^(?:best|top|famous|leading|trusted)?\s*(?:dentist|dental clinic|doctor|clinic|hospital|lawyer|plumber|bakery|restaurant|services|shop|store)\s+in\s+[\w\s,]+$",
         re.IGNORECASE
@@ -57,9 +53,6 @@ class BusinessNameNormalizer:
 
     @classmethod
     def normalize(cls, raw_name: Optional[str]) -> NormalizedBusinessName:
-        """
-        Main entry point. Takes a raw business name string and returns a NormalizedBusinessName.
-        """
         if not raw_name or not isinstance(raw_name, str):
             return NormalizedBusinessName(
                 raw_name="" if raw_name is None else str(raw_name),
@@ -73,10 +66,21 @@ class BusinessNameNormalizer:
         if not text:
             return NormalizedBusinessName(raw_name=original_raw, display_name="", normalized_name="")
 
+        # 1. Strip trademark symbols and decorative glyphs
+        text = cls._strip_symbols_and_emojis(text)
+
+        # 2. Strip bracketed marketing text
+        text = cls._strip_bracketed_marketing(text)
+
+        # 3. Collapse whitespace and fix spacing around punctuation
         text = cls._collapse_whitespace(text)
         text = cls._fix_punctuation_spacing(text)
+
+        # 4. Clean delimiter-separated SEO suffixes and marketing descriptions
         text = cls._clean_delimiters_and_seo_suffixes(text)
         text = cls._deduplicate_repeated_fragments(text)
+
+        # 5. Smart casing and punctuation cleanup
         display_name = cls._apply_smart_casing(text)
         display_name = cls._clean_surrounding_punctuation(display_name)
         normalized_name = cls._generate_search_key(display_name)
@@ -86,6 +90,79 @@ class BusinessNameNormalizer:
             display_name=display_name,
             normalized_name=normalized_name
         )
+
+    @classmethod
+    def resolve_canonical_name(
+        cls,
+        source_name: Optional[str],
+        website_brand: Optional[str] = None,
+        website_title: Optional[str] = None,
+        schema_name: Optional[str] = None,
+    ) -> NormalizedBusinessName:
+        """
+        Evidence-based business name reconciliation.
+        Resolves the authoritative canonical name by cross-referencing scraped source display names
+        with authentic website brand evidence, metadata, and JSON-LD schema.
+        """
+        source_norm = cls.normalize(source_name)
+
+        candidates = []
+        if schema_name:
+            candidates.append(schema_name)
+        if website_brand:
+            candidates.append(website_brand)
+        if website_title:
+            parts = cls.MAJOR_SEPARATORS.split(website_title)
+            if parts and parts[0].strip():
+                candidates.append(parts[0].strip())
+
+        for cand in candidates:
+            cand_norm = cls.normalize(cand)
+            if not cand_norm.display_name or len(cand_norm.display_name) < 2:
+                continue
+
+            cand_clean = cand_norm.normalized_name
+            source_clean = source_norm.normalized_name
+
+            if cand_clean and source_clean:
+                if cand_clean == source_clean:
+                    return cand_norm
+                if cand_clean in source_clean and len(cand_clean) < len(source_clean):
+                    return NormalizedBusinessName(
+                        raw_name=source_norm.raw_name,
+                        display_name=cand_norm.display_name,
+                        normalized_name=cand_norm.normalized_name,
+                    )
+
+        return source_norm
+
+    @classmethod
+    def _strip_symbols_and_emojis(cls, text: str) -> str:
+        text = cls.TRADEMARK_SYMBOLS.sub("", text)
+        text = cls.DECORATIVE_GLYPHS.sub(" ", text)
+        return text
+
+    @classmethod
+    def _strip_bracketed_marketing(cls, text: str) -> str:
+        matches = cls.BRACKETED_MARKETING_PATTERN.findall(text)
+        if not matches:
+            return text
+
+        cleaned = text
+        for m in matches:
+            content = m[1:-1].strip().lower()
+            marketing_indicators = (
+                "dentistry", "dental", "implant", "high-end", "award", "top", "best",
+                "dr", "branch", "rating", "star", "specialist", "hospital", "clinic",
+                "center", "centre", "care", "advanced", "cosmetic", "laser", "pvt", "ltd"
+            )
+            if any(ind in content for ind in marketing_indicators) or len(content) <= 30:
+                cleaned = cleaned.replace(m, " ")
+
+        cleaned = cls._collapse_whitespace(cleaned)
+        if not cleaned:
+            return text.strip("[](){}<> ")
+        return cleaned
 
     @classmethod
     def _collapse_whitespace(cls, text: str) -> str:
@@ -103,7 +180,6 @@ class BusinessNameNormalizer:
     @classmethod
     def _clean_delimiters_and_seo_suffixes(cls, text: str) -> str:
         parts = [cls._collapse_whitespace(p) for p in cls.MAJOR_SEPARATORS.split(text) if p.strip()]
-
         if len(parts) <= 1:
             return text
 
@@ -139,7 +215,7 @@ class BusinessNameNormalizer:
         has_lower = any(c.islower() for c in text)
 
         if has_upper and has_lower:
-            return cls._normalize_mixed_case_spacing(text)
+            return cls._collapse_whitespace(text)
 
         words = text.split(" ")
         cased_words = []
@@ -169,10 +245,6 @@ class BusinessNameNormalizer:
             cased_words.append(f"{prefix}{cased_core}{suffix}")
 
         return " ".join(cased_words)
-
-    @classmethod
-    def _normalize_mixed_case_spacing(cls, text: str) -> str:
-        return cls._collapse_whitespace(text)
 
     @classmethod
     def _clean_surrounding_punctuation(cls, text: str) -> str:

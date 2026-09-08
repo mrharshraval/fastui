@@ -16,7 +16,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, List, Literal, Optional, Union
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Base Directory Paths
@@ -76,15 +76,31 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 43200  # 30 days default
 
+    @model_validator(mode="after")
+    def validate_production_secrets(self) -> "Settings":
+        if self.is_production and (
+            not self.JWT_SECRET_KEY
+            or self.JWT_SECRET_KEY == "super-secret-key-for-local-dev-only"
+        ):
+            raise ValueError(
+                "CRITICAL SECURITY CONFIGURATION ERROR: JWT_SECRET_KEY must be set to a secure, "
+                "unique secret in production! Default development secret is forbidden."
+            )
+        return self
+
     # ─────────────────────────────────────────────────────────────
     # Networking & CORS
     # ─────────────────────────────────────────────────────────────
     FRONTEND_URL: Optional[str] = "https://sales.fastui.in"
+    DEMO_BASE_URL: str = "https://demo.fastui.in"
     CORS_ALLOWED_ORIGINS: List[str] = [
         "https://sales.fastui.in",
         "https://fastui.in",
+        "https://demo.fastui.in",
         "http://localhost:3000",
-        "http://127.0.0.1:3000"
+        "http://127.0.0.1:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3001"
     ]
 
     @field_validator("CORS_ALLOWED_ORIGINS", mode="before")

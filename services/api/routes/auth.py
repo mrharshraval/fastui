@@ -32,6 +32,17 @@ from services.email_service import email_service
 
 logger = logging.getLogger("fastui.auth")
 
+# In-memory rate limiting and brute-force tracking for OTP verification
+_otp_failed_attempts: dict[str, int] = {}
+
+def check_and_record_failed_otp(email: str) -> int:
+    current = _otp_failed_attempts.get(email, 0) + 1
+    _otp_failed_attempts[email] = current
+    return current
+
+def clear_otp_attempts(email: str):
+    _otp_failed_attempts.pop(email, None)
+
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register", response_model=TokenResponse)
@@ -60,6 +71,7 @@ async def register(
         )
     
     # Generate OTP
+    clear_otp_attempts(clean_email)
     otp_code = generate_otp()
     otp_expires = datetime.now(timezone.utc) + timedelta(minutes=10)
     logger.info(f"[AUTH:REGISTER] 🔐 Step 2: Generated secure 6-digit OTP (expires in 10 mins)")
@@ -122,14 +134,31 @@ async def verify_otp(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Account already verified")
         
     if not user.verification_otp or user.verification_otp != req.otp:
-        logger.warning(f"[AUTH:VERIFY] ❌ Invalid OTP submitted for '{clean_email}'")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid OTP")
+        attempts = check_and_record_failed_otp(clean_email)
+        if attempts >= 5:
+            user.verification_otp = None
+            user.verification_otp_expires_at = None
+            await db.commit()
+            clear_otp_attempts(clean_email)
+            logger.warning(f"[AUTH:VERIFY] 🚫 Maximum OTP verification attempts exceeded for '{clean_email}'. OTP invalidated.")
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Maximum verification attempts exceeded. Please request a new OTP."
+            )
+        remaining = 5 - attempts
+        logger.warning(f"[AUTH:VERIFY] ❌ Invalid OTP submitted for '{clean_email}' (attempt {attempts}/5)")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid OTP. {remaining} attempt(s) remaining."
+        )
         
     if not user.verification_otp_expires_at or user.verification_otp_expires_at < datetime.now(timezone.utc):
+        clear_otp_attempts(clean_email)
         logger.warning(f"[AUTH:VERIFY] ⏱️ OTP expired for '{clean_email}'")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="OTP has expired")
         
     # Mark active and clear OTP
+    clear_otp_attempts(clean_email)
     user.is_active = True
     user.verification_otp = None
     user.verification_otp_expires_at = None

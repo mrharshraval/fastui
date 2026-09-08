@@ -98,29 +98,10 @@ class MultiSourceDiscoveryAggregator(DiscoverySourceAdapter):
         merged_leads: List[DiscoveredLead] = []
 
         for lead in all_leads:
-            norm_web = LeadDeduplicator.normalize_website(lead.website)
-            norm_phone = LeadDeduplicator.normalize_phone(lead.phone)
-            name_key = lead.name.lower().strip() if lead.name else ""
-
             matched_existing: Optional[DiscoveredLead] = None
 
             for existing in merged_leads:
-                existing_norm_web = LeadDeduplicator.normalize_website(existing.website)
-                existing_norm_phone = LeadDeduplicator.normalize_phone(existing.phone)
-                existing_name_key = existing.name.lower().strip() if existing.name else ""
-
-                # Check match criteria
-                is_match = False
-                if lead.source_place_id and existing.source_place_id and lead.source_place_id == existing.source_place_id:
-                    is_match = True
-                elif norm_web and existing_norm_web and norm_web == existing_norm_web:
-                    is_match = True
-                elif norm_phone and existing_norm_phone and norm_phone == existing_norm_phone:
-                    is_match = True
-                elif name_key and existing_name_key and name_key == existing_name_key:
-                    is_match = True
-
-                if is_match:
+                if LeadDeduplicator.is_duplicate_lead(lead, existing):
                     matched_existing = existing
                     break
 
@@ -136,8 +117,26 @@ class MultiSourceDiscoveryAggregator(DiscoverySourceAdapter):
                     matched_existing.address = lead.address
                 if not matched_existing.source_place_id and lead.source_place_id:
                     matched_existing.source_place_id = lead.source_place_id
+                if not matched_existing.google_place_id and lead.google_place_id:
+                    matched_existing.google_place_id = lead.google_place_id
+                if not matched_existing.rating and lead.rating:
+                    matched_existing.rating = lead.rating
+                if not matched_existing.reviews_count and lead.reviews_count:
+                    matched_existing.reviews_count = lead.reviews_count
+                if not matched_existing.latitude and lead.latitude:
+                    matched_existing.latitude = lead.latitude
+                    matched_existing.longitude = lead.longitude
+                if not matched_existing.opening_hours and lead.opening_hours:
+                    matched_existing.opening_hours = lead.opening_hours
+                if not matched_existing.business_status and lead.business_status:
+                    matched_existing.business_status = lead.business_status
+                if not matched_existing.postal_code and lead.postal_code:
+                    matched_existing.postal_code = lead.postal_code
+                if (not matched_existing.category or matched_existing.category in ("Business", "Businesses")) and lead.category:
+                    matched_existing.category = lead.category
             else:
                 merged_leads.append(lead)
+
 
 
         # Cap results to target_limit

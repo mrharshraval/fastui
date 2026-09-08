@@ -79,14 +79,16 @@ async def test_mandatory_multi_source_and_multi_run_scenario(
       Existing = 800
       Remaining = 200 (requests only 200, not 1000, not 900, not 300).
     """
-    # 1. Seed 100 existing prospects
+    # Seed 100 existing dental prospects in Kolkata (simulating pre-existing database state)
     for i in range(100):
+        phone_val = f"+919800000{i:03d}"
         db_session.add(
             Business(
                 business_name=f"PreExisting Dental Clinic {i}",
                 category="Dental Clinics",
                 city="Kolkata",
-                phone=f"+919800000{i:03d}",
+                phone=phone_val,
+                normalized_phone=phone_val,
                 qualification_status="unqualified",
             )
         )

@@ -64,8 +64,8 @@ class ReminderNotificationService:
             payload = {
                 "title": f"Reminder: {biz_name}",
                 "body": reminder.title + (f" · {reminder.notes}" if reminder.notes else ""),
-                "icon": "/assets/brand/favicon/brand/primary/filled.png",
-                "badge": "/assets/brand/favicon/brand/primary/filled.png",
+                "icon": "/assets/brand/icon/monochrome/white/solid.png",
+                "badge": "/assets/brand/notification/badge/monochrome/white/solid.png",
                 "data": {
                   "url": f"/prospects",
                   "business_id": reminder.business_id,

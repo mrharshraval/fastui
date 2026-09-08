@@ -1,13 +1,17 @@
+import asyncio
 import base64
 import json
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 
 from cryptography.hazmat.primitives import serialization
 from pywebpush import webpush, WebPushException
 from py_vapid import Vapid
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
+from models.schema import PushSubscription
 
 logger = logging.getLogger(__name__)
 
@@ -94,3 +98,211 @@ class PushNotificationService:
         except Exception as e:
             logger.error(f"Unexpected error delivering Web Push notification: {e}")
             return False
+
+    @classmethod
+    async def broadcast_to_user(
+        cls,
+        session: AsyncSession,
+        user_id: int,
+        payload: Dict[str, Any],
+        ttl: int = 86400,
+    ) -> Dict[str, Any]:
+        """
+        Broadcasts a push notification to ALL active, valid device subscriptions
+        for the specified user, guaranteeing:
+        1. Strict deduplication by endpoint (delivers to every unique device without duplicates).
+        2. Concurrent non-blocking dispatch across all unique devices via asyncio.to_thread.
+        3. Automatic purging of expired/stale subscriptions (HTTP 404/410, revoked or corrupted keys).
+        4. Structured delivery metrics returned to caller.
+        """
+        stmt = select(PushSubscription).where(PushSubscription.user_id == user_id)
+        res = await session.execute(stmt)
+        all_subs = list(res.scalars().all())
+
+        if not all_subs:
+            logger.info(f"No push subscriptions found for user {user_id}.")
+            return {
+                "user_id": user_id,
+                "total_subscriptions": 0,
+                "unique_devices": 0,
+                "dispatched_devices": 0,
+                "failed_devices": 0,
+                "cleaned_up_devices": 0,
+            }
+
+        # 1. Deduplicate subscriptions strictly by endpoint
+        # If multiple records share the same endpoint, keep one and queue redundant ones for cleanup
+        unique_map: Dict[str, PushSubscription] = {}
+        redundant_subs: List[PushSubscription] = []
+
+        for sub in all_subs:
+            endpoint = (sub.endpoint or "").strip()
+            if not endpoint:
+                redundant_subs.append(sub)
+                continue
+            if endpoint in unique_map:
+                redundant_subs.append(sub)
+            else:
+                unique_map[endpoint] = sub
+
+        unique_subs = list(unique_map.values())
+
+        # 2. Filter valid crypto keys (must have non-empty p256dh and auth)
+        valid_subs: List[PushSubscription] = []
+        for sub in unique_subs:
+            if not sub.p256dh or not sub.auth:
+                redundant_subs.append(sub)
+            else:
+                valid_subs.append(sub)
+
+        # 3. Concurrently dispatch notifications to all unique valid devices
+        async def _dispatch_single(sub: PushSubscription) -> tuple[PushSubscription, bool]:
+            sub_info = {
+                "endpoint": sub.endpoint,
+                "keys": {
+                    "p256dh": sub.p256dh,
+                    "auth": sub.auth,
+                },
+            }
+            try:
+                # pywebpush is synchronous network I/O; run in thread to keep event loop unblocked
+                success = await asyncio.to_thread(cls.send_notification, sub_info, payload, ttl)
+                return sub, success
+            except Exception as ex:
+                logger.error(f"Error during async push dispatch to {sub.endpoint[:40]}: {ex}")
+                return sub, False
+
+        tasks = [_dispatch_single(sub) for sub in valid_subs]
+        results = await asyncio.gather(*tasks) if tasks else []
+
+        dispatched = 0
+        failed = 0
+        stale_to_delete: List[PushSubscription] = list(redundant_subs)
+
+        for sub, success in results:
+            if success:
+                dispatched += 1
+            else:
+                failed += 1
+                stale_to_delete.append(sub)
+
+        # 4. Clean up stale/invalid/redundant subscriptions
+        if stale_to_delete:
+            for stale_sub in stale_to_delete:
+                await session.delete(stale_sub)
+            await session.commit()
+            logger.info(f"Cleaned up {len(stale_to_delete)} stale/redundant push subscriptions for user {user_id}.")
+
+        return {
+            "user_id": user_id,
+            "total_subscriptions": len(all_subs),
+            "unique_devices": len(valid_subs),
+            "dispatched_devices": dispatched,
+            "failed_devices": failed,
+            "cleaned_up_devices": len(stale_to_delete),
+        }
+
+    @classmethod
+    async def broadcast_to_all_accounts(
+        cls,
+        session: AsyncSession,
+        payload: Dict[str, Any],
+        ttl: int = 86400,
+    ) -> Dict[str, Any]:
+        """
+        Broadcasts a push notification to ALL registered accounts and their active devices,
+        guaranteeing:
+        1. Strict deduplication by endpoint (every subscribed device gets exactly one notification).
+        2. Concurrent non-blocking dispatch across all devices.
+        3. Automatic purging of expired/stale subscriptions.
+        4. Consolidated metrics.
+        """
+        stmt = select(PushSubscription)
+        res = await session.execute(stmt)
+        all_subs = list(res.scalars().all())
+
+        if not all_subs:
+            logger.info("No push subscriptions found in system.")
+            return {
+                "total_accounts": 0,
+                "total_subscriptions": 0,
+                "unique_devices": 0,
+                "dispatched_devices": 0,
+                "failed_devices": 0,
+                "cleaned_up_devices": 0,
+            }
+
+        # 1. Deduplicate by endpoint
+        unique_map: Dict[str, PushSubscription] = {}
+        redundant_subs: List[PushSubscription] = []
+        user_ids = set()
+
+        for sub in all_subs:
+            if sub.user_id:
+                user_ids.add(sub.user_id)
+            endpoint = (sub.endpoint or "").strip()
+            if not endpoint:
+                redundant_subs.append(sub)
+                continue
+            if endpoint in unique_map:
+                redundant_subs.append(sub)
+            else:
+                unique_map[endpoint] = sub
+
+        unique_subs = list(unique_map.values())
+
+        # 2. Filter valid crypto keys
+        valid_subs: List[PushSubscription] = []
+        for sub in unique_subs:
+            if not sub.p256dh or not sub.auth:
+                redundant_subs.append(sub)
+            else:
+                valid_subs.append(sub)
+
+        # 3. Concurrent dispatch
+        async def _dispatch_single(sub: PushSubscription) -> tuple[PushSubscription, bool]:
+            sub_info = {
+                "endpoint": sub.endpoint,
+                "keys": {
+                    "p256dh": sub.p256dh,
+                    "auth": sub.auth,
+                },
+            }
+            try:
+                success = await asyncio.to_thread(cls.send_notification, sub_info, payload, ttl)
+                return sub, success
+            except Exception as ex:
+                logger.error(f"Error during broadcast push dispatch to {sub.endpoint[:40]}: {ex}")
+                return sub, False
+
+        tasks = [_dispatch_single(sub) for sub in valid_subs]
+        results = await asyncio.gather(*tasks) if tasks else []
+
+        dispatched = 0
+        failed = 0
+        stale_to_delete: List[PushSubscription] = list(redundant_subs)
+
+        for sub, success in results:
+            if success:
+                dispatched += 1
+            else:
+                failed += 1
+                stale_to_delete.append(sub)
+
+        # 4. Clean up stale subscriptions
+        if stale_to_delete:
+            for stale_sub in stale_to_delete:
+                await session.delete(stale_sub)
+            await session.commit()
+            logger.info(f"Cleaned up {len(stale_to_delete)} stale/redundant push subscriptions during all-account broadcast.")
+
+        return {
+            "total_accounts": len(user_ids),
+            "total_subscriptions": len(all_subs),
+            "unique_devices": len(valid_subs),
+            "dispatched_devices": dispatched,
+            "failed_devices": failed,
+            "cleaned_up_devices": len(stale_to_delete),
+        }
+
+

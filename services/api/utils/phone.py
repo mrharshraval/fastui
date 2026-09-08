@@ -179,3 +179,80 @@ def _format_e164_display(digits: str, target_cc: str) -> str:
         return f"+{digits[:cc_len]} {digits[cc_len:]}"
 
     return f"+{digits}"
+
+
+def is_mobile_phone(raw_phone: Optional[str], location: Optional[str] = None) -> bool:
+    """
+    Determines if a phone number is a mobile line capable of receiving SMS/WhatsApp.
+    - India (+91): 10 digits starting with 6, 7, 8, or 9
+    - UK (+44): 10 digits starting with 7
+    - Australia (+61): 9 digits starting with 4
+    - UAE (+971): 9 digits starting with 5
+    - General international: 10-15 digits
+    """
+    if not raw_phone or not isinstance(raw_phone, str):
+        return False
+
+    digits = re.sub(r"\D", "", raw_phone)
+    if not digits or len(digits) < 8:
+        return False
+
+    target_cc = resolve_country_code(location)
+
+    # If starts with target country code
+    if target_cc == "91":
+        # Handle +91 or raw 10 digits or 11 digits with leading 0
+        if digits.startswith("91") and len(digits) == 12:
+            return digits[2] in "6789"
+        if len(digits) == 10:
+            return digits[0] in "6789"
+        if digits.startswith("0") and len(digits) == 11:
+            return digits[1] in "6789"
+
+    elif target_cc == "44":
+        if digits.startswith("44") and len(digits) in (12, 13):
+            return digits[2] == "7"
+        if digits.startswith("0") and len(digits) == 11:
+            return digits[1] == "7"
+        if len(digits) == 10:
+            return digits[0] == "7"
+
+    elif target_cc == "971":
+        if digits.startswith("971") and len(digits) in (11, 12):
+            return digits[3] == "5"
+        if digits.startswith("0") and len(digits) == 10:
+            return digits[1] == "5"
+
+    elif target_cc == "61":
+        if digits.startswith("61") and len(digits) == 11:
+            return digits[2] == "4"
+        if digits.startswith("0") and len(digits) == 10:
+            return digits[1] == "4"
+
+    elif target_cc == "1":
+        if digits.startswith("1") and len(digits) == 11:
+            return True
+        if len(digits) == 10:
+            return True
+
+    return 10 <= len(digits) <= 15
+
+
+def get_whatsapp_url(raw_phone: Optional[str], location: Optional[str] = None) -> Optional[str]:
+    """
+    Generates a canonical WhatsApp link https://wa.me/{digits}.
+    Returns None if the phone number is invalid or cannot be parsed.
+    """
+    if not raw_phone:
+        return None
+
+    _, e164 = normalize_global_phone(raw_phone, location=location)
+    if not e164:
+        return None
+
+    clean_digits = re.sub(r"\D", "", e164)
+    if len(clean_digits) >= 10:
+        return f"https://wa.me/{clean_digits}"
+
+    return None
+
