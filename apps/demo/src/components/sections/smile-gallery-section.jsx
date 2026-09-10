@@ -98,12 +98,12 @@ export function SmileGallerySection({ data }) {
                                 <div className="group relative rounded-3xl overflow-hidden border bg-card h-full flex flex-col">
                                     <div className="aspect-[4/3] relative shrink-0">
                                         <div className="absolute inset-0 flex">
-                                            <div className="w-1/2 h-full bg-muted relative border-r border-white/20">
-                                                <div className="absolute top-3 left-3 bg-black/50 text-white text-[10px] font-bold px-2 py-1 rounded-full backdrop-blur-sm z-10">BEFORE</div>
+                                            <div className="w-1/2 h-full bg-muted relative border-r border-border">
+                                                <div className="absolute top-3 left-3 bg-background/70 text-foreground border border-border/40 text-[10px] font-bold px-2 py-1 rounded-full backdrop-blur-sm z-10">BEFORE</div>
                                                 {item.before ? (
                                                     <img src={item.before} alt="Before" className="w-full h-full object-cover" />
                                                 ) : (
-                                                    <div className="w-full h-full bg-neutral-200 flex items-center justify-center text-neutral-400 text-xs">Before</div>
+                                                    <div className="w-full h-full bg-muted flex items-center justify-center text-muted-foreground text-xs">Before</div>
                                                 )}
                                             </div>
                                             <div className="w-1/2 h-full bg-muted relative">
@@ -111,7 +111,7 @@ export function SmileGallerySection({ data }) {
                                                 {item.after ? (
                                                     <img src={item.after} alt="After" className="w-full h-full object-cover" />
                                                 ) : (
-                                                    <div className="w-full h-full bg-neutral-100 flex items-center justify-center text-neutral-400 text-xs">After</div>
+                                                    <div className="w-full h-full bg-muted/60 flex items-center justify-center text-muted-foreground text-xs">After</div>
                                                 )}
                                             </div>
                                         </div>

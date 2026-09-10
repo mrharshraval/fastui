@@ -190,16 +190,17 @@ class Business(Base):
     updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)
 
     # Relationships
-    lead_profile = relationship("Lead", back_populates="business", uselist=False, cascade="all, delete-orphan")
-    contacts = relationship("Contact", back_populates="business", cascade="all, delete-orphan")
-    sources = relationship("BusinessSource", back_populates="business", cascade="all, delete-orphan")
-    notes = relationship("Note", back_populates="business", cascade="all, delete-orphan", order_by="desc(Note.created_at)")
-    tasks = relationship("Task", back_populates="business", cascade="all, delete-orphan", order_by="asc(Task.due_date)")
-    reminders = relationship("Reminder", back_populates="business", cascade="all, delete-orphan", order_by="asc(Reminder.due_at)")
-    outreaches = relationship("Outreach", back_populates="business", cascade="all, delete-orphan", order_by="desc(Outreach.attempted_at)")
-    interactions = relationship("Interaction", back_populates="business", cascade="all, delete-orphan", order_by="desc(Interaction.occurred_at)")
-    activities = relationship("Activity", back_populates="business", cascade="all, delete-orphan", order_by="desc(Activity.created_at)")
-    demos = relationship("ProspectDemo", back_populates="business", cascade="all, delete-orphan", order_by="desc(ProspectDemo.created_at)")
+    lead_profile = relationship("Lead", back_populates="business", uselist=False, cascade="all, delete-orphan", passive_deletes=True)
+    contacts = relationship("Contact", back_populates="business", cascade="all, delete-orphan", passive_deletes=True)
+    sources = relationship("BusinessSource", back_populates="business", cascade="all, delete-orphan", passive_deletes=True)
+    notes = relationship("Note", back_populates="business", cascade="all, delete-orphan", order_by="desc(Note.created_at)", passive_deletes=True)
+    tasks = relationship("Task", back_populates="business", cascade="all, delete-orphan", order_by="asc(Task.due_date)", passive_deletes=True)
+    reminders = relationship("Reminder", back_populates="business", cascade="all, delete-orphan", order_by="asc(Reminder.due_at)", passive_deletes=True)
+    outreaches = relationship("Outreach", back_populates="business", cascade="all, delete-orphan", order_by="desc(Outreach.attempted_at)", passive_deletes=True)
+    interactions = relationship("Interaction", back_populates="business", cascade="all, delete-orphan", order_by="desc(Interaction.occurred_at)", passive_deletes=True)
+    activities = relationship("Activity", back_populates="business", cascade="all, delete-orphan", order_by="desc(Activity.created_at)", passive_deletes=True)
+    demos = relationship("ProspectDemo", back_populates="business", cascade="all, delete-orphan", order_by="desc(ProspectDemo.created_at)", passive_deletes=True)
+    crawled_websites = relationship("CrawledWebsite", back_populates="business", passive_deletes=True)
 
 # ─────────────────────────────────────────────────────────────
 # 3. LEAD MODEL (Sales Prospect State & Pipeline Qualification)
@@ -486,6 +487,9 @@ class ExportJob(Base):
     id = Column(String(36), primary_key=True, index=True) # UUID string
     user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     status = Column(Enum(ExportStatus), default=ExportStatus.QUEUED, nullable=False, index=True)
+    export_type = Column(String(50), default="prospects", nullable=False)
+    params = Column(JSON, nullable=True)
+    file_path = Column(String(500), nullable=True)
     progress_percent = Column(Integer, default=0, nullable=False)
     records_processed = Column(Integer, default=0, nullable=False)
     total_records = Column(Integer, default=0, nullable=False)
@@ -587,5 +591,5 @@ class CrawledWebsite(Base):
     )
 
     # Relationships
-    business = relationship("Business")
+    business = relationship("Business", back_populates="crawled_websites", passive_deletes=True)
 

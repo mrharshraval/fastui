@@ -54,11 +54,11 @@ export function Navbar() {
         )}>
             <CommandMenu open={open} setOpen={setOpen} />
 
-            <div className="container flex h-[72px] md:h-[96px] px-8 sm:px-4 md:px-12 items-center justify-between">
+            <div className="container relative flex h-[72px] md:h-[96px] px-8 sm:px-4 md:px-12 items-center justify-between">
 
                 {/* Logo (Desktop & Mobile) */}
                 <div className="flex items-center">
-                    <Link href={demoLink("/")} className="mr-6 flex items-center space-x-2">
+                    <Link href={demoLink("/")} className="flex items-center space-x-2">
                         {business?.logo_url ? (
                             <img
                                 src={business.logo_url}
@@ -75,9 +75,10 @@ export function Navbar() {
                             </>
                         )}
                     </Link>
+                </div>
 
-                    {/* Desktop Nav */}
-                    <div className="hidden md:flex items-center gap-1">
+                {/* Desktop Nav (Centered) */}
+                <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center gap-1">
                         <NavigationMenu value={currentNavItem} onValueChange={setCurrentNavItem}>
                             <NavigationMenuList>
                                 <NavigationMenuItem>
@@ -199,7 +200,6 @@ export function Navbar() {
                             </NavigationMenuList>
                         </NavigationMenu>
                     </div>
-                </div>
 
                 {/* Right Side Actions */}
                 <div className="flex items-center space-x-2 sm:space-x-3">

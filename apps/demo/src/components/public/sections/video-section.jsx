@@ -17,7 +17,7 @@ export function PublicVideoSection({ data }) {
     }
 
     return (
-        <div className="my-12 rounded-lg overflow-hidden aspect-video bg-black">
+        <div className="my-12 rounded-lg overflow-hidden aspect-video bg-muted">
             <iframe
                 src={getEmbedUrl(data.url)}
                 className="w-full h-full"

@@ -12,8 +12,8 @@ class DiscoverySearchParams(BaseModel):
     """Normalized search query parameters passed to the Cloud Run Worker."""
     target_audience: str = Field(..., description="Target business category, e.g. 'Dentist'")
     location: str = Field(..., description="Target geographical location, e.g. 'Ahmedabad, Gujarat, India'")
-    limit: int = Field(default=50, ge=1, le=1000, description="Max leads to fetch in this batch")
-    batch_size: int = Field(default=50, ge=1, le=100, description="Batch chunk size")
+    limit: Optional[int] = Field(default=None, description="Optional limit; None for uncapped discovery")
+    batch_size: Optional[int] = Field(default=None, description="Batch chunk size")
     query_variations: Optional[list[str]] = Field(default=None, description="Optional query variations")
     source_preferences: Optional[list[str]] = Field(default=None, description="Enabled sources in order")
     cursor: Optional[str] = Field(default=None, description="Pagination cursor")
@@ -55,4 +55,7 @@ class DiscoverResponse(BaseModel):
     exhausted: bool = Field(default=False)
     sources_exhausted: Optional[dict[str, bool]] = None
     peak_rss_mb: Optional[float] = None
+    next_cursor: Optional[str] = None
+    current_locality: Optional[str] = None
+    localities_remaining: Optional[int] = None
 

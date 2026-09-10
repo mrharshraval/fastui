@@ -57,7 +57,7 @@ function TestimonialCard({ item, isPlaying, onPlay, onEnded }) {
                     <Button
                         size="icon"
                         variant="secondary"
-                        className="h-10 w-10 rounded-full bg-white/30 backdrop-blur-md text-white hover:bg-white/50 border border-white/20 transition-all shadow-sm"
+                        className="h-10 w-10 rounded-full bg-background/40 backdrop-blur-md text-foreground hover:bg-background/60 border border-border/40 transition-all shadow-sm"
                         onClick={(e) => {
                             e.stopPropagation()
                             onPlay(item.id)

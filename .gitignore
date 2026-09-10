@@ -80,6 +80,7 @@ services/api/scratch/
 tmp/
 temp/
 .temp/
+.cache/
 supabase/.temp/
 supabase/supabase/
 

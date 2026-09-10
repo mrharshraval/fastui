@@ -62,7 +62,7 @@ export function TeamSection({ data, onDataChange, isEditable = false, layerState
                             data-layer-id={isEditable ? `member-${i}` : undefined}
                             data-layer-type={isEditable ? "card" : undefined}
                         >
-                            <div className="aspect-[3/4] relative bg-white/50">
+                            <div className="aspect-[3/4] relative bg-muted/50">
                                 {member.image ? (
                                     <Image
                                         src={member.image}

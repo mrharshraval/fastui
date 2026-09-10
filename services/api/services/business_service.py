@@ -2,7 +2,7 @@ import logging
 from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_, desc, asc
+from sqlalchemy import select, or_, desc, asc, delete, update
 from sqlalchemy.orm import selectinload
 
 from core.exceptions import EntityNotFoundException
@@ -11,14 +11,16 @@ from models.schema import (
     Outreach, Interaction, Activity, User,
     PipelineStage, LeadPriority, LeadSignal,
     OutreachChannel, OutreachStatus, InteractionType,
-    ActivityType, TaskStatus, ReminderStatus
+    ActivityType, TaskStatus, ReminderStatus,
+    BusinessSource, ProspectDemo, DemoEvent, CrawledWebsite
 )
 from schemas.businesses import (
     StageUpdateResponse, BusinessResponse, BusinessUpdateRequest,
     OutreachCreateRequest, InteractionCreateRequest,
     NoteCreateRequest, TaskCreateRequest, TaskUpdateRequest,
     ReminderCreateRequest, ReminderUpdateRequest,
-    BulkAddToLeadsResponse, BulkDeleteResponse, PipelineDealResponse
+    BulkAddToLeadsResponse, BulkDeleteResponse, PipelineDealResponse,
+    ContactResponse, ActivityCreateRequest
 )
 from schemas.auth import TokenData
 
@@ -83,8 +85,31 @@ class BusinessService:
         result = await session.execute(query)
         rows = result.all()
 
+        # Batch-load Google Maps sources for physical location provenance
+        business_ids = [business.id for business, _ in rows]
+        sources_by_biz: Dict[int, BusinessSource] = {}
+        if business_ids:
+            src_stmt = select(BusinessSource).where(
+                BusinessSource.business_id.in_(business_ids),
+                BusinessSource.platform == "google_maps"
+            )
+            src_res = await session.execute(src_stmt)
+            for s in src_res.scalars().all():
+                sources_by_biz[s.business_id] = s
+
         responses = []
         for business, lead in rows:
+            maps_src = sources_by_biz.get(business.id)
+            maps_url = maps_src.source_url if maps_src else None
+            maps_place_id = maps_src.external_id if maps_src else None
+            lat = None
+            lng = None
+            if maps_src and isinstance(maps_src.raw_payload, dict):
+                lat = maps_src.raw_payload.get("latitude")
+                lng = maps_src.raw_payload.get("longitude")
+                if not maps_place_id:
+                    maps_place_id = maps_src.raw_payload.get("place_id")
+
             responses.append(
                 BusinessResponse(
                     id=business.id,
@@ -108,6 +133,10 @@ class BusinessService:
                     signal="warm",
                     score=50,
                     lead_id=None,
+                    google_maps_url=maps_url,
+                    latitude=lat,
+                    longitude=lng,
+                    google_place_id=maps_place_id,
                     last_outreach_at=business.last_outreach_at.isoformat() if business.last_outreach_at else None,
                     last_contacted_at=business.last_contacted_at.isoformat() if business.last_contacted_at else None,
                     created_at=business.created_at.isoformat() if business.created_at else None,
@@ -317,6 +346,18 @@ class BusinessService:
         result = await session.execute(query)
         rows = result.all()
 
+        # Batch-load Google Maps sources for physical location provenance
+        business_ids = [business.id for business, _ in rows]
+        sources_by_biz: Dict[int, BusinessSource] = {}
+        if business_ids:
+            src_stmt = select(BusinessSource).where(
+                BusinessSource.business_id.in_(business_ids),
+                BusinessSource.platform == "google_maps"
+            )
+            src_res = await session.execute(src_stmt)
+            for s in src_res.scalars().all():
+                sources_by_biz[s.business_id] = s
+
         responses = []
         for business, lead in rows:
             lead_stage = lead.stage.value if lead and hasattr(lead.stage, 'value') else (str(lead.stage) if lead else "lead")
@@ -324,6 +365,17 @@ class BusinessService:
             lead_signal = lead.signal.value if lead and hasattr(lead.signal, 'value') else "warm"
             lead_score = lead.score if lead else 50
             lead_id = lead.id if lead else None
+
+            maps_src = sources_by_biz.get(business.id)
+            maps_url = maps_src.source_url if maps_src else None
+            maps_place_id = maps_src.external_id if maps_src else None
+            lat = None
+            lng = None
+            if maps_src and isinstance(maps_src.raw_payload, dict):
+                lat = maps_src.raw_payload.get("latitude")
+                lng = maps_src.raw_payload.get("longitude")
+                if not maps_place_id:
+                    maps_place_id = maps_src.raw_payload.get("place_id")
 
             responses.append(
                 BusinessResponse(
@@ -348,6 +400,10 @@ class BusinessService:
                     signal=lead_signal,
                     score=lead_score,
                     lead_id=lead_id,
+                    google_maps_url=maps_url,
+                    latitude=lat,
+                    longitude=lng,
+                    google_place_id=maps_place_id,
                     last_outreach_at=business.last_outreach_at.isoformat() if business.last_outreach_at else None,
                     last_contacted_at=business.last_contacted_at.isoformat() if business.last_contacted_at else None,
                     created_at=business.created_at.isoformat() if business.created_at else None,
@@ -355,6 +411,135 @@ class BusinessService:
                 )
             )
 
+        return responses
+
+    @staticmethod
+    async def get_all_businesses(
+        session: AsyncSession,
+        skip: int = 0,
+        limit: int = 100,
+        is_lead: Optional[bool] = None,
+        stage: Optional[str] = None,
+        search: Optional[str] = None,
+        sort_by: str = "created_at",
+        sort_order: str = "desc"
+    ) -> List[BusinessResponse]:
+        """
+        Fetches all business accounts across the system (leads and non-leads).
+        """
+        query = (
+            select(Business, Lead)
+            .outerjoin(Lead, Business.id == Lead.business_id)
+        )
+
+        if is_lead is True:
+            query = query.where(Lead.id.isnot(None))
+        elif is_lead is False:
+            query = query.where(Lead.id.is_(None))
+
+        if stage and stage.lower() != "all":
+            stage_enum = None
+            for s in PipelineStage:
+                if s.value.lower() == stage.lower() or s.name.lower() == stage.lower():
+                    stage_enum = s
+                    break
+            if stage_enum:
+                query = query.where(Lead.stage == stage_enum)
+
+        if search:
+            term = f"%{search.strip()}%"
+            query = query.where(
+                or_(
+                    Business.business_name.ilike(term),
+                    Business.category.ilike(term),
+                    Business.city.ilike(term),
+                    Business.state.ilike(term),
+                    Business.country.ilike(term),
+                    Business.website.ilike(term),
+                    Business.phone.ilike(term),
+                )
+            )
+
+        sort_columns = {
+            "created_at": Business.created_at,
+            "business_name": Business.business_name,
+            "city": Business.city,
+            "stage": Lead.stage,
+            "pipeline_stage": Lead.stage
+        }
+        col = sort_columns.get(sort_by, Business.created_at)
+        if sort_order.lower() == "asc":
+            query = query.order_by(asc(col), asc(Business.id))
+        else:
+            query = query.order_by(desc(col), desc(Business.id))
+
+        query = query.offset(skip).limit(limit)
+        result = await session.execute(query)
+        rows = result.all()
+
+        business_ids = [business.id for business, _ in rows]
+        sources_by_biz: Dict[int, BusinessSource] = {}
+        if business_ids:
+            src_stmt = select(BusinessSource).where(
+                BusinessSource.business_id.in_(business_ids),
+                BusinessSource.platform == "google_maps"
+            )
+            src_res = await session.execute(src_stmt)
+            for s in src_res.scalars().all():
+                sources_by_biz[s.business_id] = s
+
+        responses = []
+        for business, lead in rows:
+            lead_stage = lead.stage.value if lead and hasattr(lead.stage, 'value') else (str(lead.stage) if lead else None)
+            lead_priority = lead.priority.value if lead and hasattr(lead.priority, 'value') else "medium"
+            lead_signal = lead.signal.value if lead and hasattr(lead.signal, 'value') else "warm"
+            lead_score = lead.score if lead else 50
+            lead_id = lead.id if lead else None
+
+            maps_src = sources_by_biz.get(business.id)
+            maps_url = maps_src.source_url if maps_src else None
+            maps_place_id = maps_src.external_id if maps_src else None
+            lat = None
+            lng = None
+            if maps_src and isinstance(maps_src.raw_payload, dict):
+                lat = maps_src.raw_payload.get("latitude")
+                lng = maps_src.raw_payload.get("longitude")
+                if not maps_place_id:
+                    maps_place_id = maps_src.raw_payload.get("place_id")
+
+            responses.append(
+                BusinessResponse(
+                    id=business.id,
+                    business_name=business.business_name,
+                    category=business.category,
+                    phone=business.phone,
+                    email=business.email,
+                    website=business.website,
+                    has_whatsapp=business.has_whatsapp,
+                    address=business.address,
+                    city=business.city,
+                    state=business.state,
+                    country=business.country,
+                    postal_code=business.postal_code,
+                    website_status=business.website_status.value if hasattr(business.website_status, 'value') else str(business.website_status),
+                    qualification_status=business.qualification_status or "unqualified",
+                    is_lead=lead is not None,
+                    pipeline_stage=lead_stage,
+                    stage=lead_stage,
+                    priority=lead_priority,
+                    signal=lead_signal,
+                    score=lead_score,
+                    lead_id=lead_id,
+                    google_maps_url=maps_url,
+                    latitude=lat,
+                    longitude=lng,
+                    google_place_id=maps_place_id,
+                    last_outreach_at=business.last_outreach_at.isoformat() if business.last_outreach_at else None,
+                    last_contacted_at=business.last_contacted_at.isoformat() if business.last_contacted_at else None,
+                    created_at=business.created_at.isoformat() if business.created_at else None,
+                    updated_at=business.updated_at.isoformat() if business.updated_at else None,
+                )
+            )
         return responses
 
     @staticmethod
@@ -376,6 +561,24 @@ class BusinessService:
         lead_score = lead.score if lead else 50
         lead_id = lead.id if lead else None
         is_lead = lead is not None
+
+        # Fetch Google Maps source for canonical location metadata
+        maps_source_stmt = select(BusinessSource).where(
+            BusinessSource.business_id == business_id,
+            BusinessSource.platform == "google_maps"
+        )
+        maps_source_res = await session.execute(maps_source_stmt)
+        maps_source = maps_source_res.scalars().first()
+
+        google_maps_url = maps_source.source_url if maps_source else None
+        google_place_id = maps_source.external_id if maps_source else None
+        latitude = None
+        longitude = None
+        if maps_source and isinstance(maps_source.raw_payload, dict):
+            latitude = maps_source.raw_payload.get("latitude")
+            longitude = maps_source.raw_payload.get("longitude")
+            if not google_place_id:
+                google_place_id = maps_source.raw_payload.get("place_id")
 
         return BusinessResponse(
             id=business.id,
@@ -399,6 +602,10 @@ class BusinessService:
             signal=lead_signal,
             score=lead_score,
             lead_id=lead_id,
+            google_maps_url=google_maps_url,
+            latitude=latitude,
+            longitude=longitude,
+            google_place_id=google_place_id,
             last_outreach_at=business.last_outreach_at.isoformat() if business.last_outreach_at else None,
             last_contacted_at=business.last_contacted_at.isoformat() if business.last_contacted_at else None,
             created_at=business.created_at.isoformat() if business.created_at else None,
@@ -990,6 +1197,55 @@ class BusinessService:
         return enriched
 
     @staticmethod
+    async def create_activity(
+        session: AsyncSession,
+        business_id: int,
+        req: ActivityCreateRequest,
+        current_user: TokenData
+    ) -> Dict[str, Any]:
+        """
+        Creates an activity audit entry for a business.
+        Validates that the business exists and maps activity type safely.
+        """
+        business = await session.get(Business, business_id)
+        if not business:
+            raise EntityNotFoundException("Business", business_id)
+
+        # Parse ActivityType enum safely, falling back to WEBSITE_VISITED or string match
+        act_type = ActivityType.WEBSITE_VISITED
+        req_type_str = (req.type or "").lower().strip()
+        for member in ActivityType:
+            if member.value.lower() == req_type_str or member.name.lower() == req_type_str:
+                act_type = member
+                break
+
+        activity = Activity(
+            business_id=business_id,
+            user_id=current_user.user_id,
+            contact_id=req.contact_id,
+            type=act_type,
+            channel=req.channel or "website",
+            outcome=req.outcome,
+            notes=req.notes,
+            entity_type=req.entity_type,
+            entity_id=req.entity_id,
+        )
+        session.add(activity)
+        await session.commit()
+        await session.refresh(activity)
+
+        user_name: Optional[str] = None
+        if current_user.name:
+            user_name = current_user.name
+        elif current_user.email:
+            user_name = current_user.email.split("@")[0].capitalize()
+
+        return {
+            "activity": activity,
+            "user_name": user_name,
+        }
+
+    @staticmethod
     async def update_business(
         session: AsyncSession,
         business_id: int,
@@ -1067,21 +1323,76 @@ class BusinessService:
         return await BusinessService.get_business_by_id(session=session, business_id=business_id)
 
     @staticmethod
+    async def _cascade_delete_businesses(
+        session: AsyncSession,
+        business_ids: List[int]
+    ) -> List[int]:
+        """
+        Executes atomic, topological set-based SQL deletion of businesses and all
+        associated child entities, guaranteeing zero foreign-key violations across
+        PostgreSQL and SQLite without relying on implicit ORM cascades.
+        """
+        if not business_ids:
+            return []
+
+        existing_stmt = select(Business.id).where(Business.id.in_(business_ids))
+        existing_res = await session.execute(existing_stmt)
+        valid_ids = list(existing_res.scalars().all())
+        if not valid_ids:
+            return []
+
+        # 1. Demo events and prospect demos
+        demo_stmt = select(ProspectDemo.id).where(ProspectDemo.business_id.in_(valid_ids))
+        demo_ids = list((await session.execute(demo_stmt)).scalars().all())
+        if demo_ids:
+            await session.execute(delete(DemoEvent).where(DemoEvent.demo_id.in_(demo_ids)))
+            await session.execute(delete(ProspectDemo).where(ProspectDemo.id.in_(demo_ids)))
+
+        # 2. Audit activities & touchpoints
+        await session.execute(delete(Activity).where(Activity.business_id.in_(valid_ids)))
+        await session.execute(delete(Interaction).where(Interaction.business_id.in_(valid_ids)))
+        await session.execute(delete(Outreach).where(Outreach.business_id.in_(valid_ids)))
+
+        # 3. Tasks, reminders, notes
+        await session.execute(delete(Reminder).where(Reminder.business_id.in_(valid_ids)))
+        await session.execute(delete(Task).where(Task.business_id.in_(valid_ids)))
+        await session.execute(delete(Note).where(Note.business_id.in_(valid_ids)))
+
+        # 4. Multi-source provenance & website intelligence disassociation
+        await session.execute(delete(BusinessSource).where(BusinessSource.business_id.in_(valid_ids)))
+        await session.execute(
+            update(CrawledWebsite)
+            .where(CrawledWebsite.business_id.in_(valid_ids))
+            .values(business_id=None)
+        )
+
+        # 5. Associated contacts & sales leads
+        await session.execute(delete(Contact).where(Contact.business_id.in_(valid_ids)))
+        await session.execute(delete(Lead).where(Lead.business_id.in_(valid_ids)))
+
+        # 6. Master business records
+        await session.execute(delete(Business).where(Business.id.in_(valid_ids)))
+        await session.commit()
+        return valid_ids
+
+    @staticmethod
     async def delete_business(
         session: AsyncSession,
         business_id: int,
         current_user: TokenData
     ) -> Dict[str, Any]:
         """
-        Deletes a business record and all related cascade entities (leads, notes, tasks, reminders, activities).
+        Deletes a business record and all related cascade entities atomically.
         """
         business = await session.get(Business, business_id)
         if not business:
             raise EntityNotFoundException("Business", business_id)
 
         name = business.business_name
-        await session.delete(business)
-        await session.commit()
+        deleted = await BusinessService._cascade_delete_businesses(session, [business_id])
+        if not deleted:
+            raise EntityNotFoundException("Business", business_id)
+
         logger.info(f"Deleted business ID {business_id} ('{name}') by user {current_user.email}")
         return {"status": "deleted", "id": business_id, "name": name}
 
@@ -1092,19 +1403,12 @@ class BusinessService:
         current_user: TokenData
     ) -> BulkDeleteResponse:
         """
-        Bulk deletes multiple business records.
+        Atomic bulk deletion of multiple business records and all cascade children.
         """
         if not business_ids:
             return BulkDeleteResponse(message="No business IDs provided", deleted_count=0, business_ids=[])
 
-        deleted_ids = []
-        for b_id in business_ids:
-            business = await session.get(Business, b_id)
-            if business:
-                await session.delete(business)
-                deleted_ids.append(b_id)
-
-        await session.commit()
+        deleted_ids = await BusinessService._cascade_delete_businesses(session, business_ids)
         logger.info(f"Bulk deleted {len(deleted_ids)} businesses by user {current_user.email}")
         return BulkDeleteResponse(
             message=f"Successfully deleted {len(deleted_ids)} records",
@@ -1150,6 +1454,151 @@ class BusinessService:
         await session.delete(reminder)
         await session.commit()
         return {"status": "deleted", "id": reminder_id}
+
+    @staticmethod
+    async def delete_contact(
+        session: AsyncSession,
+        contact_id: int,
+        current_user: TokenData
+    ) -> Dict[str, Any]:
+        contact = await session.get(Contact, contact_id)
+        if not contact:
+            raise EntityNotFoundException("Contact", contact_id)
+        await session.execute(update(Note).where(Note.contact_id == contact_id).values(contact_id=None))
+        await session.execute(update(Task).where(Task.contact_id == contact_id).values(contact_id=None))
+        await session.execute(update(Reminder).where(Reminder.contact_id == contact_id).values(contact_id=None))
+        await session.execute(update(Outreach).where(Outreach.contact_id == contact_id).values(contact_id=None))
+        await session.execute(update(Interaction).where(Interaction.contact_id == contact_id).values(contact_id=None))
+        await session.execute(update(Activity).where(Activity.contact_id == contact_id).values(contact_id=None))
+        await session.delete(contact)
+        await session.commit()
+        logger.info(f"Deleted contact ID {contact_id} by user {current_user.email}")
+        return {"status": "deleted", "id": contact_id}
+
+    @staticmethod
+    async def delete_activity(
+        session: AsyncSession,
+        activity_id: int,
+        current_user: TokenData
+    ) -> Dict[str, Any]:
+        activity = await session.get(Activity, activity_id)
+        if not activity:
+            raise EntityNotFoundException("Activity", activity_id)
+        await session.delete(activity)
+        await session.commit()
+        logger.info(f"Deleted activity ID {activity_id} by user {current_user.email}")
+        return {"status": "deleted", "id": activity_id}
+
+    @staticmethod
+    async def list_contacts(
+        session: AsyncSession,
+        skip: int = 0,
+        limit: int = 100,
+        search: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        query = select(Contact, Business).outerjoin(Business, Contact.business_id == Business.id)
+        if search:
+            term = f"%{search.strip()}%"
+            query = query.where(
+                or_(
+                    Contact.first_name.ilike(term),
+                    Contact.last_name.ilike(term),
+                    Contact.email.ilike(term),
+                    Contact.phone.ilike(term),
+                    Contact.role.ilike(term),
+                    Business.business_name.ilike(term)
+                )
+            )
+        query = query.order_by(desc(Contact.created_at)).offset(skip).limit(limit)
+        result = await session.execute(query)
+        contacts = []
+        for contact, biz in result.all():
+            name = f"{contact.first_name or ''} {contact.last_name or ''}".strip() or "Unnamed Contact"
+            contacts.append({
+                "id": str(contact.id),
+                "name": name,
+                "first_name": contact.first_name,
+                "last_name": contact.last_name,
+                "role": contact.role or "Contact",
+                "email": contact.email,
+                "phone": contact.phone,
+                "business_id": contact.business_id,
+                "company_name": biz.business_name if biz else "Independent",
+                "is_decision_maker": contact.is_decision_maker,
+                "created_at": contact.created_at.isoformat() if contact.created_at else None,
+            })
+        return contacts
+
+    @staticmethod
+    async def bulk_qualify_prospects(
+        session: AsyncSession,
+        business_ids: List[int],
+        qualification_status: str,
+        current_user: TokenData
+    ) -> Dict[str, Any]:
+        if not business_ids:
+            return {"updated_count": 0, "business_ids": []}
+        clean_status = qualification_status.lower()
+        stmt = (
+            update(Business)
+            .where(Business.id.in_(business_ids))
+            .values(qualification_status=clean_status, updated_at=datetime.now(timezone.utc))
+        )
+        await session.execute(stmt)
+        for b_id in business_ids:
+            session.add(
+                Activity(
+                    business_id=b_id,
+                    user_id=current_user.user_id,
+                    type=ActivityType.STATUS_CHANGED,
+                    channel="crm",
+                    outcome=f"Bulk qualified to {clean_status}",
+                    notes=f"Qualification updated to '{clean_status}' via bulk action",
+                    entity_type="business",
+                    entity_id=b_id
+                )
+            )
+        await session.commit()
+        return {"updated_count": len(business_ids), "business_ids": business_ids, "status": clean_status}
+
+    @staticmethod
+    async def bulk_update_stage(
+        session: AsyncSession,
+        business_ids: List[int],
+        stage: str,
+        current_user: TokenData
+    ) -> Dict[str, Any]:
+        if not business_ids:
+            return {"updated_count": 0, "business_ids": []}
+        target_stage = None
+        for s in PipelineStage:
+            if s.value.lower() == stage.lower() or s.name.lower() == stage.lower():
+                target_stage = s
+                break
+        if not target_stage:
+            target_stage = PipelineStage.LEAD
+
+        stmt = (
+            update(Lead)
+            .where(Lead.business_id.in_(business_ids))
+            .values(stage=target_stage, updated_at=datetime.now(timezone.utc))
+        )
+        await session.execute(stmt)
+        for b_id in business_ids:
+            session.add(
+                Activity(
+                    business_id=b_id,
+                    user_id=current_user.user_id,
+                    type=ActivityType.STATUS_CHANGED,
+                    channel="crm",
+                    outcome=f"Stage updated to {target_stage.value}",
+                    notes=f"Pipeline stage updated via bulk action",
+                    entity_type="lead",
+                    entity_id=b_id
+                )
+            )
+        await session.commit()
+        return {"updated_count": len(business_ids), "business_ids": business_ids, "stage": target_stage.value}
 
     @staticmethod
     async def get_pipeline_deals(

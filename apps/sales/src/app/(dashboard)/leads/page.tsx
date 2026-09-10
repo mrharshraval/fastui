@@ -5,7 +5,7 @@ import {
   Search, ListFilter, Check,
   CircleDashed, Activity, User, Calendar, Database, X,
   MoreHorizontal, Phone, MessageSquare, Mail, AlertTriangle, ArrowRight,
-  TrendingUp, Clock
+  TrendingUp, Clock, Download
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -24,6 +24,8 @@ import {
   DropdownMenuSubContent,
   DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu"
+import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
+import { ExportDialog } from "@/components/ui/export-dialog"
 
 export interface Lead {
   id: string
@@ -64,12 +66,50 @@ function formatLocation(b: any): string {
   return b.city || b.address || b.country || "—"
 }
 
+function mapRawLead(b: any): Lead {
+  return {
+    id: String(b.id),
+    business_name: b.business_name || "Untitled Lead",
+    location: formatLocation(b),
+    website: b.website || undefined,
+    phone: b.phone || undefined,
+    email: b.email || undefined,
+    whatsapp: b.phone
+      ? (() => {
+          const digits = b.phone.replace(/[^0-9]/g, "")
+          const clean = digits.startsWith("0") && digits.length === 11 ? digits.slice(1) : digits
+          return clean.length === 10 ? `91${clean}` : clean
+        })()
+      : undefined,
+    status: b.pipeline_stage ? b.pipeline_stage.toLowerCase() : "new",
+    priority: b.priority || "medium",
+    signal: b.signal || "warm",
+    owner: "me",
+    source: b.source_platform || "discover",
+    follow_up: "None",
+    created_at: b.created_at || new Date().toISOString()
+  }
+}
+
 export default function LeadsPage() {
   const router = useRouter()
 
-  const [leads, setLeads] = React.useState<Lead[]>([])
+  const PAGE_SIZE = 50
 
+  const [leads, setLeads] = React.useState<Lead[]>([])
   const [loading, setLoading] = React.useState(true)
+  const [loadingMore, setLoadingMore] = React.useState(false)
+  const [hasMore, setHasMore] = React.useState(true)
+  const [fetchError, setFetchError] = React.useState<string | null>(null)
+  const [loadMoreError, setLoadMoreError] = React.useState<string | null>(null)
+
+  const leadsRef = React.useRef<Lead[]>([])
+  leadsRef.current = leads
+
+  const isFetchingRef = React.useRef(false)
+  const mobileSentinelRef = React.useRef<HTMLDivElement | null>(null)
+  const desktopSentinelRef = React.useRef<HTMLDivElement | null>(null)
+
   const [searchQuery, setSearchQuery] = React.useState("")
   const [statusTab, setStatusTab] = React.useState("all")
   
@@ -85,40 +125,87 @@ export default function LeadsPage() {
   // Selection state (Desktop only)
   const [selectedLeads, setSelectedLeads] = React.useState<Set<string>>(new Set())
 
-  React.useEffect(() => {
-    api.get<Lead[]>("/leads")
-      .then((data) => {
-        if (Array.isArray(data)) {
-          const mapped: Lead[] = data.map((b: any) => ({
-            id: String(b.id),
-            business_name: b.business_name || "Untitled Lead",
-            location: formatLocation(b),
-            website: b.website || undefined,
-            phone: b.phone || undefined,
-            email: b.email || undefined,
-            whatsapp: b.phone
-              ? (() => {
-                  const digits = b.phone.replace(/[^0-9]/g, "")
-                  const clean = digits.startsWith("0") && digits.length === 11 ? digits.slice(1) : digits
-                  return clean.length === 10 ? `91${clean}` : clean
-                })()
-              : undefined,
-            status: b.pipeline_stage ? b.pipeline_stage.toLowerCase() : "new",
-            priority: b.priority || "medium",
-            signal: b.signal || "warm",
-            owner: "me",
-            source: b.source_platform || "discover",
-            follow_up: "None",
-            created_at: b.created_at || new Date().toISOString()
-          }))
-          setLeads(mapped)
-        } else {
-          setLeads([])
-        }
-      })
-      .catch(() => setLeads([]))
-      .finally(() => setLoading(false))
+  // Delete confirmation dialog state
+  const [deleteDialog, setDeleteDialog] = React.useState<{
+    open: boolean
+    title: string
+    itemName?: string
+    description?: React.ReactNode
+    warningText?: string
+    onConfirm: () => Promise<void> | void
+  }>({
+    open: false,
+    title: "",
+    onConfirm: () => {},
+  })
+
+  const fetchBatch = React.useCallback(async (skip: number, isInitial = false) => {
+    if (isFetchingRef.current) return
+    isFetchingRef.current = true
+
+    if (isInitial) {
+      setLoading(true)
+      setFetchError(null)
+    } else {
+      setLoadingMore(true)
+      setLoadMoreError(null)
+    }
+
+    try {
+      const data = await api.get<any[]>(`/leads?skip=${skip}&limit=${PAGE_SIZE}`)
+      if (Array.isArray(data)) {
+        const mapped = data.map(mapRawLead)
+        setLeads((prev) => {
+          if (isInitial) return mapped
+          const existingIds = new Set(prev.map((l) => l.id))
+          const fresh = mapped.filter((l) => !existingIds.has(l.id))
+          return [...prev, ...fresh]
+        })
+        setHasMore(data.length === PAGE_SIZE)
+      } else {
+        if (isInitial) setLeads([])
+        setHasMore(false)
+      }
+    } catch {
+      if (isInitial) {
+        setFetchError("Failed to load leads.")
+        setLeads([])
+      } else {
+        setLoadMoreError("Could not load more records.")
+      }
+    } finally {
+      isFetchingRef.current = false
+      if (isInitial) setLoading(false)
+      setLoadingMore(false)
+    }
   }, [])
+
+  const loadMore = React.useCallback(() => {
+    if (!hasMore || loading || loadingMore || isFetchingRef.current) return
+    fetchBatch(leadsRef.current.length, false)
+  }, [hasMore, loading, loadingMore, fetchBatch])
+
+  React.useEffect(() => {
+    fetchBatch(0, true)
+  }, [fetchBatch])
+
+  React.useEffect(() => {
+    if (!hasMore || loading || loadingMore) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          loadMore()
+        }
+      },
+      { rootMargin: "400px" }
+    )
+
+    if (mobileSentinelRef.current) observer.observe(mobileSentinelRef.current)
+    if (desktopSentinelRef.current) observer.observe(desktopSentinelRef.current)
+
+    return () => observer.disconnect()
+  }, [hasMore, loading, loadingMore, loadMore])
 
   // Action logger handler
   const handleAction = async (
@@ -223,69 +310,222 @@ export default function LeadsPage() {
     setSelectedLeads(new Set())
   }
 
+  // Helper to parse relative reminder labels to an ISO date
+  const parseRelativeDueAt = (timeStr: string): string => {
+    const now = new Date()
+    const lower = timeStr.toLowerCase()
+    if (lower.includes("hour")) {
+      const hours = parseInt(lower) || 1
+      now.setHours(now.getHours() + hours)
+    } else if (lower.includes("tomorrow") || lower.includes("day")) {
+      now.setDate(now.getDate() + 1)
+      now.setHours(10, 0, 0, 0)
+    } else if (lower.includes("week")) {
+      now.setDate(now.getDate() + 7)
+      now.setHours(10, 0, 0, 0)
+    } else {
+      now.setDate(now.getDate() + 1)
+    }
+    return now.toISOString()
+  }
+
   // Bulk handlers (Desktop)
   const handleBulkStatusChange = async (newStatus: string) => {
-    const ids = Array.from(selectedLeads)
-    setLeads(leads.map(l => selectedLeads.has(l.id) ? { ...l, status: newStatus } : l))
-    clearSelection()
-    for (const id of ids) {
-      const numId = parseInt(id.replace(/[^0-9]/g, ""), 10)
-      if (!isNaN(numId) && numId > 0) {
-        api.patch(`/businesses/${numId}/stage`, { stage: newStatus }).catch(() => {})
-      }
-    }
-  }
+    const toUpdate = new Set(selectedLeads)
+    if (toUpdate.size === 0) return
 
-  const handleBulkFollowUp = (followUpTime: string) => {
-    setLeads(leads.map(l => selectedLeads.has(l.id) ? { ...l, follow_up: followUpTime } : l))
-    clearSelection()
-  }
-
-  const handleBulkReminder = (reminderTime: string) => {
-    setLeads(leads.map(l => selectedLeads.has(l.id) ? { ...l, follow_up: `Reminder: ${reminderTime}` } : l))
-    clearSelection()
-  }
-
-  const handleDeleteSelected = async () => {
-    const ids = Array.from(selectedLeads)
+    const ids = Array.from(toUpdate)
     const numericIds = ids.map(id => parseInt(id.replace(/[^0-9]/g, ""), 10)).filter(n => !isNaN(n) && n > 0)
-    setLeads(leads.filter(l => !selectedLeads.has(l.id)))
+
+    const prevLeads = [...leads]
+    setLeads(leads.map(l => toUpdate.has(l.id) ? { ...l, status: newStatus } : l))
     clearSelection()
-    if (numericIds.length > 0) {
-      try {
-        await api.post("/businesses/bulk-delete", { business_ids: numericIds })
-      } catch {}
+
+    try {
+      if (numericIds.length > 0) {
+        await api.patch("/leads", { business_ids: numericIds, stage: newStatus })
+      }
+    } catch (err) {
+      console.error("Failed to bulk update stage:", err)
+      setLeads(prevLeads)
     }
+  }
+
+  const handleBulkFollowUp = async (followUpTime: string) => {
+    const toUpdate = new Set(selectedLeads)
+    if (toUpdate.size === 0) return
+
+    const ids = Array.from(toUpdate)
+    const numericIds = ids.map(id => parseInt(id.replace(/[^0-9]/g, ""), 10)).filter(n => !isNaN(n) && n > 0)
+
+    setLeads(leads.map(l => toUpdate.has(l.id) ? { ...l, follow_up: followUpTime } : l))
+    clearSelection()
+
+    const dueAt = parseRelativeDueAt(followUpTime)
+    for (const numId of numericIds) {
+      api.post(`/businesses/${numId}/reminders`, {
+        title: `Follow-up: ${followUpTime}`,
+        due_at: dueAt
+      }).catch(() => {})
+    }
+  }
+
+  const handleBulkReminder = async (reminderTime: string) => {
+    const toUpdate = new Set(selectedLeads)
+    if (toUpdate.size === 0) return
+
+    const ids = Array.from(toUpdate)
+    const numericIds = ids.map(id => parseInt(id.replace(/[^0-9]/g, ""), 10)).filter(n => !isNaN(n) && n > 0)
+
+    setLeads(leads.map(l => toUpdate.has(l.id) ? { ...l, follow_up: `Reminder: ${reminderTime}` } : l))
+    clearSelection()
+
+    const dueAt = parseRelativeDueAt(reminderTime)
+    for (const numId of numericIds) {
+      api.post(`/businesses/${numId}/reminders`, {
+        title: `Reminder: ${reminderTime}`,
+        due_at: dueAt
+      }).catch(() => {})
+    }
+  }
+
+  const handleDeleteSelected = () => {
+    const toDelete = new Set(selectedLeads)
+    if (toDelete.size === 0) return
+
+    const count = toDelete.size
+    const ids = Array.from(toDelete)
+    const numericIds = ids.map(id => parseInt(id.replace(/[^0-9]/g, ""), 10)).filter(n => !isNaN(n) && n > 0)
+
+    setDeleteDialog({
+      open: true,
+      title: `Delete ${count} ${count === 1 ? "lead" : "leads"}?`,
+      itemName: `${count} selected ${count === 1 ? "lead" : "leads"}`,
+      warningText: "This action cannot be undone.",
+      onConfirm: async () => {
+        const prevLeads = [...leads]
+        setLeads(leads.filter(l => !toDelete.has(l.id)))
+        clearSelection()
+
+        if (numericIds.length > 0) {
+          try {
+            await api.delete("/businesses", { business_ids: numericIds })
+          } catch (err) {
+            console.error("Failed to bulk delete leads:", err)
+            setLeads(prevLeads)
+          }
+        }
+      },
+    })
   }
 
   // Single item action handlers (Mobile ⋯ menu)
   const handleSingleStatusChange = async (id: string, newStatus: string) => {
+    const prevLeads = [...leads]
     setLeads(leads.map(l => l.id === id ? { ...l, status: newStatus } : l))
     const numId = parseInt(id.replace(/[^0-9]/g, ""), 10)
     if (!isNaN(numId) && numId > 0) {
       try {
-        await api.patch(`/businesses/${numId}/stage`, { stage: newStatus })
-      } catch {}
+        await api.patch(`/businesses/${numId}`, { stage: newStatus })
+      } catch (err) {
+        console.error("Failed to update status:", err)
+        setLeads(prevLeads)
+      }
     }
   }
 
-  const handleSingleFollowUp = (id: string, followUpTime: string) => {
+  const handleSingleFollowUp = async (id: string, followUpTime: string) => {
     setLeads(leads.map(l => l.id === id ? { ...l, follow_up: followUpTime } : l))
-  }
-
-  const handleSingleReminder = (id: string, reminderTime: string) => {
-    setLeads(leads.map(l => l.id === id ? { ...l, follow_up: `Reminder: ${reminderTime}` } : l))
-  }
-
-  const handleSingleDelete = async (id: string) => {
-    setLeads(leads.filter(l => l.id !== id))
     const numId = parseInt(id.replace(/[^0-9]/g, ""), 10)
     if (!isNaN(numId) && numId > 0) {
       try {
-        await api.delete(`/businesses/${numId}`)
-      } catch {}
+        await api.post(`/businesses/${numId}/reminders`, {
+          title: `Follow-up: ${followUpTime}`,
+          due_at: parseRelativeDueAt(followUpTime)
+        })
+      } catch {
+        // Ignore
+      }
     }
   }
+
+  const handleSingleReminder = async (id: string, reminderTime: string) => {
+    setLeads(leads.map(l => l.id === id ? { ...l, follow_up: `Reminder: ${reminderTime}` } : l))
+    const numId = parseInt(id.replace(/[^0-9]/g, ""), 10)
+    if (!isNaN(numId) && numId > 0) {
+      try {
+        await api.post(`/businesses/${numId}/reminders`, {
+          title: `Reminder: ${reminderTime}`,
+          due_at: parseRelativeDueAt(reminderTime)
+        })
+      } catch {
+        // Ignore
+      }
+    }
+  }
+
+  const handleSingleDelete = (id: string, name?: string) => {
+    setDeleteDialog({
+      open: true,
+      title: "Delete lead?",
+      itemName: name || "this lead",
+      warningText: "This action cannot be undone.",
+      onConfirm: async () => {
+        const prevLeads = [...leads]
+        setLeads(leads.filter(l => l.id !== id))
+        const numId = parseInt(id.replace(/[^0-9]/g, ""), 10)
+        if (!isNaN(numId) && numId > 0) {
+          try {
+            await api.delete(`/businesses/${numId}`)
+          } catch (err) {
+            console.error("Failed to delete lead:", err)
+            setLeads(prevLeads)
+          }
+        }
+      },
+    })
+  }
+
+  // Export dialog state
+  const [exportDialogOpen, setExportDialogOpen] = React.useState(false)
+
+  const handleExport = () => {
+    setExportDialogOpen(true)
+  }
+
+  const selectedNumericIds = React.useMemo(() => {
+    return Array.from(selectedLeads)
+      .map((id) => parseInt(id.replace(/\D/g, ""), 10))
+      .filter((n) => !isNaN(n) && n > 0)
+  }, [selectedLeads])
+
+  const activeExportFilters = React.useMemo(() => {
+    const effStatus = statusTab !== "all" ? statusTab : (filters.status !== "all" ? filters.status : undefined)
+    return {
+      search: searchQuery.trim() || undefined,
+      stage: effStatus,
+      signal: filters.signal !== "all" ? filters.signal : undefined,
+      source: filters.source !== "all" ? filters.source : undefined,
+    }
+  }, [searchQuery, statusTab, filters])
+
+  const exportFilterSummary = React.useMemo(() => {
+    const summary: Array<{ label: string; value: string }> = []
+    if (searchQuery.trim()) {
+      summary.push({ label: "Search", value: searchQuery.trim() })
+    }
+    const effStatus = statusTab !== "all" ? statusTab : (filters.status !== "all" ? filters.status : null)
+    if (effStatus) {
+      summary.push({ label: "Stage", value: effStatus.charAt(0).toUpperCase() + effStatus.slice(1) })
+    }
+    if (filters.signal !== "all") {
+      summary.push({ label: "Signal", value: filters.signal.charAt(0).toUpperCase() + filters.signal.slice(1) })
+    }
+    if (filters.source !== "all") {
+      summary.push({ label: "Source", value: filters.source.charAt(0).toUpperCase() + filters.source.slice(1) })
+    }
+    return summary
+  }, [searchQuery, statusTab, filters])
 
   const renderSubMenu = (
     label: string, 
@@ -443,6 +683,14 @@ export default function LeadsPage() {
         {/* 1. Mobile Header (Stays sticky at top, z-10) */}
         <div className="sticky top-0 z-10 bg-background flex items-center justify-between px-4 pt-4 pb-2">
           <h1 className="text-xl font-bold tracking-tight text-foreground">Leads</h1>
+          <button
+            type="button"
+            onClick={handleExport}
+            className="flex items-center gap-1.5 h-8 px-3 rounded-full bg-accent/60 hover:bg-accent text-xs font-medium text-foreground active:scale-95 transition-all cursor-pointer"
+          >
+            <Download size={13} />
+            <span>Export</span>
+          </button>
         </div>
 
 
@@ -496,6 +744,17 @@ export default function LeadsPage() {
                 <Skeleton className="h-4 w-20 rounded-full mt-1" />
               </div>
             ))
+          ) : fetchError && leads.length === 0 ? (
+            <div className="py-20 text-center flex flex-col items-center gap-2">
+              <p className="text-sm text-muted-foreground">{fetchError}</p>
+              <button
+                type="button"
+                onClick={() => fetchBatch(0, true)}
+                className="h-8 px-3.5 rounded-full text-xs font-medium bg-accent hover:bg-accent/80 text-foreground transition-colors cursor-pointer"
+              >
+                Retry
+              </button>
+            </div>
           ) : filteredItems.length === 0 ? (
             <div className="py-20 text-center text-sm text-muted-foreground">
               No leads found.
@@ -559,7 +818,7 @@ export default function LeadsPage() {
                             </DropdownMenuSub>
 
                             <DropdownMenuItem
-                              onClick={() => handleSingleDelete(lead.id)}
+                              onClick={() => handleSingleDelete(lead.id, lead.business_name)}
                               className="flex items-center min-h-9 px-2.5 rounded-xl cursor-pointer text-[13px] font-[500] text-destructive hover:bg-destructive-muted"
                             >
                               Delete
@@ -625,6 +884,33 @@ export default function LeadsPage() {
               </div>
             ))
           )}
+
+          {/* Infinite Scroll Sentinel & Loading More Indicator (Mobile) */}
+          <div ref={mobileSentinelRef} className="w-full py-2 flex flex-col items-center justify-center">
+            {loadingMore && (
+              <div className="flex flex-col gap-2 w-full py-1">
+                {[1, 2].map((i) => (
+                  <div key={i} className="flex flex-col gap-2 py-3.5 px-4 animate-pulse">
+                    <div className="flex items-center justify-between">
+                      <Skeleton className="h-4 w-36 rounded" />
+                      <Skeleton className="size-4 rounded-full" />
+                    </div>
+                    <Skeleton className="h-3 w-24 rounded" />
+                    <Skeleton className="h-4 w-20 rounded-full mt-1" />
+                  </div>
+                ))}
+              </div>
+            )}
+            {loadMoreError && (
+              <button
+                type="button"
+                onClick={loadMore}
+                className="text-xs text-muted-foreground hover:text-foreground underline py-2 cursor-pointer"
+              >
+                Failed to load more. Tap to retry.
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -637,6 +923,17 @@ export default function LeadsPage() {
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-xl font-bold tracking-tight text-foreground">Leads</h2>
           <div className="flex items-center gap-3">
+            {/* Export Button */}
+            <button
+              type="button"
+              onClick={handleExport}
+              title="Export leads as CSV"
+              className="flex items-center gap-1.5 h-9 px-3.5 rounded-full bg-accent/50 hover:bg-accent text-muted-foreground hover:text-foreground text-xs font-medium transition-colors cursor-pointer"
+            >
+              <Download size={14} />
+              <span>Export</span>
+            </button>
+
             {/* Search Input */}
             <div className="relative group/search">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground group-focus-within/search:text-foreground transition-colors" />
@@ -713,7 +1010,7 @@ export default function LeadsPage() {
                       type="button"
                       className="h-9 px-3.5 rounded-full bg-secondary hover:bg-accent text-sm font-medium text-foreground transition-colors cursor-pointer"
                     >
-                      Add Follow-up
+                      Follow-up
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" className="w-44">
@@ -774,6 +1071,16 @@ export default function LeadsPage() {
                 >
                   Delete
                 </button>
+
+                {/* Export Button */}
+                <button 
+                  type="button"
+                  onClick={handleExport}
+                  className="flex items-center gap-1.5 h-9 px-3.5 rounded-full bg-secondary hover:bg-accent text-sm font-medium text-foreground transition-colors cursor-pointer"
+                >
+                  <Download size={14} />
+                  <span>Export</span>
+                </button>
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-sm text-muted-foreground font-normal">
@@ -812,7 +1119,7 @@ export default function LeadsPage() {
             </div>
 
             {/* Column Titles */}
-            <div className="flex-1 grid grid-cols-[minmax(180px,2fr)_minmax(140px,1.4fr)_minmax(140px,1.3fr)_minmax(140px,1.3fr)_minmax(170px,1.5fr)_minmax(90px,0.9fr)_minmax(80px,0.8fr)] gap-4 px-3 text-[14px] font-medium text-muted-foreground items-center">
+            <div className="flex-1 grid grid-cols-[minmax(180px,2fr)_minmax(140px,1.4fr)_minmax(140px,1.3fr)_minmax(140px,1.3fr)_minmax(170px,1.5fr)_minmax(90px,0.9fr)_minmax(80px,0.8fr)_36px] gap-4 px-3 text-[14px] font-medium text-muted-foreground items-center">
               <div>Business</div>
               <div>Location</div>
               <div>Website</div>
@@ -820,6 +1127,7 @@ export default function LeadsPage() {
               <div>Email</div>
               <div>WhatsApp</div>
               <div className="text-right">Added</div>
+              <div className="w-8"></div>
             </div>
           </div>
 
@@ -831,7 +1139,7 @@ export default function LeadsPage() {
                   <div className="w-9 shrink-0 flex items-center justify-center">
                     <Skeleton className="size-4 rounded" />
                   </div>
-                  <div className="flex-1 grid grid-cols-[minmax(180px,2fr)_minmax(140px,1.4fr)_minmax(140px,1.3fr)_minmax(140px,1.3fr)_minmax(170px,1.5fr)_minmax(90px,0.9fr)_minmax(80px,0.8fr)] gap-4 px-3 items-center">
+                  <div className="flex-1 grid grid-cols-[minmax(180px,2fr)_minmax(140px,1.4fr)_minmax(140px,1.3fr)_minmax(140px,1.3fr)_minmax(170px,1.5fr)_minmax(90px,0.9fr)_minmax(80px,0.8fr)_36px] gap-4 px-3 items-center">
                     <Skeleton className="h-4 rounded" />
                     <Skeleton className="h-4 rounded" />
                     <Skeleton className="h-4 rounded" />
@@ -839,9 +1147,21 @@ export default function LeadsPage() {
                     <Skeleton className="h-4 rounded" />
                     <Skeleton className="h-4 rounded" />
                     <Skeleton className="h-4 rounded" />
+                    <Skeleton className="size-5 rounded-full justify-self-end" />
                   </div>
                 </div>
               ))
+            ) : fetchError && leads.length === 0 ? (
+              <div className="py-20 text-center flex flex-col items-center gap-2">
+                <p className="text-sm text-muted-foreground">{fetchError}</p>
+                <button
+                  type="button"
+                  onClick={() => fetchBatch(0, true)}
+                  className="h-8 px-3.5 rounded-full text-xs font-medium bg-accent hover:bg-accent/80 text-foreground transition-colors cursor-pointer"
+                >
+                  Retry
+                </button>
+              </div>
             ) : filteredItems.length === 0 ? (
               <div className="py-16 text-center text-sm text-muted-foreground">
                 No leads found.
@@ -891,7 +1211,7 @@ export default function LeadsPage() {
                     {/* Main Row Content Capsule */}
                     <div 
                       onClick={() => toggleLead(lead.id)}
-                      className={`flex-1 grid grid-cols-[minmax(180px,2fr)_minmax(140px,1.4fr)_minmax(140px,1.3fr)_minmax(140px,1.3fr)_minmax(170px,1.5fr)_minmax(90px,0.9fr)_minmax(80px,0.8fr)] gap-4 px-3 py-3 text-sm items-center transition-colors cursor-pointer ${
+                      className={`flex-1 grid grid-cols-[minmax(180px,2fr)_minmax(140px,1.4fr)_minmax(140px,1.3fr)_minmax(140px,1.3fr)_minmax(170px,1.5fr)_minmax(90px,0.9fr)_minmax(80px,0.8fr)_36px] gap-4 px-3 py-3 text-sm items-center transition-colors cursor-pointer ${
                         isSelected 
                           ? `bg-secondary text-foreground ${selectionRounding}` 
                           : "hover:bg-accent/50 rounded-xl"
@@ -1001,14 +1321,113 @@ export default function LeadsPage() {
                           day: "numeric",
                         })}
                       </div>
+
+                      {/* 8. Actions Menu */}
+                      <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              type="button"
+                              aria-label="Lead options"
+                              className="flex items-center justify-center size-7 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent/80 active:scale-95 transition-all cursor-pointer opacity-0 group-hover/row:opacity-100 focus:opacity-100"
+                            >
+                              <MoreHorizontal size={15} />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-44">
+                            <DropdownMenuSub>
+                              <DropdownMenuSubTrigger className="flex items-center min-h-9 px-2.5 rounded-xl cursor-pointer text-[13px] font-[500]">
+                                Change Status
+                              </DropdownMenuSubTrigger>
+                              <DropdownMenuPortal>
+                                <DropdownMenuSubContent className="w-40">
+                                  {["new", "contacted", "qualified", "proposal", "won", "lost"].map((st) => (
+                                    <DropdownMenuItem
+                                      key={st}
+                                      onClick={() => handleSingleStatusChange(lead.id, st)}
+                                      className="flex items-center justify-between min-h-9 px-2.5 rounded-xl cursor-pointer text-[13px] font-[500] capitalize"
+                                    >
+                                      <span>{st}</span>
+                                      {lead.status === st && <Check className="size-3.5" />}
+                                    </DropdownMenuItem>
+                                  ))}
+                                </DropdownMenuSubContent>
+                              </DropdownMenuPortal>
+                            </DropdownMenuSub>
+
+                            <DropdownMenuItem
+                              onClick={() => handleSingleDelete(lead.id, lead.business_name)}
+                              className="flex items-center min-h-9 px-2.5 rounded-xl cursor-pointer text-[13px] font-[500] text-destructive hover:bg-destructive-muted"
+                            >
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </div>
                   </div>
                 )
               })
             )}
+
+            {/* Infinite Scroll Sentinel & Loading More Indicator (Desktop) */}
+            <div ref={desktopSentinelRef} className="w-full">
+              {loadingMore && (
+                <div className="flex flex-col w-full py-1">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex items-center w-full py-2.5">
+                      <div className="w-9 shrink-0 flex items-center justify-center">
+                        <Skeleton className="size-4 rounded" />
+                      </div>
+                      <div className="flex-1 grid grid-cols-[minmax(180px,2fr)_minmax(140px,1.4fr)_minmax(140px,1.3fr)_minmax(140px,1.3fr)_minmax(170px,1.5fr)_minmax(90px,0.9fr)_minmax(80px,0.8fr)_36px] gap-4 px-3 items-center">
+                        <Skeleton className="h-4 rounded" />
+                        <Skeleton className="h-4 rounded" />
+                        <Skeleton className="h-4 rounded" />
+                        <Skeleton className="h-4 rounded" />
+                        <Skeleton className="h-4 rounded" />
+                        <Skeleton className="h-4 rounded" />
+                        <Skeleton className="h-4 rounded" />
+                        <div />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {loadMoreError && (
+                <div className="py-4 text-center">
+                  <button
+                    type="button"
+                    onClick={loadMore}
+                    className="text-xs text-muted-foreground hover:text-foreground underline cursor-pointer"
+                  >
+                    Failed to load more leads. Click to retry.
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
+
+      <DeleteConfirmationDialog
+        open={deleteDialog.open}
+        onOpenChange={(open) => setDeleteDialog(prev => ({ ...prev, open }))}
+        title={deleteDialog.title}
+        itemName={deleteDialog.itemName}
+        description={deleteDialog.description}
+        warningText={deleteDialog.warningText}
+        onConfirm={deleteDialog.onConfirm}
+      />
+
+      <ExportDialog
+        open={exportDialogOpen}
+        onOpenChange={setExportDialogOpen}
+        exportType="leads"
+        selectedCount={selectedLeads.size}
+        selectedIds={selectedNumericIds}
+        activeFilters={activeExportFilters}
+        filterSummary={exportFilterSummary}
+      />
     </>
   )
 }

@@ -45,7 +45,7 @@ def clear_otp_attempts(email: str):
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-@router.post("/register", response_model=TokenResponse)
+@router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register(
     req: RegisterRequest,
     response: Response,
@@ -266,7 +266,53 @@ async def get_me(current_user: TokenData = Depends(get_current_user)):
     """Returns currently authenticated user session details."""
     return current_user
 
-@router.put("/me", response_model=TokenData)
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_me(
+    response: Response,
+    current_user: TokenData = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Deletes the current user's account and clears authentication cookie.
+    """
+    user = await db.get(User, current_user.user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    
+    from models.schema import Activity, Outreach, Reminder, Task, Note, ProspectDemo
+    from sqlalchemy import update
+    await db.execute(update(Activity).where(Activity.user_id == current_user.user_id).values(user_id=None))
+    await db.execute(update(Outreach).where(Outreach.user_id == current_user.user_id).values(user_id=None))
+    await db.execute(update(Reminder).where(Reminder.user_id == current_user.user_id).values(user_id=None))
+    await db.execute(update(Task).where(Task.user_id == current_user.user_id).values(user_id=None))
+    await db.execute(update(Note).where(Note.user_id == current_user.user_id).values(user_id=None))
+    await db.execute(update(ProspectDemo).where(ProspectDemo.created_by_user_id == current_user.user_id).values(created_by_user_id=None))
+    
+    await db.delete(user)
+    await db.commit()
+
+    is_production = settings.ENVIRONMENT.lower() == "production"
+    response.delete_cookie(
+        key="access_token",
+        path="/",
+        httponly=True,
+        secure=is_production,
+        samesite="lax"
+    )
+    response.set_cookie(
+        key="access_token",
+        value="",
+        max_age=0,
+        expires=0,
+        path="/",
+        httponly=True,
+        secure=is_production,
+        samesite="lax"
+    )
+    logger.info(f"[AUTH:DELETE_ME] Account ID {current_user.user_id} ({current_user.email}) deleted successfully.")
+    return Response(status_code=status.HTTP_204_NO_CONTENT, headers=response.headers)
+
+
 @router.patch("/me", response_model=TokenData)
 async def update_profile(
     req: UserProfileUpdateRequest,

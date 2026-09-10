@@ -3,6 +3,3 @@ const Toaster = () => {
 }
 
 export { Toaster }
-
-
-

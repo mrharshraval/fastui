@@ -21,7 +21,7 @@ setup_logging(service_name="fastui-api")
 logger = logging.getLogger("fastui.api")
 
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request, status, HTTPException, APIRouter
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -99,12 +99,30 @@ app.add_middleware(
 )
 
 # Global Exception Handlers
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    request_id = getattr(request.state, "request_id", "unknown")
+    detail_msg = exc.detail if isinstance(exc.detail, str) else str(exc.detail)
+    return JSONResponse(
+        status_code=exc.status_code,
+        headers=getattr(exc, "headers", None),
+        content={
+            "detail": exc.detail,
+            "error": {
+                "code": f"HTTP_{exc.status_code}",
+                "message": detail_msg,
+                "request_id": request_id
+            }
+        }
+    )
+
 @app.exception_handler(FastUIException)
 async def domain_exception_handler(request: Request, exc: FastUIException):
     request_id = getattr(request.state, "request_id", "unknown")
     return JSONResponse(
         status_code=exc.status_code,
         content={
+            "detail": exc.message,
             "error": {
                 "code": exc.error_code,
                 "message": exc.message,
@@ -121,6 +139,7 @@ async def general_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
+            "detail": "An unexpected error occurred. Please contact support if the issue persists.",
             "error": {
                 "code": "INTERNAL_SERVER_ERROR",
                 "message": "An unexpected error occurred. Please contact support if the issue persists.",
@@ -155,12 +174,16 @@ async def health_check():
         }
     }
 
-# Register modular route controllers
-app.include_router(auth.router)
-app.include_router(prospecting.router)
-app.include_router(exports.router)
-app.include_router(businesses.router)
-app.include_router(stats.router)
-app.include_router(notifications.router)
+# Register modular route controllers under versioned /v1 prefix
+v1_router = APIRouter(prefix="/v1")
+v1_router.include_router(auth.router)
+v1_router.include_router(prospecting.router)
+v1_router.include_router(exports.router)
+v1_router.include_router(businesses.router)
+v1_router.include_router(stats.router)
+v1_router.include_router(notifications.router)
+
+app.include_router(v1_router)
 app.include_router(public_demos.router)
+
 

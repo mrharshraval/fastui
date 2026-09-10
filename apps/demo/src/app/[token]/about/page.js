@@ -93,7 +93,7 @@ export default function TokenAboutPage() {
                             ]
                         ).map((doc, i) => (
                             <div key={i} className={`group relative overflow-hidden rounded-[2rem] bg-secondary/30 transition-colors hover:bg-secondary/50 ${i === 2 ? "sm:col-span-2 lg:col-span-1" : ""}`}>
-                                <div className="aspect-[3/4] relative bg-white/50 overflow-hidden">
+                                <div className="aspect-[3/4] relative bg-muted/50 overflow-hidden">
                                     <Image
                                         src={doc.photo_url}
                                         alt={doc.name}

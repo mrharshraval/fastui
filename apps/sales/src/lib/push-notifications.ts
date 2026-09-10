@@ -138,8 +138,8 @@ export async function subscribeToPushNotifications(): Promise<{
     }
 
     // 5. Send subscription to API for persistence
-    console.log("[Push] Step 5: Saving subscription to API POST /notifications/subscribe...")
-    await api.post("/notifications/subscribe", {
+    console.log("[Push] Step 5: Saving subscription to API POST /notifications/subscriptions...")
+    await api.post("/notifications/subscriptions", {
       endpoint: subscription.endpoint,
       keys: { p256dh, auth },
       user_agent: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
@@ -167,7 +167,7 @@ export async function unsubscribeFromPushNotifications(): Promise<{
     const subscription = await registration.pushManager.getSubscription()
 
     if (subscription) {
-      await api.delete(`/notifications/unsubscribe?endpoint=${encodeURIComponent(subscription.endpoint)}`)
+      await api.delete(`/notifications/subscriptions?endpoint=${encodeURIComponent(subscription.endpoint)}`)
       await subscription.unsubscribe()
     }
 
@@ -182,7 +182,7 @@ export async function unsubscribeFromPushNotifications(): Promise<{
 }
 
 export async function sendTestPushNotification(title?: string, body?: string) {
-  return await api.post<{ status: string; dispatched_devices: number }>("/notifications/test", {
+  return await api.post<{ status: string; dispatched_devices: number }>("/notifications/dispatches", {
     title: title || "FastUI Reminder Alert",
     body: body || "Your phone push notifications are successfully configured!",
     url: "/prospects",

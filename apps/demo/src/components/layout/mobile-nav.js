@@ -54,7 +54,7 @@ export function MobileNav() {
                             Contact Us
                         </MobileLink>
                         <div className="pt-4 mt-4 border-t w-full flex justify-center">
-                            <Button className="w-full rounded-full bg-black text-white hover:bg-black/90">
+                            <Button className="w-full rounded-full bg-primary text-primary-foreground hover:bg-primary/90">
                                 Book appointment
                             </Button>
                         </div>

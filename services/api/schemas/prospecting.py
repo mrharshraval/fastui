@@ -32,3 +32,7 @@ class JobStatusResponse(BaseModel):
     remaining_count: Optional[int] = None
     error_message: Optional[str] = None
 
+class JobUpdateRequest(BaseModel):
+    status: Optional[str] = None
+
+

@@ -178,35 +178,38 @@ class DiscoveryService:
                     await session.commit()
                     return
 
-                # 4. Bounded multi-source batching loop
+                # 4. Bounded multi-source batching loop with locality cursor progression
                 consecutive_non_productive_batches = 0
+                current_cursor: Optional[str] = None
 
-                while remaining_count > 0:
+                while remaining_count > 0 or current_cursor is not None:
                     # Check for mid-run cancellation
                     await session.refresh(job)
                     if job.status == JobStatus.CANCELLED:
                         logger.info(f"Job {job_id} was cancelled. Stopping discovery loop.")
                         return
 
-                    # Compute batch limit
-                    batch_limit = min(DEFAULT_BATCH_SIZE, remaining_count)
+                    batch_limit = min(DEFAULT_BATCH_SIZE, remaining_count) if remaining_count > 0 else DEFAULT_BATCH_SIZE
                     search_params = DiscoverySearchParams(
                         target_audience=target_audience,
                         location=location_str,
                         limit=batch_limit,
                         batch_size=batch_limit,
+                        cursor=current_cursor,
                     )
 
                     logger.info(
-                        f"Job {job_id}: Requesting batch of {batch_limit} leads (remaining={remaining_count})..."
+                        f"Job {job_id}: Requesting locality batch limit={batch_limit} (cursor={current_cursor})..."
                     )
 
                     # Call Worker
                     worker_response = await WorkerClient.discover_batch(search_params)
                     batch_leads = worker_response.leads
+                    current_cursor = worker_response.next_cursor
+                    localities_remaining = worker_response.localities_remaining or 0
 
-                    if not batch_leads:
-                        logger.info(f"Job {job_id}: Worker returned 0 leads. Sources exhausted.")
+                    if not batch_leads and not current_cursor:
+                        logger.info(f"Job {job_id}: Worker returned 0 leads and no next cursor. Sources exhausted.")
                         break
 
                     new_in_batch = 0
@@ -382,9 +385,10 @@ class DiscoveryService:
 
                     if new_in_batch == 0:
                         consecutive_non_productive_batches += 1
-                        if consecutive_non_productive_batches >= MAX_EMPTY_OR_DUPLICATE_BATCHES:
+                        # Only treat as exhausted if no cursor remains and all localities have been explored
+                        if consecutive_non_productive_batches >= MAX_EMPTY_OR_DUPLICATE_BATCHES and localities_remaining == 0 and not current_cursor:
                             logger.info(
-                                f"Job {job_id}: {MAX_EMPTY_OR_DUPLICATE_BATCHES} consecutive batches produced 0 new leads. "
+                                f"Job {job_id}: {MAX_EMPTY_OR_DUPLICATE_BATCHES} consecutive batches produced 0 new leads and all localities exhausted. "
                                 f"Treating sources as exhausted."
                             )
                             break

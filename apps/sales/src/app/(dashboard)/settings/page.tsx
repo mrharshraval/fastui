@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useTheme } from "@/components/theme-provider"
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
+import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
 import {
   isPushNotificationSupported,
   getNotificationPermissionState,
@@ -98,6 +99,7 @@ export default function SettingsPage() {
 
   // Mobile sub-sheets / modals
   const [activeModal, setActiveModal] = React.useState<"profile" | "password" | "notifications" | "logout" | "delete" | null>(null)
+  const [deleteAccountDialogOpen, setDeleteAccountDialogOpen] = React.useState(false)
   const [statusMessage, setStatusMessage] = React.useState<string | null>(null)
 
   // Push notification state
@@ -198,6 +200,18 @@ export default function SettingsPage() {
     try {
       localStorage.removeItem("fastui_user")
       await api.post("/auth/logout", {})
+    } catch { }
+    window.location.href = "/login"
+  }
+
+  const handleDeleteAccount = () => {
+    setDeleteAccountDialogOpen(true)
+  }
+
+  const confirmDeleteAccount = async () => {
+    try {
+      localStorage.removeItem("fastui_user")
+      await api.delete("/auth/me")
     } catch { }
     window.location.href = "/login"
   }
@@ -576,7 +590,10 @@ export default function SettingsPage() {
                       </Button>
                       <Button
                         variant="destructive"
-                        onClick={handleLogout}
+                        onClick={() => {
+                          setActiveModal(null)
+                          setDeleteAccountDialogOpen(true)
+                        }}
                         className="flex-1 h-10 rounded-full text-xs font-medium"
                       >
                         Delete Account
@@ -705,6 +722,7 @@ export default function SettingsPage() {
           <CardContent>
             <Button
               variant="destructive"
+              onClick={handleDeleteAccount}
               className="h-9 rounded-2xl text-sm"
             >
               Delete Account
@@ -712,6 +730,16 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
       </div>
+
+      <DeleteConfirmationDialog
+        open={deleteAccountDialogOpen}
+        onOpenChange={setDeleteAccountDialogOpen}
+        title="Delete account?"
+        itemName="your FastUI account and all associated data"
+        warningText="This action cannot be undone. All your business records, tasks, and data will be permanently removed."
+        confirmText="Delete"
+        onConfirm={confirmDeleteAccount}
+      />
     </>
   )
 }

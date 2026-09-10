@@ -276,3 +276,25 @@ async def test_bulk_delete_businesses_persists_to_db(client, db_session):
     assert res.json()['deleted_count'] == 2
     assert (await db_session.get(Business, b1.id)) is None
     assert (await db_session.get(Business, b2.id)) is None
+
+
+@pytest.mark.asyncio
+async def test_delete_business_with_relations(client, db_session):
+    from models.schema import BusinessSource, Activity, ActivityType, Lead
+    alice = await _create_user(db_session, 'alice2@fastui.in')
+    b = await _biz(db_session, 'Delete With Relations Corp')
+    
+    src = BusinessSource(business_id=b.id, platform='google_maps', external_id='ext_test_123')
+    db_session.add(src)
+    act = Activity(business_id=b.id, type=ActivityType.BUSINESS_DISCOVERED)
+    db_session.add(act)
+    lead = Lead(business_id=b.id)
+    db_session.add(lead)
+    await db_session.commit()
+    
+    _auth(client, alice)
+    res = await client.delete(f'/businesses/{b.id}')
+    assert res.status_code == 200, res.text
+    assert res.json()['status'] == 'deleted'
+    assert (await db_session.get(Business, b.id)) is None
+

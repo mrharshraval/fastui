@@ -26,7 +26,7 @@ export function CTABanner({
     return (
         <section className="w-full py-12 md:py-16 bg-background">
             <div className="container px-4 sm:px-6 md:px-12 mx-auto">
-                <div className="relative overflow-hidden rounded-3xl bg-[#3a83f7] text-white px-6 py-14 md:py-16 text-center border border-blue-400/30">
+                <div className="relative overflow-hidden rounded-3xl bg-primary text-primary-foreground px-6 py-14 md:py-16 text-center border border-primary/30">
                     {/* Flow Ribbon Background Image */}
                     <div className="absolute inset-0 overflow-hidden pointer-events-none">
                         <Image
@@ -39,17 +39,17 @@ export function CTABanner({
                     </div>
 
                     <div className="relative z-10 max-w-xl mx-auto space-y-4">
-                        <h2 className="text-2xl sm:text-3xl md:text-4xl font-semibold tracking-tight text-white leading-tight">
+                        <h2 className="text-2xl sm:text-3xl md:text-4xl font-semibold tracking-tight text-primary-foreground leading-tight">
                             {title}
                         </h2>
-                        <p className="text-sm sm:text-base text-white/90 font-normal leading-relaxed max-w-md mx-auto">
+                        <p className="text-sm sm:text-base text-primary-foreground/90 font-normal leading-relaxed max-w-md mx-auto">
                             {description}
                         </p>
                         <div className="pt-2">
                             <Link href={resolvedHref}>
                                 <Button
                                     size="lg"
-                                    className="rounded-full h-11 px-8 text-sm font-semibold hover:scale-105 transition-all bg-white text-primary hover:bg-white/95 cursor-pointer"
+                                    className="rounded-full h-11 px-8 text-sm font-semibold hover:scale-105 transition-all bg-primary-foreground text-primary hover:bg-primary-foreground/90 cursor-pointer"
                                 >
                                     {buttonText}
                                 </Button>

@@ -140,9 +140,10 @@ class WorkerClient:
 
         payload = params.model_dump()
 
+        limit_desc = params.limit if params.limit is not None else "uncapped"
         logger.info(
             f"Dispatching discover request to worker: "
-            f"audience='{params.target_audience}' location='{params.location}' limit={params.limit}"
+            f"audience='{params.target_audience}' location='{params.location}' limit={limit_desc}"
         )
 
         try:
@@ -156,9 +157,13 @@ class WorkerClient:
             exhausted = data.get("exhausted", False)
             sources_exhausted = data.get("sources_exhausted")
             peak_rss_mb = data.get("peak_rss_mb")
+            next_cursor = data.get("next_cursor")
+            current_locality = data.get("current_locality")
+            localities_remaining = data.get("localities_remaining")
 
             logger.info(
-                f"Worker returned {len(leads)} leads (exhausted={exhausted}, peak_rss={peak_rss_mb})."
+                f"Worker returned {len(leads)} leads (exhausted={exhausted}, peak_rss={peak_rss_mb}, "
+                f"next_cursor={next_cursor}, locality={current_locality})."
             )
             return DiscoverResponse(
                 leads=leads,
@@ -166,6 +171,9 @@ class WorkerClient:
                 exhausted=exhausted,
                 sources_exhausted=sources_exhausted,
                 peak_rss_mb=peak_rss_mb,
+                next_cursor=next_cursor,
+                current_locality=current_locality,
+                localities_remaining=localities_remaining,
             )
 
         except httpx.TimeoutException:

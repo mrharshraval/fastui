@@ -13,6 +13,7 @@ import {
  DropdownMenuContent,
  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
 
 const STAGES = ["Qualification", "Demo", "Proposal", "Negotiation", "Closed Won"]
 
@@ -29,6 +30,19 @@ export default function PipelinePage() {
  const [loading, setLoading] = React.useState(true)
  const [activeStage, setActiveStage] = React.useState("all")
  const [search, setSearch] = React.useState("")
+
+ const [deleteDialog, setDeleteDialog] = React.useState<{
+   open: boolean
+   title: string
+   itemName?: string
+   description?: React.ReactNode
+   warningText?: string
+   onConfirm: () => Promise<void> | void
+ }>({
+   open: false,
+   title: "",
+   onConfirm: () => {},
+ })
 
  React.useEffect(() => { 
  api.get<Deal[]>("/pipeline")
@@ -51,15 +65,39 @@ export default function PipelinePage() {
  return matchesSearch && matchesStage;
  })
 
- const handleSingleDelete = async (id: string) => {
-  setDeals(deals.filter(d => d.id !== id))
-  const numId = parseInt(id.replace(/[^0-9]/g, ""), 10)
-  if (!isNaN(numId) && numId > 0) {
-    try {
-      await api.delete(`/businesses/${numId}`)
-    } catch {}
+  const handleSingleDelete = (id: string, name?: string) => {
+    setDeleteDialog({
+      open: true,
+      title: "Delete deal?",
+      itemName: name || "this deal",
+      warningText: "This action cannot be undone.",
+      onConfirm: async () => {
+        const prevDeals = [...deals]
+        setDeals(deals.filter((d) => d.id !== id))
+        const numId = parseInt(id.replace(/[^0-9]/g, ""), 10)
+        if (!isNaN(numId) && numId > 0) {
+          try {
+            await api.delete(`/businesses/${numId}`)
+          } catch {
+            setDeals(prevDeals)
+          }
+        }
+      },
+    })
   }
-}
+
+  const handleStageChange = async (id: string, nextStage: string) => {
+    const prevDeals = [...deals]
+    setDeals(deals.map((d) => (d.id === id ? { ...d, stage: nextStage } : d)))
+    const numId = parseInt(id.replace(/[^0-9]/g, ""), 10)
+    if (!isNaN(numId) && numId > 0) {
+      try {
+        await api.patch(`/businesses/${numId}`, { stage: nextStage })
+      } catch {
+        setDeals(prevDeals)
+      }
+    }
+  }
 
  return (
  <>
@@ -163,14 +201,23 @@ export default function PipelinePage() {
    <MoreHorizontal size={18} />
    </button>
    </DropdownMenuTrigger>
-   <DropdownMenuContent align="end" className="w-44">
-    <DropdownMenuItem
-    onClick={() => handleSingleDelete(deal.id)}
-    className="flex items-center min-h-9 px-2.5 rounded-xl cursor-pointer text-[13px] font-[500] text-destructive hover:bg-destructive-muted"
-  >
-   Delete Deal
-   </DropdownMenuItem>
-   </DropdownMenuContent>
+    <DropdownMenuContent align="end" className="w-44">
+      {STAGES.filter((s) => s !== deal.stage).map((st) => (
+        <DropdownMenuItem
+          key={st}
+          onClick={() => handleStageChange(deal.id, st)}
+          className="text-xs cursor-pointer"
+        >
+          Move to {st}
+        </DropdownMenuItem>
+      ))}
+      <DropdownMenuItem
+        onClick={() => handleSingleDelete(deal.id, deal.business_name)}
+        className="flex items-center min-h-9 px-2.5 rounded-xl cursor-pointer text-[13px] font-[500] text-destructive hover:bg-destructive-muted"
+      >
+        Delete
+      </DropdownMenuItem>
+    </DropdownMenuContent>
    </DropdownMenu>
   </div>
   </div>
@@ -202,24 +249,62 @@ export default function PipelinePage() {
    : byStage(stage).length === 0
    ? <div className="h-20 rounded-xl bg-accent/20 flex items-center justify-center"><span className="text-xs text-muted-foreground">No deals</span></div>
    : byStage(stage).map((deal) => (
-   <Card key={deal.id} className="bg-card rounded-xl shadow-none border-none cursor-grab active:cursor-grabbing">
-   <CardHeader className="pb-2 pt-3.5 px-3.5">
-   <CardTitle className="text-sm font-medium leading-tight">{deal.business_name}</CardTitle>
-   </CardHeader>
-   <CardContent className="px-3.5 pb-3.5 pt-0">
-   <div className="flex items-center justify-between">
-    {deal.value && <span className="text-xs font-semibold">${deal.value.toLocaleString("en-US")}</span>}
-    {deal.probability && <span className="text-xs text-muted-foreground">{deal.probability}%</span>}
-   </div>
-   </CardContent>
-   </Card>
-   ))
+                  <Card key={deal.id} className="bg-card rounded-xl shadow-none border border-border/20 group/card relative hover:border-border/60 transition-colors">
+                    <CardHeader className="pb-2 pt-3.5 px-3.5 flex flex-row items-start justify-between space-y-0 gap-2">
+                      <CardTitle className="text-sm font-medium leading-tight truncate flex-1">{deal.business_name}</CardTitle>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            aria-label="Deal options"
+                            className="size-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/80 transition-colors opacity-0 group-hover/card:opacity-100 cursor-pointer shrink-0 -mt-1 -mr-1"
+                          >
+                            <MoreHorizontal size={14} />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                          {STAGES.filter((s) => s !== deal.stage).map((st) => (
+                            <DropdownMenuItem
+                              key={st}
+                              onClick={() => handleStageChange(deal.id, st)}
+                              className="text-xs cursor-pointer"
+                            >
+                              Move to {st}
+                            </DropdownMenuItem>
+                          ))}
+                          <DropdownMenuItem
+                            onClick={() => handleSingleDelete(deal.id, deal.business_name)}
+                            className="text-destructive text-xs font-medium cursor-pointer"
+                          >
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </CardHeader>
+                    <CardContent className="px-3.5 pb-3.5 pt-0">
+                      <div className="flex items-center justify-between">
+                        {deal.value ? <span className="text-xs font-semibold">${deal.value.toLocaleString("en-US")}</span> : <span className="text-xs text-muted-foreground">—</span>}
+                        {deal.probability ? <span className="text-xs text-muted-foreground">{deal.probability}%</span> : null}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
   }
   </div>
   </div>
   ))}
- </div>
- </div>
- </>
- )
+  </div>
+  </div>
+
+  <DeleteConfirmationDialog
+    open={deleteDialog.open}
+    onOpenChange={(open) => setDeleteDialog(prev => ({ ...prev, open }))}
+    title={deleteDialog.title}
+    itemName={deleteDialog.itemName}
+    description={deleteDialog.description}
+    warningText={deleteDialog.warningText}
+    onConfirm={deleteDialog.onConfirm}
+  />
+  </>
+  )
 }

@@ -39,7 +39,7 @@ export function CTASection({ data, onDataChange, isEditable = false, layerState 
             data-layer-id={isEditable ? "container" : undefined}
             data-layer-type={isEditable ? "section" : undefined}
         >
-            <div className="absolute inset-0 bg-white/5" />
+            <div className="absolute inset-0 bg-primary-foreground/5" />
             <div className={`container px-8 sm:px-4 md:px-12 relative z-10 space-y-8 flex flex-col ${align.items} ${align.text}`}>
                 <h2
                     className={`text-4xl md:text-6xl font-bold tracking-tighter max-w-3xl ${getLayerStyle("title")}`}

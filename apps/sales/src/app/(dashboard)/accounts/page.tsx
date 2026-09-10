@@ -15,6 +15,7 @@ import {
  DropdownMenuContent,
  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
 
 interface Company {
  id: string
@@ -52,29 +53,56 @@ export default function AccountsPage() {
  const [selectedCompanies, setSelectedCompanies] = React.useState<Set<string>>(new Set())
  const [selectedContacts, setSelectedContacts] = React.useState<Set<string>>(new Set())
 
- React.useEffect(() => {
-  api.get<Company[]>("/businesses")
-    .then((data) => {
-      if (Array.isArray(data)) {
-        setCompanies(data)
-      } else {
-        setCompanies([])
-      }
-    })
-    .catch(() => setCompanies([]))
-    .finally(() => setLoadingCompanies(false))
+ // Delete confirmation dialog state
+ const [deleteDialog, setDeleteDialog] = React.useState<{
+   open: boolean
+   title: string
+   itemName?: string
+   description?: React.ReactNode
+   warningText?: string
+   onConfirm: () => Promise<void> | void
+ }>({
+   open: false,
+   title: "",
+   onConfirm: () => {},
+ })
 
-  api.get<Contact[]>("/contacts")
-    .then((data) => {
-      if (Array.isArray(data)) {
-        setContacts(data)
-      } else {
-        setContacts([])
-      }
-    })
-    .catch(() => setContacts([]))
-    .finally(() => setLoadingContacts(false))
- }, [])
+  React.useEffect(() => {
+    api.get<any[]>("/businesses")
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setCompanies(data.map((b: any) => ({
+            id: String(b.id),
+            name: b.business_name || "Untitled",
+            domain: b.website ? b.website.replace(/^https?:\/\//, "").replace(/\/$/, "") : undefined,
+            industry: b.category || "General",
+            leads_count: b.lead_profile ? 1 : 0
+          })))
+        } else {
+          setCompanies([])
+        }
+      })
+      .catch(() => setCompanies([]))
+      .finally(() => setLoadingCompanies(false))
+
+    api.get<any[]>("/contacts")
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setContacts(data.map((c: any) => ({
+            id: String(c.id),
+            name: c.name || `${c.first_name || ""} ${c.last_name || ""}`.trim() || "Unnamed",
+            email: c.email || undefined,
+            phone: c.phone || undefined,
+            company: c.company_name || c.company || "Independent",
+            role: c.role || "Contact"
+          })))
+        } else {
+          setContacts([])
+        }
+      })
+      .catch(() => setContacts([]))
+      .finally(() => setLoadingContacts(false))
+  }, [])
 
  const filteredCompanies = companies.filter((c) =>
  c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -123,35 +151,103 @@ export default function AccountsPage() {
  setCurrentSelection(new Set())
  }
 
-  const handleDeleteSelected = async () => {
+  const handleDeleteSelected = () => {
     if (activeTab === "companies") {
+      if (selectedCompanies.size === 0) return
+      const count = selectedCompanies.size
       const ids = Array.from(selectedCompanies)
       const numericIds = ids.map(id => parseInt(id.replace(/[^0-9]/g, ""), 10)).filter(n => !isNaN(n) && n > 0)
-      setCompanies(companies.filter(c => !selectedCompanies.has(c.id)))
-      setSelectedCompanies(new Set())
-      if (numericIds.length > 0) {
-        try {
-          await api.post("/businesses/bulk-delete", { business_ids: numericIds })
-        } catch {}
-      }
+
+      setDeleteDialog({
+        open: true,
+        title: `Delete ${count} ${count === 1 ? "company" : "companies"}?`,
+        itemName: `${count} selected ${count === 1 ? "company" : "companies"}`,
+        warningText: "This action cannot be undone.",
+        onConfirm: async () => {
+          const prevCompanies = [...companies]
+          setCompanies(companies.filter(c => !selectedCompanies.has(c.id)))
+          setSelectedCompanies(new Set())
+          if (numericIds.length > 0) {
+            try {
+              await api.delete("/businesses", { business_ids: numericIds })
+            } catch {
+              setCompanies(prevCompanies)
+            }
+          }
+        },
+      })
     } else {
-      setContacts(contacts.filter(c => !selectedContacts.has(c.id)))
-      setSelectedContacts(new Set())
+      if (selectedContacts.size === 0) return
+      const count = selectedContacts.size
+      const ids = Array.from(selectedContacts)
+
+      setDeleteDialog({
+        open: true,
+        title: `Delete ${count} ${count === 1 ? "contact" : "contacts"}?`,
+        itemName: `${count} selected ${count === 1 ? "contact" : "contacts"}`,
+        warningText: "This action cannot be undone.",
+        onConfirm: async () => {
+          const prevContacts = [...contacts]
+          setContacts(contacts.filter(c => !selectedContacts.has(c.id)))
+          setSelectedContacts(new Set())
+          try {
+            await Promise.all(
+              ids.map(id => {
+                const numId = parseInt(id.replace(/[^0-9]/g, ""), 10)
+                if (!isNaN(numId) && numId > 0) {
+                  return api.delete(`/contacts/${numId}`)
+                }
+                return Promise.resolve()
+              })
+            )
+          } catch {
+            setContacts(prevContacts)
+          }
+        },
+      })
     }
   }
 
-  const handleSingleDeleteCompany = async (id: string) => {
-    setCompanies(companies.filter(c => c.id !== id))
-    const numId = parseInt(id.replace(/[^0-9]/g, ""), 10)
-    if (!isNaN(numId) && numId > 0) {
-      try {
-        await api.delete(`/businesses/${numId}`)
-      } catch {}
-    }
+  const handleSingleDeleteCompany = (id: string, name?: string) => {
+    setDeleteDialog({
+      open: true,
+      title: "Delete company?",
+      itemName: name || "this company",
+      warningText: "This action cannot be undone.",
+      onConfirm: async () => {
+        const prevCompanies = [...companies]
+        setCompanies(companies.filter(c => c.id !== id))
+        const numId = parseInt(id.replace(/[^0-9]/g, ""), 10)
+        if (!isNaN(numId) && numId > 0) {
+          try {
+            await api.delete(`/businesses/${numId}`)
+          } catch {
+            setCompanies(prevCompanies)
+          }
+        }
+      },
+    })
   }
 
-  const handleSingleDeleteContact = (id: string) => {
-    setContacts(contacts.filter(c => c.id !== id))
+  const handleSingleDeleteContact = (id: string, name?: string) => {
+    setDeleteDialog({
+      open: true,
+      title: "Delete contact?",
+      itemName: name || "this contact",
+      warningText: "This action cannot be undone.",
+      onConfirm: async () => {
+        const prevContacts = [...contacts]
+        setContacts(contacts.filter(c => c.id !== id))
+        const numId = parseInt(id.replace(/[^0-9]/g, ""), 10)
+        if (!isNaN(numId) && numId > 0) {
+          try {
+            await api.delete(`/contacts/${numId}`)
+          } catch {
+            setContacts(prevContacts)
+          }
+        }
+      },
+    })
   }
 
  const initials = (name: string) =>
@@ -259,10 +355,10 @@ export default function AccountsPage() {
  </DropdownMenuTrigger>
  <DropdownMenuContent align="end" className="w-44">
  <DropdownMenuItem
- onClick={() => handleSingleDeleteCompany(c.id)}
+ onClick={() => handleSingleDeleteCompany(c.id, c.name)}
  className="flex items-center min-h-9 px-2.5 rounded-xl cursor-pointer text-[13px] font-[500] text-destructive hover:bg-destructive-muted"
 >
- Delete Company
+ Delete
  </DropdownMenuItem>
  </DropdownMenuContent>
  </DropdownMenu>
@@ -323,10 +419,10 @@ export default function AccountsPage() {
  </DropdownMenuTrigger>
  <DropdownMenuContent align="end" className="w-44">
  <DropdownMenuItem
- onClick={() => handleSingleDeleteContact(c.id)}
+ onClick={() => handleSingleDeleteContact(c.id, c.name)}
  className="flex items-center min-h-9 px-2.5 rounded-xl cursor-pointer text-[13px] font-[500] text-destructive hover:bg-destructive-muted"
 >
- Delete Contact
+ Delete
  </DropdownMenuItem>
  </DropdownMenuContent>
  </DropdownMenu>
@@ -524,10 +620,32 @@ export default function AccountsPage() {
  <div className="col-span-3 text-muted-foreground text-xs truncate">
  {c.industry ?? "—"}
  </div>
- <div className="col-span-2 flex justify-end">
+ <div className="col-span-2 flex justify-end items-center gap-2">
  <Badge variant="secondary" className="text-xs rounded-full px-2.5 py-0.5 font-normal">
  {c.leads_count ?? 0} leads
  </Badge>
+ <DropdownMenu>
+ <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+ <button
+ type="button"
+ aria-label="Company options"
+ className="size-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/80 transition-colors opacity-0 group-hover/row:opacity-100 cursor-pointer shrink-0"
+ >
+ <MoreHorizontal size={15} />
+ </button>
+ </DropdownMenuTrigger>
+ <DropdownMenuContent align="end" className="w-36">
+ <DropdownMenuItem
+ onClick={(e) => {
+ e.stopPropagation()
+ handleSingleDeleteCompany(c.id, c.name)
+ }}
+ className="text-destructive font-medium text-xs cursor-pointer"
+ >
+ Delete
+ </DropdownMenuItem>
+ </DropdownMenuContent>
+ </DropdownMenu>
  </div>
  </div>
  </div>
@@ -643,8 +761,30 @@ export default function AccountsPage() {
  <div className="col-span-3 text-muted-foreground text-xs truncate">
  {c.company ?? "—"}
  </div>
- <div className="col-span-2 text-muted-foreground text-xs text-right truncate">
- {c.role ?? "—"}
+ <div className="col-span-2 flex justify-end items-center gap-2">
+ <span className="text-muted-foreground text-xs truncate">{c.role ?? "—"}</span>
+ <DropdownMenu>
+ <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+ <button
+ type="button"
+ aria-label="Contact options"
+ className="size-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/80 transition-colors opacity-0 group-hover/row:opacity-100 cursor-pointer shrink-0"
+ >
+ <MoreHorizontal size={15} />
+ </button>
+ </DropdownMenuTrigger>
+ <DropdownMenuContent align="end" className="w-36">
+ <DropdownMenuItem
+ onClick={(e) => {
+ e.stopPropagation()
+ handleSingleDeleteContact(c.id, c.name)
+ }}
+ className="text-destructive font-medium text-xs cursor-pointer"
+ >
+ Delete
+ </DropdownMenuItem>
+ </DropdownMenuContent>
+ </DropdownMenu>
  </div>
  </div>
  </div>
@@ -654,8 +794,18 @@ export default function AccountsPage() {
  </div>
  </>
  )}
- </div>
- </div>
- </>
- )
+        </div>
+      </div>
+
+      <DeleteConfirmationDialog
+        open={deleteDialog.open}
+        onOpenChange={(open) => setDeleteDialog(prev => ({ ...prev, open }))}
+        title={deleteDialog.title}
+        itemName={deleteDialog.itemName}
+        description={deleteDialog.description}
+        warningText={deleteDialog.warningText}
+        onConfirm={deleteDialog.onConfirm}
+      />
+    </>
+  )
 }

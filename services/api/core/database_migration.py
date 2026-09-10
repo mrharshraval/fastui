@@ -97,6 +97,11 @@ POSTGRES_MIGRATIONS = [
     "CREATE INDEX IF NOT EXISTS ix_crawled_websites_domain ON crawled_websites(domain);",
     "CREATE INDEX IF NOT EXISTS ix_crawled_websites_domain_loc ON crawled_websites(domain, location_signature);",
 
+    # Export Jobs table
+    "ALTER TABLE export_jobs ADD COLUMN IF NOT EXISTS export_type VARCHAR(50) DEFAULT 'prospects';",
+    "ALTER TABLE export_jobs ADD COLUMN IF NOT EXISTS params JSON;",
+    "ALTER TABLE export_jobs ADD COLUMN IF NOT EXISTS file_path VARCHAR(500);",
+
     # Clean existing phone numbers starting with '0' to start with country code '+91 '
     "UPDATE businesses SET phone = '+91 ' || SUBSTRING(REGEXP_REPLACE(phone, '[^0-9]', '', 'g') FROM 2 FOR 5) || ' ' || SUBSTRING(REGEXP_REPLACE(phone, '[^0-9]', '', 'g') FROM 7) WHERE phone ~ '^0[6-9][0-9]{9}$';",
     "UPDATE businesses SET phone = '+91 ' || SUBSTRING(REGEXP_REPLACE(phone, '[^0-9]', '', 'g') FROM 1 FOR 5) || ' ' || SUBSTRING(REGEXP_REPLACE(phone, '[^0-9]', '', 'g') FROM 6) WHERE phone ~ '^[6-9][0-9]{9}$';",

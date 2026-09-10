@@ -171,7 +171,7 @@ export function Footer() {
                             )}
                             {whatsappUrl && (
                                 <li className="flex items-center justify-center md:justify-start space-x-2 text-muted-foreground">
-                                    <Icons.whatsapp className="h-4 w-4 shrink-0 text-[#25D366]" />
+                                    <Icons.whatsapp className="h-4 w-4 shrink-0" />
                                     <a
                                         href={whatsappUrl}
                                         target="_blank"

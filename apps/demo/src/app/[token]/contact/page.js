@@ -62,7 +62,7 @@ export default function TokenContactPage() {
 
                             <div className="space-y-6">
                                 <div className="flex items-start space-x-4">
-                                    <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white shadow-sm text-foreground">
+                                    <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-card border border-border/50 shadow-sm text-foreground">
                                         <MapPin className="h-5 w-5" />
                                     </div>
                                     <div>
@@ -76,7 +76,7 @@ export default function TokenContactPage() {
 
                                 {business?.phone && (
                                     <div className="flex items-start space-x-4">
-                                        <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white shadow-sm text-foreground">
+                                        <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-card border border-border/50 shadow-sm text-foreground">
                                             <Phone className="h-5 w-5" />
                                         </div>
                                         <div>
@@ -95,7 +95,7 @@ export default function TokenContactPage() {
 
                                 {(business?.whatsapp || customization?.whatsapp_url) && (
                                     <div className="flex items-start space-x-4">
-                                        <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-green-500/10 text-[#25D366] shadow-sm">
+                                        <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-whatsapp/10 text-whatsapp shadow-sm">
                                             <Icons.whatsapp className="h-5 w-5 fill-current" />
                                         </div>
                                         <div>
@@ -105,7 +105,7 @@ export default function TokenContactPage() {
                                                     href={customization?.whatsapp_url || (business?.whatsapp?.startsWith("http") ? business.whatsapp : `https://wa.me/${(business?.whatsapp || business?.phone || "").replace(/\D/g, "")}`)}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
-                                                    className="text-[#25D366] font-medium hover:underline inline-flex items-center gap-1"
+                                                    className="text-whatsapp font-medium hover:underline inline-flex items-center gap-1"
                                                 >
                                                     Chat on WhatsApp
                                                 </a>
@@ -119,7 +119,7 @@ export default function TokenContactPage() {
 
                                 {business?.email && (
                                     <div className="flex items-start space-x-4">
-                                        <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white shadow-sm text-foreground">
+                                        <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-card border border-border/50 shadow-sm text-foreground">
                                             <Mail className="h-5 w-5" />
                                         </div>
                                         <div>

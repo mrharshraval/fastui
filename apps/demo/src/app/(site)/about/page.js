@@ -64,7 +64,7 @@ export default function AboutPage() {
                     <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
                         {[1, 2, 3].map((i) => (
                             <div key={i} className="group relative overflow-hidden rounded-[2rem] bg-secondary/30 transition-colors hover:bg-secondary/50">
-                                <div className="aspect-[3/4] relative bg-white/50">
+                                <div className="aspect-[3/4] relative bg-muted/50">
                                     {/* Placeholder for doctor image */}
                                     <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
                                         Doctor {i} Photo

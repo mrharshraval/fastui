@@ -37,22 +37,12 @@ export default function TokenHome() {
     return (
         <main className="flex flex-col relative -mt-[72px] md:-mt-[96px]">
             {/* Hero Section */}
-            <section className="relative w-full pt-[calc(72px+2rem)] pb-16 md:pt-[calc(96px+3.5rem)] md:pb-20 lg:pt-[calc(96px+4.5rem)] lg:pb-24 bg-[#fdf5f1] dark:bg-gradient-to-b dark:from-[#171717] dark:via-[#131313] dark:to-background overflow-hidden border-b border-[#0000000a] dark:border-border transition-colors">
-                {/* Flow Hero Background Graphic */}
-                <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                    <Image
-                        src="/flow-hero.avif"
-                        alt=""
-                        fill
-                        className="object-cover object-center pointer-events-none opacity-10 dark:opacity-[0.04] dark:invert"
-                        priority
-                    />
-                </div>
+            <section className="relative w-full pt-[calc(72px+2rem)] pb-16 md:pt-[calc(96px+3.5rem)] md:pb-20 lg:pt-[calc(96px+4.5rem)] lg:pb-24 bg-muted/30 overflow-hidden border-b border-border transition-colors">
 
                 <div className="container relative z-10 px-4 sm:px-6 md:px-12 mx-auto">
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 xl:gap-16 items-center">
                         {/* Left Column: Content */}
-                        <div className="lg:col-span-7 flex flex-col justify-center items-center text-center lg:items-start lg:text-left gap-6 max-w-3xl mx-auto lg:mx-0">
+                        <div className="lg:col-span-6 flex flex-col justify-center items-center text-center lg:items-start lg:text-left gap-6 max-w-3xl mx-auto lg:mx-0">
                             <div className="inline-flex items-center rounded-full border bg-background px-3 py-1 text-sm font-medium text-muted-foreground border-border w-fit">
                                 Comprehensive Dental Care
                             </div>
@@ -72,15 +62,15 @@ export default function TokenHome() {
                         </div>
 
                         {/* Right Column: Hero Image */}
-                        <div className="lg:col-span-5 w-full">
-                            <div className="relative w-full aspect-[4/3] sm:aspect-[16/10] lg:aspect-[4/5] rounded-3xl overflow-hidden border-2 border-white/80 dark:border-white/10 bg-white dark:bg-card shadow-sm dark:shadow-none">
+                        <div className="lg:col-span-6 w-full">
+                            <div className="relative w-full aspect-[4/3] rounded-3xl overflow-hidden">
                                 <Image
                                     src={heroImage}
                                     alt={`${clinicName} Modern Dental Care`}
                                     fill
                                     className="object-cover object-center"
                                     priority
-                                    sizes="(min-width: 1024px) 45vw, 100vw"
+                                    sizes="(min-width: 1024px) 50vw, 100vw"
                                 />
                             </div>
                         </div>

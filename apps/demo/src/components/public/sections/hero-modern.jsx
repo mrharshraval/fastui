@@ -8,7 +8,7 @@ export function HeroModern({ data }) {
     const itemsAlign = alignment === 'left' ? 'items-start' : alignment === 'right' ? 'items-end' : 'items-center'
 
     return (
-        <div className="relative h-[400px] md:h-[500px] w-full flex items-center justify-center overflow-hidden bg-zinc-900 text-white mb-8 rounded-xl">
+        <div className="relative h-[400px] md:h-[500px] w-full flex items-center justify-center overflow-hidden bg-card text-card-foreground border border-border mb-8 rounded-xl">
             {data.image && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -24,7 +24,7 @@ export function HeroModern({ data }) {
                     </h1>
                 )}
                 {data.subtitle && (
-                    <p className="text-lg md:text-xl text-zinc-200 leading-relaxed">
+                    <p className="text-lg md:text-xl text-muted-foreground leading-relaxed">
                         {data.subtitle}
                     </p>
                 )}

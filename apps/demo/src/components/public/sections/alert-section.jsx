@@ -3,9 +3,9 @@ import { AlertCircle, CheckCircle2, Info, XCircle } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 const VARIANTS = {
-    default: { icon: Info, class: "border-blue-500/50 text-blue-700 dark:text-blue-400 [&>svg]:text-blue-700 dark:[&>svg]:text-blue-400" },
-    success: { icon: CheckCircle2, class: "border-green-500/50 text-green-700 dark:text-green-400 [&>svg]:text-green-700 dark:[&>svg]:text-green-400" },
-    warning: { icon: AlertCircle, class: "border-yellow-500/50 text-yellow-700 dark:text-yellow-400 [&>svg]:text-yellow-700 dark:[&>svg]:text-yellow-400" },
+    default: { icon: Info, class: "border-primary/50 text-primary [&>svg]:text-primary" },
+    success: { icon: CheckCircle2, class: "border-whatsapp/50 text-whatsapp [&>svg]:text-whatsapp" },
+    warning: { icon: AlertCircle, class: "border-border text-foreground [&>svg]:text-foreground" },
     destructive: { icon: XCircle, class: "border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive" },
 }
 

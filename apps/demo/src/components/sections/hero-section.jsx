@@ -72,7 +72,7 @@ export function HeroSection({ data, onDataChange, isEditable = false, layerState
                     />
                 )}
                 <div
-                    className="absolute inset-0 bg-black/10"
+                    className="absolute inset-0 bg-foreground/5"
                 // Overlay is internal layout, clicks bubble to container
                 >
                     <div
@@ -83,7 +83,7 @@ export function HeroSection({ data, onDataChange, isEditable = false, layerState
                         <div className={`mt-24 max-w-4xl ${align.text}`}>
                             {(data.title || isEditable) && (
                                 <h1
-                                    className={`text-5xl md:text-7xl font-bold tracking-tight text-black mb-6 ${getLayerStyle("title")}`}
+                                    className={`text-5xl md:text-7xl font-bold tracking-tight text-foreground mb-6 ${getLayerStyle("title")}`}
                                     data-layer-id={isEditable ? "title" : undefined}
                                     data-layer-type={isEditable ? "text" : undefined}
                                 >
@@ -94,7 +94,7 @@ export function HeroSection({ data, onDataChange, isEditable = false, layerState
                             )}
                             {(data.subtitle || isEditable) && (
                                 <p
-                                    className={`text-xl md:text-2xl text-black/80 mb-12 max-w-2xl leading-relaxed ${getLayerStyle("subtitle")}`}
+                                    className={`text-xl md:text-2xl text-muted-foreground mb-12 max-w-2xl leading-relaxed ${getLayerStyle("subtitle")}`}
                                     data-layer-id={isEditable ? "subtitle" : undefined}
                                     data-layer-type={isEditable ? "text" : undefined}
                                 >
@@ -137,10 +137,10 @@ export function HeroSection({ data, onDataChange, isEditable = false, layerState
                             >
                                 {data.badges.map((badge, i) => (
                                     <div key={i} className="flex items-center gap-2">
-                                        <div className="h-6 w-6 rounded-full bg-black text-white flex items-center justify-center">
+                                        <div className="h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
                                             <CheckCircle2 className="h-4 w-4" />
                                         </div>
-                                        <span className="font-medium text-black">{badge}</span>
+                                        <span className="font-medium text-foreground">{badge}</span>
                                     </div>
                                 ))}
                             </div>
@@ -186,32 +186,32 @@ export function HeroSection({ data, onDataChange, isEditable = false, layerState
                         >
                             {data.badges.map((badge, i) => (
                                 <div key={i} className="flex items-center gap-2">
-                                    <div className="h-5 w-5 rounded-full bg-black text-white flex items-center justify-center">
+                                    <div className="h-5 w-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
                                         <CheckCircle2 className="h-3 w-3" />
                                     </div>
-                                    <span className="font-medium text-black text-sm">{badge}</span>
+                                    <span className="font-medium text-foreground text-sm">{badge}</span>
                                 </div>
                             ))}
                         </div>
                     )}
                     {(data.title || isEditable) && (
                         <h1
-                            className="text-5xl font-regular tracking-tight text-black leading-[1.1]"
+                            className="text-5xl font-regular tracking-tight text-foreground leading-[1.1]"
                             data-layer-id={isEditable ? "title" : undefined}
                             data-layer-type={isEditable ? "text" : undefined}
                         >
-                            <Text field="title" value={data.title} className="text-5xl font-regular tracking-tight text-black leading-[1.1]">
+                            <Text field="title" value={data.title} className="text-5xl font-regular tracking-tight text-foreground leading-[1.1]">
                                 {data.title}
                             </Text>
                         </h1>
                     )}
                     {(data.subtitle || isEditable) && (
                         <p
-                            className="text-xl font-regular tracking-tight text-black/80 leading-[1.2]"
+                            className="text-xl font-regular tracking-tight text-muted-foreground leading-[1.2]"
                             data-layer-id={isEditable ? "subtitle" : undefined}
                             data-layer-type={isEditable ? "text" : undefined}
                         >
-                            <Text field="subtitle" value={data.subtitle} className="text-xl font-regular tracking-tight text-black/80 leading-[1.2]" multiline>
+                            <Text field="subtitle" value={data.subtitle} className="text-xl font-regular tracking-tight text-muted-foreground leading-[1.2]" multiline>
                                 {data.subtitle}
                             </Text>
                         </p>

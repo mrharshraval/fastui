@@ -45,6 +45,12 @@ class BusinessResponse(BaseModel):
     signal: str = "warm"
     score: int = 50
     
+    # Location & Mapping attributes
+    google_maps_url: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    google_place_id: Optional[str] = None
+
     # Contact tracking semantics
     last_outreach_at: Optional[Union[datetime, str]] = None
     last_contacted_at: Optional[Union[datetime, str]] = None
@@ -104,23 +110,15 @@ class QualifyProspectRequest(BaseModel):
 class BulkAddToLeadsRequest(BaseModel):
     business_ids: List[int]
 
+class LeadCreateRequest(BaseModel):
+    business_id: Optional[int] = None
+    business_ids: Optional[List[int]] = None
+
 class BulkAddToLeadsResponse(BaseModel):
     message: str
     added_count: int
     business_ids: List[int]
 
-class ContactResponse(BaseModel):
-    id: int
-    business_id: int
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    role: Optional[str] = None
-    is_decision_maker: bool = False
-    email: Optional[str] = None
-    phone: Optional[str] = None
-    created_at: Optional[Union[datetime, str]] = None
-
-    model_config = ConfigDict(from_attributes=True)
 
 # ─────────────────────────────────────────────────────────────
 # NOTE SCHEMAS
@@ -296,3 +294,37 @@ class ActivityResponse(BaseModel):
     created_at: Optional[Union[datetime, str]] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ContactResponse(BaseModel):
+    id: str
+    name: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    role: Optional[str] = "Contact"
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    business_id: Optional[int] = None
+    company_name: Optional[str] = "Independent"
+    is_decision_maker: bool = False
+    created_at: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class BulkQualifyRequest(BaseModel):
+    business_ids: List[int]
+    qualification_status: str
+
+
+class BulkQualifyResponse(BaseModel):
+    updated_count: int
+    business_ids: List[int]
+    status: Optional[str] = None
+
+
+class BulkStageRequest(BaseModel):
+    business_ids: List[int]
+    stage: str
+
+

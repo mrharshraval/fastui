@@ -1,7 +1,7 @@
 import secrets
-from typing import List, Optional
+from typing import List, Optional, Union
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, Query, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, Depends, Query, HTTPException, status, BackgroundTasks, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 from sqlalchemy.orm import selectinload
@@ -25,6 +25,7 @@ from schemas.businesses import (
     QualifyProspectRequest,
     BulkAddToLeadsRequest,
     BulkAddToLeadsResponse,
+    LeadCreateRequest,
     OutreachCreateRequest,
     OutreachResponse,
     InteractionCreateRequest,
@@ -37,7 +38,12 @@ from schemas.businesses import (
     ReminderCreateRequest,
     ReminderUpdateRequest,
     ReminderResponse,
+    ActivityCreateRequest,
     ActivityResponse,
+    ContactResponse,
+    BulkQualifyRequest,
+    BulkQualifyResponse,
+    BulkStageRequest,
 )
 from schemas.auth import TokenData
 from services.auth_service import get_current_user
@@ -74,60 +80,56 @@ async def list_prospects(
         sort_order=sort_order
     )
 
-@router.post("/prospects/{business_id}/add-to-leads", response_model=BusinessResponse)
-async def add_prospect_to_leads(
-    business_id: int,
+@router.patch("/prospects", response_model=BulkQualifyResponse)
+async def update_prospects(
+    req: BulkQualifyRequest,
     session: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user)
 ):
     """
-    Promotes a prospect into the active sales pipeline, creating its Lead record.
+    Partially updates qualification status across a collection of prospects.
     """
-    return await BusinessService.add_to_leads(
-        session=session,
-        business_id=business_id,
-        current_user=current_user
-    )
-
-@router.post("/prospects/bulk-add-to-leads", response_model=BulkAddToLeadsResponse)
-async def bulk_add_prospects_to_leads(
-    req: BulkAddToLeadsRequest,
-    session: AsyncSession = Depends(get_db),
-    current_user: TokenData = Depends(get_current_user)
-):
-    """
-    Bulk promotes multiple prospects into active sales Leads.
-    """
-    return await BusinessService.bulk_add_to_leads(
+    return await BusinessService.bulk_qualify_prospects(
         session=session,
         business_ids=req.business_ids,
-        current_user=current_user
-    )
-
-@router.patch("/prospects/{business_id}/qualify", response_model=BusinessResponse)
-async def qualify_prospect(
-    business_id: int,
-    req: QualifyProspectRequest,
-    session: AsyncSession = Depends(get_db),
-    current_user: TokenData = Depends(get_current_user)
-):
-    """
-    Updates the qualification status for a prospect.
-    """
-    return await BusinessService.qualify_prospect(
-        session=session,
-        business_id=business_id,
         qualification_status=req.qualification_status,
         current_user=current_user
     )
+
 
 # ─────────────────────────────────────────────────────────────
 # 2. LEADS (Businesses in active sales pipeline)
 # ─────────────────────────────────────────────────────────────
 
-@router.get("/businesses", response_model=List[BusinessResponse])
+@router.post("/leads", response_model=Union[BusinessResponse, BulkAddToLeadsResponse], status_code=status.HTTP_201_CREATED)
+async def create_leads(
+    req: LeadCreateRequest,
+    session: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user)
+):
+    """
+    Creates a Lead resource for an existing business (or multiple businesses),
+    promoting it into the active sales pipeline.
+    """
+    if req.business_ids:
+        return await BusinessService.bulk_add_to_leads(
+            session=session,
+            business_ids=req.business_ids,
+            current_user=current_user
+        )
+    if req.business_id is not None:
+        return await BusinessService.add_to_leads(
+            session=session,
+            business_id=req.business_id,
+            current_user=current_user
+        )
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="Either business_id or business_ids must be provided"
+    )
+
 @router.get("/leads", response_model=List[BusinessResponse])
-async def list_businesses(
+async def list_leads(
     skip: int = Query(0, ge=0, description="Offset for pagination"),
     limit: int = Query(100, ge=1, le=500, description="Max records to return"),
     stage: Optional[str] = Query(None, description="Filter by pipeline stage (e.g. Lead, Contacted, Won)"),
@@ -138,7 +140,7 @@ async def list_businesses(
     current_user: TokenData = Depends(get_current_user)
 ):
     """
-    Returns a paginated list of leads with active sales records.
+    Returns a paginated list of leads with active sales pipeline records.
     """
     return await BusinessService.get_businesses(
         session=session,
@@ -150,8 +152,33 @@ async def list_businesses(
         sort_order=sort_order
     )
 
+@router.get("/businesses", response_model=List[BusinessResponse])
+async def list_businesses(
+    skip: int = Query(0, ge=0, description="Offset for pagination"),
+    limit: int = Query(100, ge=1, le=500, description="Max records to return"),
+    is_lead: Optional[bool] = Query(None, description="Filter by whether record is an active pipeline lead"),
+    stage: Optional[str] = Query(None, description="Filter by pipeline stage"),
+    search: Optional[str] = Query(None, description="Search across business name, category, and city"),
+    sort_by: str = Query("created_at", description="Field to sort by (created_at, business_name, city)"),
+    sort_order: str = Query("desc", pattern="^(asc|desc)$", description="Sort direction (asc or desc)"),
+    session: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user)
+):
+    """
+    Returns a paginated list of all company/business accounts (both leads and non-leads).
+    """
+    return await BusinessService.get_all_businesses(
+        session=session,
+        skip=skip,
+        limit=limit,
+        is_lead=is_lead,
+        stage=stage,
+        search=search,
+        sort_by=sort_by,
+        sort_order=sort_order
+    )
+
 @router.get("/businesses/{business_id}", response_model=BusinessResponse)
-@router.get("/leads/{business_id}", response_model=BusinessResponse)
 async def get_business(
     business_id: int,
     session: AsyncSession = Depends(get_db),
@@ -163,7 +190,6 @@ async def get_business(
     return await BusinessService.get_business_by_id(session=session, business_id=business_id)
 
 @router.patch("/businesses/{business_id}", response_model=BusinessResponse)
-@router.patch("/leads/{business_id}", response_model=BusinessResponse)
 async def update_business(
     business_id: int,
     update: BusinessUpdateRequest,
@@ -180,9 +206,7 @@ async def update_business(
         current_user=current_user
     )
 
-@router.delete("/businesses/{business_id}")
-@router.delete("/leads/{business_id}")
-@router.delete("/prospects/{business_id}")
+@router.delete("/businesses/{business_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_business(
     business_id: int,
     session: AsyncSession = Depends(get_db),
@@ -191,15 +215,14 @@ async def delete_business(
     """
     Deletes a business/lead record from the database.
     """
-    return await BusinessService.delete_business(
+    await BusinessService.delete_business(
         session=session,
         business_id=business_id,
         current_user=current_user
     )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
-@router.post("/businesses/bulk-delete", response_model=BulkDeleteResponse)
-@router.post("/leads/bulk-delete", response_model=BulkDeleteResponse)
-@router.post("/prospects/bulk-delete", response_model=BulkDeleteResponse)
+@router.delete("/businesses", response_model=BulkDeleteResponse)
 async def bulk_delete_businesses(
     req: BulkDeleteRequest,
     session: AsyncSession = Depends(get_db),
@@ -227,29 +250,28 @@ async def get_pipeline(
         current_user=current_user
     )
 
-@router.patch("/businesses/{business_id}/stage", response_model=StageUpdateResponse)
-@router.patch("/leads/{business_id}/stage", response_model=StageUpdateResponse)
-async def update_pipeline_stage(
-    business_id: int,
-    update: StageUpdateRequest,
+@router.patch("/leads")
+async def update_leads_stage(
+    req: BulkStageRequest,
     session: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user)
 ):
     """
-    Updates the pipeline stage for a business/lead and records an audit activity.
+    Bulk updates the pipeline stage of multiple leads.
     """
-    return await BusinessService.update_pipeline_stage(
+    return await BusinessService.bulk_update_stage(
         session=session,
-        business_id=business_id,
-        new_stage=update.stage,
+        business_ids=req.business_ids,
+        stage=req.stage,
         current_user=current_user
     )
+
 
 # ─────────────────────────────────────────────────────────────
 # 3. OUTREACH (What we attempted)
 # ─────────────────────────────────────────────────────────────
 
-@router.post("/businesses/{business_id}/outreach", response_model=OutreachResponse)
+@router.post("/businesses/{business_id}/outreach", response_model=OutreachResponse, status_code=status.HTTP_201_CREATED)
 async def log_outreach(
     business_id: int,
     request: OutreachCreateRequest,
@@ -310,7 +332,7 @@ async def list_business_outreaches(
 # 4. INTERACTION (Two-way conversations & engagements)
 # ─────────────────────────────────────────────────────────────
 
-@router.post("/businesses/{business_id}/interactions", response_model=InteractionResponse)
+@router.post("/businesses/{business_id}/interactions", response_model=InteractionResponse, status_code=status.HTTP_201_CREATED)
 async def log_interaction(
     business_id: int,
     request: InteractionCreateRequest,
@@ -371,7 +393,7 @@ async def list_business_interactions(
 # 5. NOTES (Dedicated Note Content)
 # ─────────────────────────────────────────────────────────────
 
-@router.post("/businesses/{business_id}/notes", response_model=NoteResponse)
+@router.post("/businesses/{business_id}/notes", response_model=NoteResponse, status_code=status.HTTP_201_CREATED)
 async def create_note(
     business_id: int,
     request: NoteCreateRequest,
@@ -414,24 +436,25 @@ async def list_business_notes(
         for n in notes
     ]
 
-@router.delete("/notes/{note_id}")
+@router.delete("/notes/{note_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_note(
     note_id: int,
     session: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user)
 ):
     """Deletes a note record from the database."""
-    return await BusinessService.delete_note(
+    await BusinessService.delete_note(
         session=session,
         note_id=note_id,
         current_user=current_user
     )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 # ─────────────────────────────────────────────────────────────
 # 6. TASKS (Actionable Work To-Dos)
 # ─────────────────────────────────────────────────────────────
 
-@router.post("/businesses/{business_id}/tasks", response_model=TaskResponse)
+@router.post("/businesses/{business_id}/tasks", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
 async def create_task(
     business_id: int,
     request: TaskCreateRequest,
@@ -513,18 +536,19 @@ async def update_task(
         created_at=task.created_at.isoformat() if task.created_at else None
     )
 
-@router.delete("/tasks/{task_id}")
+@router.delete("/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_task(
     task_id: int,
     session: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user)
 ):
     """Deletes a task record from the database."""
-    return await BusinessService.delete_task(
+    await BusinessService.delete_task(
         session=session,
         task_id=task_id,
         current_user=current_user
     )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 # ─────────────────────────────────────────────────────────────
 # 7. REMINDERS & FOLLOW-UPS
@@ -539,7 +563,7 @@ def _to_utc_iso(dt: Optional[datetime]) -> Optional[str]:
         dt = dt.astimezone(timezone.utc)
     return dt.isoformat()
 
-@router.post("/businesses/{business_id}/reminders", response_model=ReminderResponse)
+@router.post("/businesses/{business_id}/reminders", response_model=ReminderResponse, status_code=status.HTTP_201_CREATED)
 async def create_reminder(
     business_id: int,
     request: ReminderCreateRequest,
@@ -599,7 +623,6 @@ async def list_business_reminders(
     ]
 
 @router.get("/reminders", response_model=List[ReminderResponse])
-@router.get("/follow-ups", response_model=List[ReminderResponse])
 async def list_all_reminders(
     status: Optional[str] = Query(None, description="Filter by status (pending, completed, cancelled, all)"),
     session: AsyncSession = Depends(get_db),
@@ -630,7 +653,6 @@ async def list_all_reminders(
     ]
 
 @router.patch("/reminders/{reminder_id}", response_model=ReminderResponse)
-@router.patch("/follow-ups/{reminder_id}", response_model=ReminderResponse)
 async def update_reminder(
     reminder_id: int,
     request: ReminderUpdateRequest,
@@ -659,23 +681,55 @@ async def update_reminder(
         created_at=_to_utc_iso(reminder.created_at)
     )
 
-@router.delete("/reminders/{reminder_id}")
-@router.delete("/follow-ups/{reminder_id}")
+@router.delete("/reminders/{reminder_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_reminder(
     reminder_id: int,
     session: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user)
 ):
     """Deletes a reminder record from the database."""
-    return await BusinessService.delete_reminder(
+    await BusinessService.delete_reminder(
         session=session,
         reminder_id=reminder_id,
         current_user=current_user
     )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 # ─────────────────────────────────────────────────────────────
 # 8. ACTIVITIES (Chronological Timeline Audit Stream)
 # ─────────────────────────────────────────────────────────────
+
+@router.post("/businesses/{business_id}/activities", response_model=ActivityResponse, status_code=status.HTTP_201_CREATED)
+async def create_business_activity(
+    business_id: int,
+    request: ActivityCreateRequest,
+    session: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user)
+):
+    """
+    Logs an activity (e.g. website visit, call, outreach, note) for a business.
+    """
+    res = await BusinessService.create_activity(
+        session=session,
+        business_id=business_id,
+        req=request,
+        current_user=current_user
+    )
+    act = res["activity"]
+    return ActivityResponse(
+        id=act.id,
+        business_id=act.business_id,
+        user_id=act.user_id,
+        user_name=res["user_name"],
+        contact_id=act.contact_id,
+        type=act.type.value if hasattr(act.type, 'value') else str(act.type),
+        channel=act.channel,
+        outcome=act.outcome,
+        notes=act.notes,
+        entity_type=act.entity_type,
+        entity_id=act.entity_id,
+        created_at=act.created_at.isoformat() if act.created_at else None
+    )
 
 @router.get("/businesses/{business_id}/activities", response_model=List[ActivityResponse])
 async def list_business_activities(
@@ -730,6 +784,61 @@ async def list_all_activities(
         )
         for row in enriched
     ]
+
+@router.delete("/activities/{activity_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_activity(
+    activity_id: int,
+    session: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user)
+):
+    """
+    Deletes an activity timeline entry.
+    """
+    await BusinessService.delete_activity(
+        session=session,
+        activity_id=activity_id,
+        current_user=current_user
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+# ─────────────────────────────────────────────────────────────
+# 9. CONTACTS (Multi-account decision makers & stakeholders)
+# ─────────────────────────────────────────────────────────────
+
+@router.get("/contacts", response_model=List[ContactResponse])
+async def list_contacts(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
+    search: Optional[str] = Query(None),
+    session: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user)
+):
+    """
+    Lists contacts across accounts/businesses with optional search filtering.
+    """
+    return await BusinessService.list_contacts(
+        session=session,
+        skip=skip,
+        limit=limit,
+        search=search
+    )
+
+@router.delete("/contacts/{contact_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_contact(
+    contact_id: int,
+    session: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user)
+):
+    """
+    Deletes a single contact and clears references in associated records.
+    """
+    await BusinessService.delete_contact(
+        session=session,
+        contact_id=contact_id,
+        current_user=current_user
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
 
 # ─────────────────────────────────────────────────────────────
 # 11. PROSPECT DEMO MANAGEMENT (Sales CRM Token Generation)
@@ -882,7 +991,7 @@ async def get_business_demo(
 # 12. PROSPECT ENRICHMENT (Asynchronous Website Intelligence)
 # ─────────────────────────────────────────────────────────────
 
-@router.post("/businesses/{business_id}/enrich", response_model=EnrichmentTriggerResponse)
+@router.post("/businesses/{business_id}/enrichment", response_model=EnrichmentTriggerResponse, status_code=status.HTTP_202_ACCEPTED)
 async def trigger_business_enrichment(
     business_id: int,
     background_tasks: BackgroundTasks,

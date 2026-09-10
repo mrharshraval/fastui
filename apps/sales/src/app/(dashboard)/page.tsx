@@ -182,7 +182,7 @@ export default function DashboardPage() {
       .catch(() => {});
 
     api
-      .get<any[]>("/follow-ups")
+      .get<any[]>("/reminders")
       .then((res) => {
         if (Array.isArray(res)) {
           const mapped: FollowUpAction[] = res.map((f: any) => ({

@@ -80,7 +80,7 @@ export function GallerySection({ data, onDataChange, isEditable = false, layerSt
                                         Before / After Image
                                     </div>
                                 )}
-                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
+                                <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/10 transition-colors duration-300" />
                             </div>
                             <div className="space-y-2">
                                 {item.category && (

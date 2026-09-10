@@ -8,10 +8,10 @@ export default function EmergencyDentistry() {
     return (
         <main className="flex flex-col min-h-screen bg-background">
             {/* Hero Section */}
-            <section className="w-full py-24 bg-red-50/50 dark:bg-red-950/10">
+            <section className="w-full py-24 bg-destructive/10">
                 <div className="container px-8 sm:px-4 md:px-12">
                     <div className="flex flex-col gap-6 max-w-3xl">
-                        <div className="inline-flex items-center rounded-full border bg-background px-3 py-1 text-sm font-medium text-red-600 border-red-200 w-fit">
+                        <div className="inline-flex items-center rounded-full border bg-background px-3 py-1 text-sm font-medium text-destructive border-destructive/30 w-fit">
                             Emergency Care
                         </div>
                         <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none text-foreground">
@@ -21,7 +21,7 @@ export default function EmergencyDentistry() {
                             We offer same-day emergency appointments for toothaches, broken teeth, and other urgent dental needs.
                         </p>
                         <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                            <Button size="lg" className="rounded-full h-12 px-8 text-base font-medium bg-red-600 hover:bg-red-700 text-white border-none">
+                            <Button size="lg" className="rounded-full h-12 px-8 text-base font-medium bg-destructive hover:bg-destructive/90 text-destructive-foreground border-none">
                                 <Phone className="mr-2 h-4 w-4" /> Call Now: (555) 123-4567
                             </Button>
                         </div>

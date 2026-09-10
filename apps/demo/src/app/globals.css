@@ -1,4 +1,5 @@
-/* dental demo theme - fastui/apps/sales theme colors */
+/* dental demo theme - shadcn/ui taupe palette (light + dark) */
+/* Blue kept as-is: #3a83f7 (216.8 92.2% 59.8%) */
 
 @tailwind base;
 @tailwind components;
@@ -6,166 +7,127 @@
 
 @layer base {
   :root {
-    /* Reference Grayscale Scale from apps/sales */
-    --gray-0: #ffffff;
-    --gray-25: #fcfcfc;
-    --gray-50: #f9f9f9;
-    --gray-75: #f3f3f3;
-    --gray-100: #ededed;
-    --gray-150: #dfdfdf;
-    --gray-200: #cdcdcd;
-    --gray-250: #b9b9b9;
-    --gray-300: #afafaf;
-    --gray-350: #9f9f9f;
-    --gray-400: #8f8f8f;
-    --gray-450: #767676;
-    --gray-500: #5d5d5d;
-    --gray-550: #4f4f4f;
-    --gray-600: #414141;
-    --gray-650: #393939;
-    --gray-700: #303030;
-    --gray-750: #282828;
-    --gray-800: #212121;
-    --gray-850: #1c1c1c;
-    --gray-900: #181818;
-    --gray-925: #161616;
-    --gray-950: #131313;
-    --gray-975: #101010;
-    --gray-1000: #0d0d0d;
+    /* ─── shadcn/ui Taupe Light Mode ────────────────────────────────────── */
+    --background: 0 0% 100%;           /* #ffffff — pure crisp canvas */
+    --foreground: 30 8% 12%;           /* #23211f — taupe-950 warm charcoal text */
 
-    /* Reference Colors from apps/sales */
-    --blue-25: #f6fafe;
-    --blue-50: #e8f3fe;
-    --blue-75: #d1e5fd;
-    --blue-100: #a4cdfb;
-    --blue-200: #63a8f8;
-    --blue-300: #539af8;
-    --blue-400: #3a83f7;
-    --blue-500: #2c67c5;
-    --blue-600: #1f4e94;
-    --blue-a50: #0285ff21;
-    --blue-a75: #0285ff40;
+    --card: 0 0% 100%;                /* #ffffff — card surface */
+    --card-foreground: 30 8% 12%;
 
-    --green-25: #effaf3;
-    --green-50: #def3e5;
-    --green-100: #9fddb1;
-    --green-400: #53b559;
-    --green-500: #48a04c;
-    --green-800: #1f4e25;
+    --popover: 0 0% 100%;              /* #ffffff — popover surface */
+    --popover-foreground: 30 8% 12%;
 
-    --orange-25: #fdf5f1;
-    --orange-50: #fbe8db;
-    --orange-100: #f4ba96;
-    --orange-200: #f1a275;
-    --orange-400: #ee7c37;
-    --orange-500: #d25e28;
-    --orange-900: #45240d;
-
-    --red-25: #fff0f0;
-    --red-50: #ffe1e0;
-    --red-100: #ffa4a2;
-    --red-200: #ff8583;
-    --red-400: #fa423e;
-    --red-500: #ff002a;
-    --red-600: #ba2623;
-    --red-900: #4d100e;
-
-    /* Core Semantic Surfaces — apps/sales Light Mode */
-    --background: 0 0% 100%;           /* #ffffff */
-    --foreground: 0 0% 5.1%;           /* #0d0d0d */
-
-    --card: 0 0% 97.6%;                /* #f9f9f9 */
-    --card-foreground: 0 0% 5.1%;      /* #0d0d0d */
-
-    --popover: 0 0% 100%;              /* #ffffff */
-    --popover-foreground: 0 0% 5.1%;   /* #0d0d0d */
-
-    /* Brand / Primary Blue — FastUI Signature Blue (#3a83f7) */
+    /* Brand / Primary Blue — FastUI Signature Blue (#3a83f7) — PRESERVED */
     --brand: 216.8 92.2% 59.8%;
     --brand-foreground: 0 0% 100%;
-    --primary: 216.8 92.2% 59.8%;      /* #3a83f7 */
+    --primary: 216.8 92.2% 59.8%;
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary surface — chips, tabs, search inputs (#f4f4f4) */
-    --secondary: 0 0% 95.7%;
-    --secondary-foreground: 0 0% 5.1%;
+    /* Secondary surface — taupe-100 chips, tabs, inputs (#f3f1ee) */
+    --secondary: 30 9% 94.5%;
+    --secondary-foreground: 30 8% 15%;
 
-    /* Muted surfaces (#f4f4f4) and secondary text (#5d5d5d) */
-    --muted: 0 0% 95.7%;
-    --muted-foreground: 0 0% 36.5%;
+    /* Muted surfaces (#f3f1ee) and secondary text taupe-500 (#79746f) */
+    --muted: 30 9% 94.5%;
+    --muted-foreground: 30 6% 46%;
 
-    /* Accent — hover / active (#ececec) */
-    --accent: 0 0% 92.5%;
-    --accent-foreground: 0 0% 5.1%;
+    /* Accent — taupe-100 hover / active (#f3f1ee) */
+    --accent: 30 9% 94.5%;
+    --accent-foreground: 30 8% 15%;
 
-    /* Semantic Meaning Tokens */
-    --destructive: 350 100% 50%;       /* #ff002a */
-    --destructive-foreground: 0 0% 100%;
+    /* Destructive */
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
 
-    /* Structural Hairlines (#00000014) */
-    --border: 0 0% 92%;
-    --input: 0 0% 92%;
-    --ring: 216.8 92.2% 59.8%;
+    /* Structural Hairlines — taupe-200 (#e6e2de) */
+    --border: 30 8% 89%;
+    --input: 30 8% 89%;
+    --ring: 216.8 92.2% 59.8%;          /* FastUI Signature Blue ring — PRESERVED */
 
-    --radius: 0.5rem;                  /* 8px, matching apps/sales */
+    --radius: 0.75rem;
 
-    /* Sidebar — Seamless with Main Canvas */
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 0 0% 5.1%;
+    /* Sidebar — taupe-50 (#faf8f6) */
+    --sidebar-background: 30 12% 98%;
+    --sidebar-foreground: 30 8% 15%;
     --sidebar-primary: 216.8 92.2% 59.8%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 92.5%;
-    --sidebar-accent-foreground: 0 0% 5.1%;
-    --sidebar-border: 0 0% 94%;
+    --sidebar-accent: 30 9% 94.5%;
+    --sidebar-accent-foreground: 30 8% 12%;
+    --sidebar-border: 30 8% 89%;
     --sidebar-ring: 216.8 92.2% 59.8%;
+
+    /* Charts */
+    --chart-1: 30 45% 55%;
+    --chart-2: 216.8 92.2% 59.8%;
+    --chart-3: 160 30% 40%;
+    --chart-4: 40 50% 60%;
+    --chart-5: 15 60% 65%;
+
+    /* WhatsApp semantic tokens */
+    --whatsapp: 142 70% 49%;
+    --whatsapp-hover: 142 61% 43%;
+    --whatsapp-foreground: 0 0% 100%;
   }
 
   .dark {
-    /* Core Semantic Surfaces — apps/sales Dark Mode */
-    --background: 0 0% 5.1%;           /* #0d0d0d */
-    --foreground: 0 0% 92.5%;          /* #ececec */
+    /* ─── shadcn/ui Taupe Dark Mode ─────────────────────────────────────── */
+    --background: 30 7% 9.5%;          /* #1a1816 — taupe-950 deep warm canvas */
+    --foreground: 30 10% 96%;          /* #f7f6f4 — taupe-50 soft warm light text */
 
-    --card: 0 0% 12.9%;                /* #212121 */
-    --card-foreground: 0 0% 92.5%;     /* #ececec */
+    --card: 30 7% 12%;                /* #211f1c — taupe-900 elevated card surface */
+    --card-foreground: 30 10% 96%;
 
-    --popover: 0 0% 18.4%;             /* #2f2f2f */
-    --popover-foreground: 0 0% 92.5%;  /* #ececec */
+    --popover: 30 7% 12%;              /* #211f1c — popover surface */
+    --popover-foreground: 30 10% 96%;
 
-    /* Brand / Primary Blue — #3a83f7 */
+    /* Brand / Primary Blue — FastUI Signature Blue (#3a83f7) — PRESERVED */
     --brand: 216.8 92.2% 59.8%;
     --brand-foreground: 0 0% 100%;
-    --primary: 216.8 92.2% 59.8%;      /* #3a83f7 */
+    --primary: 216.8 92.2% 59.8%;
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary surface (#212121) */
-    --secondary: 0 0% 12.9%;
-    --secondary-foreground: 0 0% 92.5%;
+    /* Secondary surface — taupe-800 (#2f2c29) */
+    --secondary: 30 6% 17%;
+    --secondary-foreground: 30 10% 96%;
 
-    /* Muted surfaces (#212121) and secondary text (#b4b4b4) */
-    --muted: 0 0% 12.9%;
-    --muted-foreground: 0 0% 70.6%;
+    /* Muted (#2f2c29) and secondary text taupe-400 (#a6a09a) */
+    --muted: 30 6% 17%;
+    --muted-foreground: 30 6% 63%;
 
-    /* Accent (#2f2f2f) */
-    --accent: 0 0% 18.4%;
-    --accent-foreground: 0 0% 100%;
+    /* Accent — taupe-800 (#2f2c29) hover / active */
+    --accent: 30 6% 17%;
+    --accent-foreground: 30 10% 96%;
 
-    /* Destructive (#ff8583) */
-    --destructive: 1 100% 75.7%;
-    --destructive-foreground: 0 0% 100%;
+    /* Destructive */
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
 
-    /* Structural Hairlines */
-    --border: 0 0% 20%;
-    --input: 0 0% 20%;
-    --ring: 216.8 92.2% 59.8%;
+    /* Structural Hairlines — taupe-800 (#322f2b) */
+    --border: 30 6% 18%;
+    --input: 30 6% 18%;
+    --ring: 216.8 92.2% 59.8%;          /* FastUI Signature Blue ring — PRESERVED */
 
-    --sidebar-background: 0 0% 5.1%;
-    --sidebar-foreground: 0 0% 92.5%;
+    /* Sidebar — taupe-950 (#171514) */
+    --sidebar-background: 30 7% 8%;
+    --sidebar-foreground: 30 10% 96%;
     --sidebar-primary: 216.8 92.2% 59.8%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 12.9%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 0 0% 15%;
+    --sidebar-accent: 30 6% 17%;
+    --sidebar-accent-foreground: 30 10% 96%;
+    --sidebar-border: 30 6% 18%;
     --sidebar-ring: 216.8 92.2% 59.8%;
+
+    /* Charts */
+    --chart-1: 30 60% 60%;
+    --chart-2: 216.8 92.2% 59.8%;
+    --chart-3: 160 40% 55%;
+    --chart-4: 40 60% 70%;
+    --chart-5: 15 70% 70%;
+
+    /* WhatsApp semantic tokens */
+    --whatsapp: 142 70% 49%;
+    --whatsapp-hover: 142 61% 43%;
+    --whatsapp-foreground: 0 0% 100%;
   }
 }
 

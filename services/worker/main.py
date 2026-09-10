@@ -138,14 +138,14 @@ async def discover(params: DiscoverySearchParams) -> DiscoverResponse:
     )
 
     try:
-        leads, exhausted, sources_exhausted, peak_rss = await asyncio.to_thread(
+        leads, exhausted, sources_exhausted, peak_rss, next_cursor, current_locality, localities_remaining = await asyncio.to_thread(
             _run_discovery_in_proactor,
             params,
             settings.HEADLESS_BROWSER,
         )
         logger.info(
             f"Discovery complete: {len(leads)} leads returned "
-            f"(exhausted={exhausted}, peak_rss={peak_rss:.1f}MB)."
+            f"(exhausted={exhausted}, peak_rss={peak_rss:.1f}MB, next_cursor={next_cursor}, locality={current_locality})."
         )
         return DiscoverResponse(
             leads=leads,
@@ -153,6 +153,9 @@ async def discover(params: DiscoverySearchParams) -> DiscoverResponse:
             exhausted=exhausted,
             sources_exhausted=sources_exhausted,
             peak_rss_mb=peak_rss,
+            next_cursor=next_cursor,
+            current_locality=current_locality,
+            localities_remaining=localities_remaining,
         )
     except Exception as e:
         logger.error(f"Discovery failed: {e}", exc_info=True)

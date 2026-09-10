@@ -7,7 +7,7 @@
     "tailwind": {
         "config": "tailwind.config.js",
         "css": "src/app/globals.css",
-        "baseColor": "zinc",
+        "baseColor": "taupe",
         "cssVariables": true,
         "prefix": ""
     },

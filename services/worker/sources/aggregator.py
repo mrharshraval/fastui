@@ -32,21 +32,32 @@ class MultiSourceDiscoveryAggregator(DiscoverySourceAdapter):
             "web_search": False,
         }
         self.is_exhausted: bool = False
+        self.next_cursor: Optional[str] = None
+        self.current_locality: Optional[str] = None
+        self.localities_remaining: Optional[int] = None
 
     async def discover_with_meta(
         self, params: DiscoverySearchParams
-    ) -> Tuple[List[DiscoveredLead], bool, Dict[str, bool], float]:
+    ) -> Tuple[List[DiscoveredLead], bool, Dict[str, bool], float, Optional[str], Optional[str], Optional[int]]:
         """
-        Executes multi-source discovery and returns leads along with exhaustion and memory metadata.
+        Executes multi-source discovery and returns leads along with exhaustion, cursor, and memory metadata.
         """
         leads = await self.discover(params)
         peak_rss = memory_tracker.peak_rss_mb
-        return leads, self.is_exhausted, self.sources_exhausted, peak_rss
+        return (
+            leads,
+            self.is_exhausted,
+            self.sources_exhausted,
+            peak_rss,
+            self.next_cursor,
+            self.current_locality,
+            self.localities_remaining,
+        )
 
     async def discover(self, params: DiscoverySearchParams) -> List[DiscoveredLead]:
         logger.info(
             f"Starting MultiSource discovery for '{params.target_audience}' in '{params.location}' "
-            f"(target={params.limit})"
+            f"(target={params.limit}, cursor={params.cursor})"
         )
 
         all_leads: List[DiscoveredLead] = []
@@ -63,9 +74,12 @@ class MultiSourceDiscoveryAggregator(DiscoverySourceAdapter):
                     maps_leads = await self.google_maps.discover(params)
                     all_leads.extend(maps_leads)
                     self.sources_exhausted["google_maps"] = getattr(self.google_maps, "is_exhausted", False)
+                    self.next_cursor = getattr(self.google_maps, "next_cursor", None)
+                    self.current_locality = getattr(self.google_maps, "current_locality", None)
+                    self.localities_remaining = getattr(self.google_maps, "localities_remaining", None)
                     logger.info(
                         f"Google Maps returned {len(maps_leads)} leads "
-                        f"(exhausted={self.sources_exhausted['google_maps']})."
+                        f"(exhausted={self.sources_exhausted['google_maps']}, next_cursor={self.next_cursor})."
                     )
                 except Exception as e:
                     logger.error(f"Google Maps scraper encountered an error: {e}", exc_info=True)
@@ -139,14 +153,14 @@ class MultiSourceDiscoveryAggregator(DiscoverySourceAdapter):
 
 
 
-        # Cap results to target_limit
-        final_leads = merged_leads[:target_limit]
+        # Truly unbounded discovery: return all merged unique leads without artificial slicing
+        final_leads = merged_leads
 
-        # Determine overall exhaustion
+        # Determine overall exhaustion based strictly on source exhaustion
         all_enabled_exhausted = all(
             self.sources_exhausted.get(src, True) for src in enabled_sources
         )
-        self.is_exhausted = all_enabled_exhausted or (len(final_leads) < target_limit)
+        self.is_exhausted = all_enabled_exhausted
 
         logger.info(
             f"MultiSource Aggregator: {len(final_leads)} unique businesses from {len(all_leads)} raw results. "

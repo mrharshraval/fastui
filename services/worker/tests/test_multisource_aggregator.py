@@ -91,7 +91,7 @@ async def test_multisource_exhaustion_detection():
         aggregator.web_search.is_exhausted = True
 
         params = DiscoverySearchParams(target_audience="Dentist", location="Kolkata", limit=50)
-        leads, exhausted, sources_ex, peak_rss = await aggregator.discover_with_meta(params)
+        leads, exhausted, sources_ex, peak_rss, next_cur, cur_loc, locs_rem = await aggregator.discover_with_meta(params)
 
         assert len(leads) == 0
         assert exhausted is True

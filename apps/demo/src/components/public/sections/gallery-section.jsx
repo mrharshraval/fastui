@@ -14,7 +14,7 @@ export function PublicGallerySection({ data }) {
                         className="w-full h-full object-cover aspect-square hover:scale-105 transition-transform duration-500"
                     />
                     {img.caption && (
-                        <figcaption className="absolute bottom-0 left-0 right-0 p-2 bg-black/60 text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                        <figcaption className="absolute bottom-0 left-0 right-0 p-2 bg-background/80 text-foreground backdrop-blur-sm border-t border-border text-xs opacity-0 group-hover:opacity-100 transition-opacity">
                             {img.caption}
                         </figcaption>
                     )}

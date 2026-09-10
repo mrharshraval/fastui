@@ -16,8 +16,8 @@ class DiscoverySearchParams(BaseModel):
 
     target_audience: str = Field(..., description="Target business category, e.g. 'Dentist'")
     location: str = Field(..., description="Target geographical location, e.g. 'Ahmedabad, Gujarat, India'")
-    limit: int = Field(default=50, ge=1, le=1000, description="Max leads to return in this batch/call")
-    batch_size: int = Field(default=50, ge=1, le=100, description="Bounded batch chunk size")
+    limit: Optional[int] = Field(default=None, description="Optional max leads; None for uncapped")
+    batch_size: Optional[int] = Field(default=None, description="Bounded batch chunk size")
     query_variations: Optional[List[str]] = Field(default=None, description="Optional query variations to broaden coverage")
     source_preferences: Optional[List[str]] = Field(default=None, description="Enabled sources in order of preference")
     cursor: Optional[str] = Field(default=None, description="Optional pagination/resumption cursor")
@@ -61,6 +61,9 @@ class DiscoverResponse(BaseModel):
     exhausted: bool = Field(default=False, description="True if all enabled sources have no further results")
     sources_exhausted: Optional[dict[str, bool]] = Field(default=None, description="Per-source exhaustion status")
     peak_rss_mb: Optional[float] = Field(default=None, description="Peak memory RSS observed during execution")
+    next_cursor: Optional[str] = Field(default=None, description="Cursor for the next geographic area or batch")
+    current_locality: Optional[str] = Field(default=None, description="Active locality or sector queried")
+    localities_remaining: Optional[int] = Field(default=None, description="Count of remaining localities in this city")
 
 
 # ─────────────────────────────────────────────────────────────

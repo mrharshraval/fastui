@@ -4,14 +4,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.exceptions import EntityNotFoundException
 from models.database import get_db
 from models.schema import DiscoveryJob, JobStatus
-from schemas.prospecting import ProspectingQuery, JobCreateResponse, JobStatusResponse
+from schemas.prospecting import ProspectingQuery, JobCreateResponse, JobStatusResponse, JobUpdateRequest
 from schemas.auth import TokenData
 from services.auth_service import get_current_user
 from services.discovery_service import DiscoveryService
 
 router = APIRouter(prefix="/prospecting", tags=["prospecting"])
 
-@router.post("/jobs", response_model=JobCreateResponse)
+@router.post("/jobs", response_model=JobCreateResponse, status_code=status.HTTP_202_ACCEPTED)
 async def create_discovery_job(
     query: ProspectingQuery,
     background_tasks: BackgroundTasks,
@@ -70,16 +70,22 @@ async def get_job_status(
         error_message=job.error_message,
     )
 
-@router.patch("/jobs/{job_id}/cancel", response_model=JobStatusResponse)
-async def cancel_discovery_job(
+@router.patch("/jobs/{job_id}", response_model=JobStatusResponse)
+async def update_discovery_job(
     job_id: int,
+    req: JobUpdateRequest,
     session: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user)
 ):
     """
-    Cancels an ongoing or queued discovery job.
+    Updates the state of an ongoing discovery job (e.g. status='cancelled').
     """
-    job = await DiscoveryService.cancel_job(session, job_id)
+    if req.status and req.status.lower() == "cancelled":
+        job = await DiscoveryService.cancel_job(session, job_id)
+    else:
+        job = await session.get(DiscoveryJob, job_id)
+        if not job:
+            raise EntityNotFoundException("DiscoveryJob", job_id)
     target_count = int(
         (job.query or {}).get("target_count")
         or (job.query or {}).get("limit")

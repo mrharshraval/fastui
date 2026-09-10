@@ -2,7 +2,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Dict, Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -35,7 +35,7 @@ async def get_vapid_public_key():
     return VapidPublicKeyResponse(public_key=public_key)
 
 
-@router.post("/subscribe", response_model=PushSubscriptionResponse)
+@router.post("/subscriptions", response_model=PushSubscriptionResponse, status_code=status.HTTP_201_CREATED)
 async def subscribe_push_notifications(
     payload: PushSubscriptionCreate,
     db: AsyncSession = Depends(get_db),
@@ -90,7 +90,7 @@ async def subscribe_push_notifications(
     return subscription
 
 
-@router.delete("/unsubscribe")
+@router.delete("/subscriptions", status_code=status.HTTP_204_NO_CONTENT)
 async def unsubscribe_push_notifications(
     endpoint: str,
     db: AsyncSession = Depends(get_db),
@@ -106,10 +106,10 @@ async def unsubscribe_push_notifications(
     )
     await db.execute(stmt)
     await db.commit()
-    return {"status": "unsubscribed"}
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.post("/test")
+@router.post("/dispatches")
 async def send_test_notification(
     payload: TestNotificationRequest,
     db: AsyncSession = Depends(get_db),
@@ -163,7 +163,7 @@ async def send_test_notification(
     }
 
 
-@router.post("/broadcast", response_model=BroadcastNotificationResponse)
+@router.post("/broadcasts", response_model=BroadcastNotificationResponse)
 async def broadcast_notification(
     payload: BroadcastNotificationRequest,
     db: AsyncSession = Depends(get_db),

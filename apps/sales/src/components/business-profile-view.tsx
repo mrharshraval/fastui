@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
-import { Plus, ChevronDown, MoreHorizontal, ArrowLeft, X, Check, ExternalLink, Copy, Sparkles } from "lucide-react"
+import { Plus, ChevronDown, MoreHorizontal, ArrowLeft, X, Check, ExternalLink, Copy } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getNotificationPermissionState, subscribeToPushNotifications } from "@/lib/push-notifications"
 import { IOSWheelPicker } from "@/components/ui/ios-wheel-picker"
@@ -25,6 +25,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog"
+import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
 
 export interface BusinessDetail {
   id: string
@@ -39,10 +40,36 @@ export interface BusinessDetail {
   phone?: string
   email?: string
   whatsapp?: string
+  google_maps_url?: string
+  latitude?: number
+  longitude?: number
+  google_place_id?: string
   created_at: string
   is_lead?: boolean
   qualification_status?: string
   stage?: string
+}
+
+export function isVerifiedPlaceUrl(url?: string | null): boolean {
+  if (!url || typeof url !== "string") return false
+  const trimmed = url.trim()
+  if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) return false
+  
+  // Strictly reject search fallback URLs or unverified query patterns
+  if (
+    trimmed.includes("/maps/search/") ||
+    trimmed.includes("/search?") ||
+    trimmed.includes("/search/") ||
+    trimmed.includes("search/?api=1")
+  ) {
+    return false
+  }
+
+  // Must be a canonical place URL (/maps/place/ or maps?cid=...)
+  const isPlacePath = trimmed.includes("/maps/place/")
+  const isCidUrl = /maps\?.*cid=\d+/i.test(trimmed) || /maps\/.*cid=\d+/i.test(trimmed)
+  
+  return isPlacePath || isCidUrl
 }
 
 interface ActivityItem {
@@ -71,6 +98,7 @@ function formatActivityAction(type?: string, fallback?: string): string {
   if (t === "call_initiated" || t === "call") return "Call initiated"
   if (t === "whatsapp_opened" || t === "whatsapp") return "WhatsApp opened"
   if (t === "email_initiated" || t === "email") return "Email initiated"
+  if (t === "location_viewed" || t === "location" || t === "maps") return "Viewed location"
   if (t === "note_added" || t === "note") return "Note added"
   if (t === "reminder_created" || t === "reminder") return "Reminder set"
   if (t === "status_changed") return "Stage changed"
@@ -225,6 +253,20 @@ export function BusinessProfileView() {
   const [addingToLeads, setAddingToLeads] = React.useState(false)
   const [showBusinessDetails, setShowBusinessDetails] = React.useState(false)
   const [showContactDetails, setShowContactDetails] = React.useState(false)
+
+  // Delete confirmation dialog state
+  const [deleteDialog, setDeleteDialog] = React.useState<{
+    open: boolean
+    title: string
+    itemName?: string
+    description?: React.ReactNode
+    warningText?: string
+    onConfirm: () => Promise<void> | void
+  }>({
+    open: false,
+    title: "",
+    onConfirm: () => {},
+  })
 
   // Demo link & modal state
   const [demoData, setDemoData] = React.useState<{
@@ -444,6 +486,10 @@ export function BusinessProfileView() {
                     return clean.length === 10 ? `91${clean}` : clean
                   })()
                 : undefined,
+              google_maps_url: comp.google_maps_url || undefined,
+              latitude: comp.latitude != null ? comp.latitude : undefined,
+              longitude: comp.longitude != null ? comp.longitude : undefined,
+              google_place_id: comp.google_place_id || undefined,
               created_at: comp.created_at || new Date().toISOString(),
               is_lead: comp.is_lead,
               qualification_status: comp.qualification_status,
@@ -532,7 +578,7 @@ export function BusinessProfileView() {
     const numericId = parseInt(business.id.replace(/[^0-9]/g, ""), 10)
     try {
       if (!isNaN(numericId) && numericId > 0) {
-        await api.post(`/prospects/${numericId}/add-to-leads`, {})
+        await api.post("/leads", { business_id: numericId })
       }
       setBusiness((prev) => prev ? { ...prev, is_lead: true } : null)
       
@@ -551,9 +597,31 @@ export function BusinessProfileView() {
     }
   }
 
+  // Handle deleting business (prospect or lead)
+  const handleDeleteBusiness = () => {
+    if (!business) return
+    const isLead = Boolean(business.is_lead)
+    const label = isLead ? "lead" : "prospect"
+    setDeleteDialog({
+      open: true,
+      title: `Delete ${label}?`,
+      itemName: business.business_name || `this ${label}`,
+      warningText: "This action cannot be undone.",
+      onConfirm: async () => {
+        const numId = parseInt(business.id.replace(/[^0-9]/g, ""), 10)
+        if (!isNaN(numId) && numId > 0) {
+          try {
+            await api.delete(`/businesses/${numId}`)
+          } catch {}
+        }
+        router.push(isLead ? "/leads" : "/prospects")
+      },
+    })
+  }
+
   // Handle contact actions
   const handleAction = async (
-    actionType: "website" | "call" | "email" | "whatsapp",
+    actionType: "website" | "call" | "email" | "whatsapp" | "location",
     targetValue: string
   ) => {
     if (!business) return
@@ -579,6 +647,10 @@ export function BusinessProfileView() {
       window.open(`https://wa.me/${cleanNum}`, "_blank", "noopener,noreferrer")
       actionLabel = "WhatsApp opened"
       actionDesc = "WhatsApp action logged"
+    } else if (actionType === "location") {
+      window.open(targetValue, "_blank", "noopener,noreferrer")
+      actionLabel = "Viewed location"
+      actionDesc = "Google Maps location viewed"
     }
 
     const newActivity: ActivityItem = {
@@ -595,10 +667,10 @@ export function BusinessProfileView() {
     try {
       const numericId = parseInt(business.id.replace(/[^0-9]/g, ""), 10)
       if (!isNaN(numericId) && numericId > 0) {
-        if (actionType === "website") {
+        if (actionType === "website" || actionType === "location") {
           await api.post(`/businesses/${numericId}/activities`, {
-            type: "website_visited",
-            channel: "website",
+            type: actionType === "location" ? "location_viewed" : "website_visited",
+            channel: actionType === "location" ? "maps" : "website",
             outcome: actionLabel,
             notes: targetValue
           })
@@ -887,6 +959,18 @@ export function BusinessProfileView() {
         </button>
       )
     } : null,
+    isVerifiedPlaceUrl(business.google_maps_url) ? {
+      label: "Location",
+      value: (
+        <button
+          type="button"
+          onClick={() => handleAction("location", business.google_maps_url!)}
+          className="text-foreground hover:underline text-left cursor-pointer transition-colors"
+        >
+          View on Map
+        </button>
+      )
+    } : null,
   ].filter(Boolean) as { label: string; value: React.ReactNode }[]
 
   return (
@@ -904,20 +988,59 @@ export function BusinessProfileView() {
           <ArrowLeft size={14} />
           <span>Back</span>
         </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label="Options"
+              className="size-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/80 transition-colors cursor-pointer"
+            >
+              <MoreHorizontal size={18} />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-36">
+            <DropdownMenuItem
+              onClick={handleDeleteBusiness}
+              className="text-destructive font-medium text-xs cursor-pointer"
+            >
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
 
       {/* Desktop Main Container */}
       <div className="flex flex-col flex-1 px-4 md:px-8 lg:px-12 xl:px-16 pt-4 md:pt-14 pb-16 max-w-[1600px] mx-auto w-full">
-        {/* Desktop Header: Back Button Right */}
-        <div className="hidden md:flex items-center justify-end mb-8">
+        {/* Desktop Header: Back Button Left, Options Menu Right */}
+        <div className="hidden md:flex items-center justify-between mb-8">
           <button
             type="button"
             onClick={handleBack}
-            className="h-9 px-4 rounded-full bg-accent/60 hover:bg-accent text-foreground text-sm font-medium transition-colors cursor-pointer"
+            className="h-9 px-4 rounded-full bg-accent/60 hover:bg-accent text-foreground text-sm font-medium transition-colors cursor-pointer inline-flex items-center gap-1.5"
           >
-            Back
+            <ArrowLeft size={16} />
+            <span>Back</span>
           </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label="Options"
+                className="size-9 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/80 transition-colors cursor-pointer"
+              >
+                <MoreHorizontal size={18} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-36">
+              <DropdownMenuItem
+                onClick={handleDeleteBusiness}
+                className="text-destructive font-medium text-xs cursor-pointer"
+              >
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* ─────────────────────────────────────────────────────────────
@@ -985,20 +1108,30 @@ export function BusinessProfileView() {
               </button>
             )}
 
+            {/* Location Pill (strictly only shown for verified Google Maps place URLs) */}
+            {isVerifiedPlaceUrl(business.google_maps_url) && (
+              <button
+                type="button"
+                onClick={() => handleAction("location", business.google_maps_url!)}
+                className="h-8 px-4 rounded-full bg-accent/60 hover:bg-accent text-foreground text-sm font-medium transition-all active:scale-[0.98] cursor-pointer"
+              >
+                Location
+              </button>
+            )}
+
             {/* Demo Pill */}
             <button
               type="button"
               onClick={handleOpenDemo}
               disabled={loadingDemo}
               className={cn(
-                "h-8 px-3.5 rounded-full text-sm font-medium transition-all active:scale-[0.98] cursor-pointer inline-flex items-center gap-1.5",
+                "h-8 px-4 rounded-full text-sm font-medium transition-all active:scale-[0.98] cursor-pointer inline-flex items-center justify-center",
                 demoData
                   ? "bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20"
                   : "bg-accent/60 hover:bg-accent text-foreground"
               )}
             >
-              <Sparkles size={13} className={demoData ? "text-primary" : "text-muted-foreground"} />
-              <span>{loadingDemo ? "Creating…" : demoData ? "View Demo" : "Create Demo"}</span>
+              <span>{loadingDemo ? "Creating…" : demoData ? "View" : "Create"}</span>
             </button>
 
             {/* Contextual Action: Approve (for unconverted prospects) */}
@@ -1086,14 +1219,29 @@ export function BusinessProfileView() {
                   <ActivityItemRow
                     key={act.id}
                     act={act}
-                    onDelete={async () => {
-                      setActivities((prev) => prev.filter((a) => a.id !== act.id))
-                      const numId = parseInt(act.id.replace(/[^0-9]/g, ""), 10)
-                      if (!isNaN(numId) && numId > 0 && act.id.includes("note")) {
-                        try {
-                          await api.delete(`/notes/${numId}`)
-                        } catch {}
-                      }
+                    onDelete={() => {
+                      setDeleteDialog({
+                        open: true,
+                        title: "Delete activity?",
+                        itemName: formatActivityAction(act.action),
+                        warningText: "This action cannot be undone.",
+                        onConfirm: async () => {
+                          const prevActs = [...activities]
+                          setActivities((prev) => prev.filter((a) => a.id !== act.id))
+                          const numId = parseInt(act.id.replace(/[^0-9]/g, ""), 10)
+                          if (!isNaN(numId) && numId > 0) {
+                            try {
+                              if (act.id.includes("note")) {
+                                await api.delete(`/notes/${numId}`)
+                              } else {
+                                await api.delete(`/activities/${numId}`)
+                              }
+                            } catch {
+                              setActivities(prevActs)
+                            }
+                          }
+                        },
+                      })
                     }}
                   />
                 ))}
@@ -1152,14 +1300,25 @@ export function BusinessProfileView() {
                               Complete
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={async () => {
-                                setReminders((prev) => prev.filter((r) => r.id !== rem.id))
-                                const numId = parseInt(rem.id.replace(/[^0-9]/g, ""), 10)
-                                if (!isNaN(numId) && numId > 0) {
-                                  try {
-                                    await api.delete(`/reminders/${numId}`)
-                                  } catch {}
-                                }
+                              onClick={() => {
+                                setDeleteDialog({
+                                  open: true,
+                                  title: "Delete reminder?",
+                                  itemName: rem.title || "this reminder",
+                                  warningText: "This action cannot be undone.",
+                                  onConfirm: async () => {
+                                    const prevRems = [...reminders]
+                                    setReminders((prev) => prev.filter((r) => r.id !== rem.id))
+                                    const numId = parseInt(rem.id.replace(/[^0-9]/g, ""), 10)
+                                    if (!isNaN(numId) && numId > 0) {
+                                      try {
+                                        await api.delete(`/reminders/${numId}`)
+                                      } catch {
+                                        setReminders(prevRems)
+                                      }
+                                    }
+                                  },
+                                })
                               }}
                               className="min-h-8 px-2.5 rounded-xl cursor-pointer text-xs font-medium text-destructive focus:text-destructive"
                             >
@@ -1538,6 +1697,16 @@ export function BusinessProfileView() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <DeleteConfirmationDialog
+        open={deleteDialog.open}
+        onOpenChange={(open) => setDeleteDialog(prev => ({ ...prev, open }))}
+        title={deleteDialog.title}
+        itemName={deleteDialog.itemName}
+        description={deleteDialog.description}
+        warningText={deleteDialog.warningText}
+        onConfirm={deleteDialog.onConfirm}
+      />
     </div>
   )
 }
