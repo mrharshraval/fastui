@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import Script from "next/script"
 import localFont from "next/font/local"
 import { Geist_Mono } from "next/font/google"
 import "./globals.css"
@@ -52,7 +53,9 @@ export default function RootLayout({
       className={cn("dark antialiased", fontMono.variable, "font-sans", polymath.variable)}
     >
       <head>
-        <script
+        <Script
+          id="theme-init"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var s=localStorage.getItem("theme")||"dark";var r=s==="system"?(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):s;var d=document.documentElement;d.classList.remove("light","dark");d.classList.add(r);d.style.colorScheme=r;}catch(e){}})();
             if ('serviceWorker' in navigator) { window.addEventListener('load', function() { navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function(){}); }); }`,

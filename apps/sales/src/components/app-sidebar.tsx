@@ -3,7 +3,8 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { api } from "@/lib/api"
+import Image from "next/image"
+import { authApi } from "@/features/auth/api"
 import {
   LayoutDashboard,
   Compass,
@@ -86,7 +87,8 @@ export function AppSidebar() {
     } catch {}
 
     // 2. Authoritative sync from backend session
-    api.get<AuthUser>("/auth/me")
+    authApi
+      .getMe()
       .then((data) => {
         if (data && data.email) {
           setCurrentUser(data)
@@ -117,11 +119,9 @@ export function AppSidebar() {
   const handleLogout = async () => {
     try {
       localStorage.removeItem("fastui_user")
-      // Note: HttpOnly cookies cannot be cleared from JavaScript.
-      // The authoritative cookie deletion happens server-side via /auth/logout.
-      await api.post("/auth/logout", {})
+      await authApi.logout()
     } catch {}
-    window.location.href = "/login"
+    router.push("/login")
   }
 
   return (
@@ -142,14 +142,18 @@ export function AppSidebar() {
           >
             {/* 1. Default State: Brand Mark */}
             <div className="flex items-center justify-center size-9 transition-opacity duration-150 group-hover/logo-toggle:opacity-0">
-              <img
+              <Image
                 src="/assets/brand/mark/monochrome/black.svg"
                 alt="fastui"
+                width={24}
+                height={24}
                 className="size-6 shrink-0 dark:hidden"
               />
-              <img
+              <Image
                 src="/assets/brand/mark/monochrome/white.svg"
                 alt="fastui"
+                width={24}
+                height={24}
                 className="size-6 shrink-0 hidden dark:block"
               />
             </div>
@@ -164,25 +168,37 @@ export function AppSidebar() {
         {/* Expanded Mode: Mark + Wordmark + Right-Aligned Collapse Toggle */}
         <div className="flex items-center justify-between w-full group-data-[collapsible=icon]:hidden">
           <div className="flex items-center gap-2 pl-1.5">
-            <img
+            <Image
               src="/assets/brand/mark/monochrome/black.svg"
               alt="fastui"
+              width={24}
+              height={24}
               className="size-6 shrink-0 dark:hidden"
             />
-            <img
+            <Image
               src="/assets/brand/mark/monochrome/white.svg"
               alt="fastui"
+              width={24}
+              height={24}
               className="size-6 shrink-0 hidden dark:block"
             />
-            <img
+            <Image
               src="/assets/brand/wordmark/monochrome/black.svg"
               alt="fastui"
-              className="h-4.5 w-auto dark:hidden object-contain"
+              width={43}
+              height={18}
+              style={{ width: "auto", height: "auto" }}
+              className="dark:hidden object-contain max-h-[18px]"
+              priority
             />
-            <img
+            <Image
               src="/assets/brand/wordmark/monochrome/white.svg"
               alt="fastui"
-              className="h-4.5 w-auto hidden dark:block object-contain"
+              width={43}
+              height={18}
+              style={{ width: "auto", height: "auto" }}
+              className="hidden dark:block object-contain max-h-[18px]"
+              priority
             />
           </div>
 

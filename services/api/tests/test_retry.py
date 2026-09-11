@@ -1,5 +1,7 @@
 import pytest
-from core.retry import retry_async
+
+from app.shared.retry import retry_async
+
 
 @pytest.mark.asyncio
 async def test_retry_success_after_failure():
@@ -16,6 +18,7 @@ async def test_retry_success_after_failure():
     result = await flaky_function()
     assert result == "success"
     assert attempts == 3
+
 
 @pytest.mark.asyncio
 async def test_retry_exhaustion():

@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { MobileBottomNav } from "@/components/mobile-bottom-nav"
-import { api } from "@/lib/api"
+import { authApi } from "@/features/auth/api"
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
  const pathname = usePathname()
@@ -13,7 +13,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
  React.useEffect(() => {
  // Graceful background session verification
- api.get<{ email?: string }>("/auth/me")
+ authApi
+ .getMe()
  .then((user) => {
  if (user && user.email) {
   try {

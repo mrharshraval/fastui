@@ -5,24 +5,24 @@ Evaluates public clinic websites across technical, conversion,
 mobile, and SEO readiness metrics, computing an objective quality score (0-100).
 """
 
-from typing import Dict, Any
+from typing import Any, Dict
+
 from bs4 import BeautifulSoup
 
-from contracts import EnrichedQualityAudit, EnrichedBrand, EnrichedContact
+from contracts import EnrichedBrand, EnrichedContact, EnrichedQualityAudit
 
 
 def evaluate_website_quality(
-    soup: BeautifulSoup,
-    url: str,
-    brand: EnrichedBrand,
-    contact: EnrichedContact
+    soup: BeautifulSoup, url: str, brand: EnrichedBrand, contact: EnrichedContact
 ) -> EnrichedQualityAudit:
     """
     Computes objective website quality score and component breakdown.
     """
     has_ssl = url.lower().startswith("https://")
     viewport_tag = soup.find("meta", attrs={"name": "viewport"})
-    has_mobile_viewport = bool(viewport_tag and "width=device-width" in viewport_tag.get("content", "").lower())
+    has_mobile_viewport = bool(
+        viewport_tag and "width=device-width" in viewport_tag.get("content", "").lower()
+    )
     has_meta_description = bool(brand.meta_description and len(brand.meta_description) >= 40)
     has_structured_data = bool(soup.find("script", attrs={"type": "application/ld+json"}))
     has_social_presence = bool(contact.social_links)
@@ -46,14 +46,22 @@ def evaluate_website_quality(
     desc_pts = 5 if has_meta_description else 0
     schema_pts = 10 if has_structured_data else 0
     score += logo_pts + desc_pts + schema_pts
-    breakdown["branding_and_seo"] = {"logo": logo_pts, "meta_description": desc_pts, "schema_markup": schema_pts}
+    breakdown["branding_and_seo"] = {
+        "logo": logo_pts,
+        "meta_description": desc_pts,
+        "schema_markup": schema_pts,
+    }
 
     # Conversion & Direct Contact (35 pts)
     contact_pts = 15 if has_clear_contact else 0
     booking_pts = 10 if has_online_booking else 0
     whatsapp_pts = 10 if has_whatsapp_cta else 0
     score += contact_pts + booking_pts + whatsapp_pts
-    breakdown["conversion_readiness"] = {"contact_info": contact_pts, "online_booking": booking_pts, "whatsapp_cta": whatsapp_pts}
+    breakdown["conversion_readiness"] = {
+        "contact_info": contact_pts,
+        "online_booking": booking_pts,
+        "whatsapp_cta": whatsapp_pts,
+    }
 
     # Digital Footprint (15 pts)
     social_pts = 15 if has_social_presence else 0

@@ -16,6 +16,7 @@ def retry_async(
     """
     Decorator for retrying async functions with exponential backoff.
     """
+
     def decorator(func: Callable):
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
@@ -41,5 +42,7 @@ def retry_async(
 
             if last_exception:
                 raise last_exception
+
         return wrapper
+
     return decorator

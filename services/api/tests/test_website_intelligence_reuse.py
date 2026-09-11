@@ -1,13 +1,13 @@
-import pytest
 from unittest.mock import AsyncMock, patch
-from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
-from models.schema import Business, BusinessSource, CrawledWebsite, ProspectDemo
-from schemas.enrichment import (
-    EnrichedBrand,
+import pytest
+from httpx import AsyncClient
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.domains.enrichment.schemas import (
     EnrichedBranch,
+    EnrichedBrand,
     EnrichedBusinessProfile,
     EnrichedContact,
     EnrichedDoctor,
@@ -18,7 +18,8 @@ from schemas.enrichment import (
     EnrichmentResponse,
     TreatmentSignal,
 )
-from services.enrichment_service import EnrichmentService
+from app.domains.enrichment.service import EnrichmentService
+from app.domains.models import Business, CrawledWebsite
 
 
 def create_mock_profile(domain: str, phone: str, address: str, doctor_name: str = "Dr. Jane Smith"):
@@ -115,12 +116,18 @@ async def test_corroborated_cache_hit_same_domain_and_phone(db_session: AsyncSes
     await db_session.commit()
     await db_session.refresh(prospect_1)
 
-    mock_profile = create_mock_profile(domain=domain, phone=phone, address="12A Rashbehari Avenue, Kolkata 700026")
+    mock_profile = create_mock_profile(
+        domain=domain, phone=phone, address="12A Rashbehari Avenue, Kolkata 700026"
+    )
     mock_resp = EnrichmentResponse(success=True, status="completed", profile=mock_profile)
 
-    with patch("services.worker_client.WorkerClient.enrich_business", new_callable=AsyncMock) as mock_worker:
+    with patch(
+        "app.domains.enrichment.service.WorkerClient.enrich_business", new_callable=AsyncMock
+    ) as mock_worker:
         mock_worker.return_value = mock_resp
-        profile_1, is_reused_1 = await EnrichmentService.get_or_enrich_website(prospect_1, db_session)
+        profile_1, is_reused_1 = await EnrichmentService.get_or_enrich_website(
+            prospect_1, db_session
+        )
         assert is_reused_1 is False
         assert profile_1 is not None
         assert profile_1.brand.tagline == "Gentle Smiles, Modern Care"
@@ -148,9 +155,15 @@ async def test_corroborated_cache_hit_same_domain_and_phone(db_session: AsyncSes
     await db_session.refresh(prospect_2)
 
     # WorkerClient MUST NOT be called because corroborated cache hit occurs
-    with patch("services.worker_client.WorkerClient.enrich_business", new_callable=AsyncMock) as mock_worker_2:
-        mock_worker_2.side_effect = AssertionError("WorkerClient should not be called on cache hit!")
-        profile_2, is_reused_2 = await EnrichmentService.get_or_enrich_website(prospect_2, db_session)
+    with patch(
+        "app.domains.enrichment.service.WorkerClient.enrich_business", new_callable=AsyncMock
+    ) as mock_worker_2:
+        mock_worker_2.side_effect = AssertionError(
+            "WorkerClient should not be called on cache hit!"
+        )
+        profile_2, is_reused_2 = await EnrichmentService.get_or_enrich_website(
+            prospect_2, db_session
+        )
         assert is_reused_2 is True
         assert profile_2 is not None
         assert profile_2.brand.tagline == "Gentle Smiles, Modern Care"
@@ -189,7 +202,9 @@ async def test_branch_divergence_rejects_blind_reuse(db_session: AsyncSession):
     )
     kolkata_resp = EnrichmentResponse(success=True, status="completed", profile=kolkata_profile)
 
-    with patch("services.worker_client.WorkerClient.enrich_business", new_callable=AsyncMock) as mock_worker:
+    with patch(
+        "app.domains.enrichment.service.WorkerClient.enrich_business", new_callable=AsyncMock
+    ) as mock_worker:
         mock_worker.return_value = kolkata_resp
         p1, reused_1 = await EnrichmentService.get_or_enrich_website(kolkata_prospect, db_session)
         assert reused_1 is False
@@ -218,7 +233,9 @@ async def test_branch_divergence_rejects_blind_reuse(db_session: AsyncSession):
     mumbai_resp = EnrichmentResponse(success=True, status="completed", profile=mumbai_profile)
 
     # WorkerClient MUST be called because the Kolkata cached record was rejected for Mumbai
-    with patch("services.worker_client.WorkerClient.enrich_business", new_callable=AsyncMock) as mock_worker_mumbai:
+    with patch(
+        "app.domains.enrichment.service.WorkerClient.enrich_business", new_callable=AsyncMock
+    ) as mock_worker_mumbai:
         mock_worker_mumbai.return_value = mumbai_resp
         p2, reused_2 = await EnrichmentService.get_or_enrich_website(mumbai_prospect, db_session)
         assert reused_2 is False
@@ -235,13 +252,15 @@ async def test_branch_divergence_rejects_blind_reuse(db_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_create_demo_route_personalization_flow(auth_client: AsyncClient, client: AsyncClient, db_session: AsyncSession):
+async def test_create_demo_route_personalization_flow(
+    auth_client: AsyncClient, client: AsyncClient, db_session: AsyncSession
+):
     """
     Verifies the complete Create Demo flow:
     1. Prospect has website.
     2. POST /businesses/{id}/demo executes corroborated website enrichment.
     3. Demo custom_overrides receives authentic tagline, doctor, testimonials, facilities, emergency info.
-    4. GET /public/v1/demos/{token} exposes personalized payload to client demo.
+    4. GET /v1/demos/{token} exposes personalized payload to client demo.
     """
     domain = "artisandental.com"
     phone = "+919876543210"
@@ -260,14 +279,18 @@ async def test_create_demo_route_personalization_flow(auth_client: AsyncClient, 
     await db_session.commit()
     await db_session.refresh(business)
 
-    mock_profile = create_mock_profile(domain=domain, phone=phone, address="100 Boulevard Road, Bangalore 560001")
+    mock_profile = create_mock_profile(
+        domain=domain, phone=phone, address="100 Boulevard Road, Bangalore 560001"
+    )
     mock_resp = EnrichmentResponse(success=True, status="completed", profile=mock_profile)
 
-    with patch("services.worker_client.WorkerClient.enrich_business", new_callable=AsyncMock) as mock_worker:
+    with patch(
+        "app.domains.enrichment.service.WorkerClient.enrich_business", new_callable=AsyncMock
+    ) as mock_worker:
         mock_worker.return_value = mock_resp
 
         # Create Demo API call
-        demo_resp = await auth_client.post(f"/businesses/{business.id}/demo")
+        demo_resp = await auth_client.post(f"/v1/businesses/{business.id}/demo")
         assert demo_resp.status_code == 200
         data = demo_resp.json()
         token = data["token"]
@@ -283,7 +306,7 @@ async def test_create_demo_route_personalization_flow(auth_client: AsyncClient, 
         assert overrides["booking_url"] == f"https://{domain}/book"
 
     # Public Demo Presentation API
-    pub_resp = await client.get(f"/public/v1/demos/{token}")
+    pub_resp = await client.get(f"/v1/demos/{token}")
     assert pub_resp.status_code == 200
     pub = pub_resp.json()
 

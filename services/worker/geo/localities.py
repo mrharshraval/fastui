@@ -14,12 +14,11 @@ Key Features:
 
 import json
 import logging
-import os
-from pathlib import Path
 import re
-from typing import Dict, List, Optional, Set
 import urllib.parse
 import urllib.request
+from pathlib import Path
+from typing import Dict, List, Optional, Set
 
 logger = logging.getLogger(__name__)
 
@@ -309,18 +308,13 @@ class DynamicLocalityResolver:
         query_phrase: str,
         page: int = 1,
         expected_city: str = "",
-        expected_country: Optional[str] = None
+        expected_country: Optional[str] = None,
     ) -> List[str]:
         """
         Executes a single paginated Nominatim search query with strict geographic validation.
         Rejects any matches that do not genuinely belong to the target city and country.
         """
-        params = {
-            "q": query_phrase,
-            "format": "json",
-            "limit": "50",
-            "addressdetails": "1"
-        }
+        params = {"q": query_phrase, "format": "json", "limit": "50", "addressdetails": "1"}
         if page > 1:
             params["offset"] = str((page - 1) * 50)
 
@@ -341,11 +335,11 @@ class DynamicLocalityResolver:
                     ec_lower = expected_city.lower()
                     dn_lower = display_name.lower()
                     city_matched = (
-                        ec_lower in dn_lower or
-                        ec_lower in address.get("city", "").lower() or
-                        ec_lower in address.get("state_district", "").lower() or
-                        ec_lower in address.get("county", "").lower() or
-                        ec_lower in address.get("state", "").lower()
+                        ec_lower in dn_lower
+                        or ec_lower in address.get("city", "").lower()
+                        or ec_lower in address.get("state_district", "").lower()
+                        or ec_lower in address.get("county", "").lower()
+                        or ec_lower in address.get("state", "").lower()
                     )
                     if not city_matched:
                         continue
@@ -355,8 +349,8 @@ class DynamicLocalityResolver:
                     country_needle = expected_country.lower()
                     dn_lower = display_name.lower()
                     country_matched = (
-                        country_needle in dn_lower or
-                        country_needle in address.get("country", "").lower()
+                        country_needle in dn_lower
+                        or country_needle in address.get("country", "").lower()
                     )
                     if not country_matched:
                         continue
@@ -366,7 +360,9 @@ class DynamicLocalityResolver:
                     continue
                 clean = clean_unicode_spaces(raw_name)
                 # Filter out pure numbers, highway codes (e.g. NH 48), or single characters
-                if len(clean) >= 3 and not re.match(r"^(NH|SH|State Highway|National Highway|\d+)", clean, re.I):
+                if len(clean) >= 3 and not re.match(
+                    r"^(NH|SH|State Highway|National Highway|\d+)", clean, re.I
+                ):
                     names.append(clean)
 
         return names
@@ -391,10 +387,7 @@ class DynamicLocalityResolver:
             for page in range(1, 3):  # Fetch up to 2 pages per category (up to 100 items each)
                 try:
                     page_names = self._query_nominatim_tier(
-                        category_query,
-                        page=page,
-                        expected_city=city,
-                        expected_country=country
+                        category_query, page=page, expected_city=city, expected_country=country
                     )
                     if not page_names:
                         break
@@ -439,9 +432,7 @@ out tags 75;
         for mirror in mirrors:
             try:
                 req = urllib.request.Request(
-                    mirror,
-                    data=encoded_data,
-                    headers={"User-Agent": USER_AGENT}
+                    mirror, data=encoded_data, headers={"User-Agent": USER_AGENT}
                 )
                 with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
                     data = json.loads(resp.read().decode("utf-8"))
@@ -481,7 +472,10 @@ out tags 75;
 
             # If locality represents a major known or designated commercial center, add directional sub-pockets
             loc_lower = loc.lower()
-            if any(term in loc_lower for term in ("road", "highway", "sector", "square", "chowk", "circle")):
+            if any(
+                term in loc_lower
+                for term in ("road", "highway", "sector", "square", "chowk", "circle")
+            ):
                 for sub_suffix in ("East", "West"):
                     sub_name = f"{loc} {sub_suffix}"
                     if sub_name.lower() not in seen:
@@ -508,7 +502,9 @@ out tags 75;
 
         # 1. Check in-memory & persistent cache
         if cache_key in self._memory_cache and self._memory_cache[cache_key]:
-            logger.debug(f"Locality cache hit for '{cache_key}': {len(self._memory_cache[cache_key])} areas")
+            logger.debug(
+                f"Locality cache hit for '{cache_key}': {len(self._memory_cache[cache_key])} areas"
+            )
             return self._memory_cache[cache_key]
 
         # Check if city has a verified curated registry

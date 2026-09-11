@@ -8,8 +8,8 @@ redirect limits, response size limits, and robust error handling.
 import ipaddress
 import logging
 import socket
-from urllib.parse import urlparse
 from typing import Optional, Tuple
+from urllib.parse import urlparse
 
 import httpx
 
@@ -49,7 +49,7 @@ def validate_target_url(url: str) -> Tuple[bool, Optional[str]]:
 
         # Check IP address resolution
         addr_info = socket.getaddrinfo(hostname, None)
-        for family, socktype, proto, canonname, sockaddr in addr_info:
+        for _family, _socktype, _proto, _canonname, sockaddr in addr_info:
             ip_str = sockaddr[0]
             ip = ipaddress.ip_address(ip_str)
 
@@ -113,7 +113,9 @@ class EnrichmentHttpClient:
 
                 # Content-Type check (skip binary downloads like PDFs, ZIPs, large videos)
                 content_type = response.headers.get("content-type", "").lower()
-                if content_type and not any(t in content_type for t in ("text/html", "application/xhtml", "text/plain")):
+                if content_type and not any(
+                    t in content_type for t in ("text/html", "application/xhtml", "text/plain")
+                ):
                     return None, str(response.url), f"Skipped non-HTML Content-Type: {content_type}"
 
                 # Response size check

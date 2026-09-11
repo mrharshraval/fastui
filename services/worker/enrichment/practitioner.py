@@ -8,13 +8,14 @@ and roles from website JSON-LD and team sections.
 import json
 import re
 from typing import List, Optional, Tuple
+
 from bs4 import BeautifulSoup
 
 from contracts import EnrichedDoctor
 
 CREDENTIALS_REGEX = re.compile(
     r"\b(BDS|MDS|DDS|DMD|MBBS|MS|FDSRCS|MFDS|FICOI|FAACD|Fellow|Implantologist|Orthodontist|Endodontist|Periodontist|Pedodontist|Oral\s+Surgeon)\b",
-    re.I
+    re.I,
 )
 
 DOCTOR_NAME_REGEX = re.compile(
@@ -22,7 +23,9 @@ DOCTOR_NAME_REGEX = re.compile(
 )
 
 
-def extract_practitioners(soup: BeautifulSoup) -> Tuple[List[EnrichedDoctor], Optional[EnrichedDoctor]]:
+def extract_practitioners(
+    soup: BeautifulSoup,
+) -> Tuple[List[EnrichedDoctor], Optional[EnrichedDoctor]]:
     """
     Extracts doctor candidates from structured data and HTML.
     Returns: (all_doctors, primary_doctor)
@@ -45,8 +48,16 @@ def extract_practitioners(soup: BeautifulSoup) -> Tuple[List[EnrichedDoctor], Op
                 for entity in graph:
                     if not isinstance(entity, dict):
                         continue
-                    if entity.get("@type") == "Person" or "employee" in entity or "founder" in entity:
-                        person_obj = entity if entity.get("@type") == "Person" else (entity.get("founder") or entity.get("employee"))
+                    if (
+                        entity.get("@type") == "Person"
+                        or "employee" in entity
+                        or "founder" in entity
+                    ):
+                        person_obj = (
+                            entity
+                            if entity.get("@type") == "Person"
+                            else (entity.get("founder") or entity.get("employee"))
+                        )
                         if isinstance(person_obj, list):
                             person_list = person_obj
                         elif isinstance(person_obj, dict):
@@ -59,19 +70,31 @@ def extract_practitioners(soup: BeautifulSoup) -> Tuple[List[EnrichedDoctor], Op
                                 continue
                             raw_name = p.get("name", "").strip()
                             if raw_name and len(raw_name) > 3:
-                                name_clean = raw_name if raw_name.lower().startswith("dr.") else f"Dr. {raw_name}"
+                                name_clean = (
+                                    raw_name
+                                    if raw_name.lower().startswith("dr.")
+                                    else f"Dr. {raw_name}"
+                                )
                                 if name_clean.lower() not in seen_names:
                                     seen_names.add(name_clean.lower())
                                     job_title = p.get("jobTitle") or p.get("description")
-                                    doctors.append(EnrichedDoctor(
-                                        name=name_clean,
-                                        title=job_title[:80] if job_title else "Dental Surgeon",
-                                        credentials=_extract_credentials(f"{name_clean} {job_title or ''}"),
-                                        bio=p.get("description")[:250] if p.get("description") else None,
-                                        is_primary=True if (entity.get("founder") or len(doctors) == 0) else False,
-                                        confidence=0.90,
-                                        source="json_ld",
-                                    ))
+                                    doctors.append(
+                                        EnrichedDoctor(
+                                            name=name_clean,
+                                            title=job_title[:80] if job_title else "Dental Surgeon",
+                                            credentials=_extract_credentials(
+                                                f"{name_clean} {job_title or ''}"
+                                            ),
+                                            bio=p.get("description")[:250]
+                                            if p.get("description")
+                                            else None,
+                                            is_primary=True
+                                            if (entity.get("founder") or len(doctors) == 0)
+                                            else False,
+                                            confidence=0.90,
+                                            source="json_ld",
+                                        )
+                                    )
         except Exception:
             pass
 
@@ -80,7 +103,7 @@ def extract_practitioners(soup: BeautifulSoup) -> Tuple[List[EnrichedDoctor], Op
         # Search specifically in team/doctor containers first
         team_containers = soup.find_all(
             ["div", "section", "article"],
-            attrs={"class": re.compile(r"team|doctor|staff|dentist|about", re.I)}
+            attrs={"class": re.compile(r"team|doctor|staff|dentist|about", re.I)},
         )
         search_targets = team_containers if team_containers else [soup]
 
@@ -94,21 +117,29 @@ def extract_practitioners(soup: BeautifulSoup) -> Tuple[List[EnrichedDoctor], Op
                     if full_name.lower() not in seen_names and len(m.strip().split()) >= 2:
                         seen_names.add(full_name.lower())
                         # Look for credentials in parent or sibling text
-                        parent_text = h.parent.get_text(separator=" ", strip=True) if h.parent else text
+                        parent_text = (
+                            h.parent.get_text(separator=" ", strip=True) if h.parent else text
+                        )
                         creds = _extract_credentials(parent_text)
-                        
+
                         # Detect primary doctor signals
-                        is_primary = bool(re.search(r"chief|founder|director|lead|head|principal", parent_text, re.I))
-                        
-                        doctors.append(EnrichedDoctor(
-                            name=full_name,
-                            title=_extract_doctor_title(parent_text),
-                            credentials=creds,
-                            bio=_extract_short_bio(parent_text),
-                            is_primary=is_primary,
-                            confidence=0.75,
-                            source="html_heading",
-                        ))
+                        is_primary = bool(
+                            re.search(
+                                r"chief|founder|director|lead|head|principal", parent_text, re.I
+                            )
+                        )
+
+                        doctors.append(
+                            EnrichedDoctor(
+                                name=full_name,
+                                title=_extract_doctor_title(parent_text),
+                                credentials=creds,
+                                bio=_extract_short_bio(parent_text),
+                                is_primary=is_primary,
+                                confidence=0.75,
+                                source="html_heading",
+                            )
+                        )
                         if len(doctors) >= 5:
                             break
                 if len(doctors) >= 5:
@@ -133,7 +164,7 @@ def extract_practitioners(soup: BeautifulSoup) -> Tuple[List[EnrichedDoctor], Op
 def _extract_credentials(text: str) -> Optional[str]:
     matches = CREDENTIALS_REGEX.findall(text)
     if matches:
-        return ", ".join(sorted(list(set(m.upper() for m in matches))))
+        return ", ".join(sorted({m.upper() for m in matches}))
     return None
 
 
@@ -153,8 +184,11 @@ def _extract_doctor_title(text: str) -> str:
 
 
 def _extract_short_bio(text: str) -> Optional[str]:
-    sentences = [s.strip() for s in re.split(r'[.!?]+', text) if len(s.strip()) > 20]
+    sentences = [s.strip() for s in re.split(r"[.!?]+", text) if len(s.strip()) > 20]
     for s in sentences:
-        if any(term in s.lower() for term in ("experience", "specializ", "fellow", "dentistry", "care", "patient")):
+        if any(
+            term in s.lower()
+            for term in ("experience", "specializ", "fellow", "dentistry", "care", "patient")
+        ):
             return f"{s}."
     return None

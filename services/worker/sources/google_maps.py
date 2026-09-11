@@ -2,7 +2,7 @@ import asyncio
 import logging
 import re
 from typing import List, Optional
-from urllib.parse import quote_plus, unquote
+from urllib.parse import quote_plus
 
 from playwright.async_api import Page
 
@@ -14,19 +14,19 @@ logger = logging.getLogger(__name__)
 
 # International and domestic phone number pattern
 PHONE_REGEX = re.compile(
-    r'(?:(?:\+|0{0,2})\d{1,4}[\s.-]*)?'
-    r'(?:\(?\d{2,5}\)?[\s.-]*)?'
-    r'\d{3,5}[\s.-]?\d{3,5}'
+    r"(?:(?:\+|0{0,2})\d{1,4}[\s.-]*)?"
+    r"(?:\(?\d{2,5}\)?[\s.-]*)?"
+    r"\d{3,5}[\s.-]?\d{3,5}"
 )
 
 
 def clean_unicode_spaces(text: str) -> str:
     if not text:
         return ""
-    return text.replace('\u202f', ' ').replace('\xa0', ' ').replace('\u200b', ' ').strip()
+    return text.replace("\u202f", " ").replace("\xa0", " ").replace("\u200b", " ").strip()
 
 
-from utils.phone import normalize_global_phone, is_mobile_phone, get_whatsapp_url
+from utils.phone import get_whatsapp_url, is_mobile_phone, normalize_global_phone
 
 
 def extract_phone_number(text: str, location: Optional[str] = None) -> Optional[str]:
@@ -38,7 +38,7 @@ def extract_phone_number(text: str, location: Optional[str] = None) -> Optional[
         c_clean = c.strip()
         digits = sum(c.isdigit() for c in c_clean)
         if 8 <= digits <= 15:
-            if not (c_clean.startswith(('19', '20')) and digits <= 8):
+            if not (c_clean.startswith(("19", "20")) and digits <= 8):
                 display_phone, _ = normalize_global_phone(c_clean, location=location)
                 return display_phone
     return None
@@ -55,17 +55,17 @@ def extract_place_id(url: Optional[str], card_attrs: Optional[dict] = None) -> O
     """
     if url:
         # 1. Check for ChIJ... Google Place ID in URL
-        match_chij = re.search(r'(ChIJ[a-zA-Z0-9_-]{23,})', url)
+        match_chij = re.search(r"(ChIJ[a-zA-Z0-9_-]{23,})", url)
         if match_chij:
             return match_chij.group(1)
 
         # 2. Check for canonical place hex identifier: !1s(0x...:0x...)
-        match_hex = re.search(r'!1s(0x[0-9a-fA-F]+:0x[0-9a-fA-F]+)', url)
+        match_hex = re.search(r"!1s(0x[0-9a-fA-F]+:0x[0-9a-fA-F]+)", url)
         if match_hex:
             return match_hex.group(1)
 
         # 3. Explicit cid query parameter in URL (e.g. ?cid=5746927495034872712)
-        match_cid = re.search(r'[?&]cid=(\d+)', url)
+        match_cid = re.search(r"[?&]cid=(\d+)", url)
         if match_cid:
             return match_cid.group(1)
 
@@ -87,12 +87,12 @@ def extract_decimal_cid(url: Optional[str]) -> Optional[str]:
         return None
 
     # If already a decimal CID parameter
-    match_cid = re.search(r'[?&]cid=(\d+)', url)
+    match_cid = re.search(r"[?&]cid=(\d+)", url)
     if match_cid:
         return match_cid.group(1)
 
     # Secondary hex token in !1s0x...:0x... or standalone 0x...:0x...
-    match_hex = re.search(r'(?:!1s)?0x[0-9a-fA-F]+:0x([0-9a-fA-F]+)', url)
+    match_hex = re.search(r"(?:!1s)?0x[0-9a-fA-F]+:0x([0-9a-fA-F]+)", url)
     if match_hex:
         try:
             return str(int(match_hex.group(1), 16))
@@ -147,7 +147,7 @@ def extract_coordinates(url: Optional[str]) -> tuple[Optional[float], Optional[f
         return None, None
 
     # Priority 1: !8m2!3d<lat>!4d<lng> (Standard Google Maps pin location in place URLs)
-    match_8m2 = re.search(r'!8m2!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)', url)
+    match_8m2 = re.search(r"!8m2!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)", url)
     if match_8m2:
         try:
             lat = float(match_8m2.group(1))
@@ -158,7 +158,7 @@ def extract_coordinates(url: Optional[str]) -> tuple[Optional[float], Optional[f
             pass
 
     # Priority 2: !3d<lat>!4d<lng> (Direct 3D pin location)
-    match_3d4d = re.search(r'!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)', url)
+    match_3d4d = re.search(r"!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)", url)
     if match_3d4d:
         try:
             lat = float(match_3d4d.group(1))
@@ -170,7 +170,7 @@ def extract_coordinates(url: Optional[str]) -> tuple[Optional[float], Optional[f
 
     # Priority 3: Explicit place query parameters (e.g. ?query=lat,lng or &ll=lat,lng) on place URLs
     if "/maps/place/" in lower_url or "cid=" in lower_url:
-        match_query_loc = re.search(r'[?&](?:query|ll|loc)=(-?\d+\.\d+),(-?\d+\.\d+)', url)
+        match_query_loc = re.search(r"[?&](?:query|ll|loc)=(-?\d+\.\d+),(-?\d+\.\d+)", url)
         if match_query_loc:
             try:
                 lat = float(match_query_loc.group(1))
@@ -200,7 +200,9 @@ class GoogleMapsScraper(PlaywrightScraper):
         self.current_locality: Optional[str] = None
         self.localities_remaining: Optional[int] = None
 
-    def _generate_locality_queries(self, target_audience: str, locality: str, city: str) -> List[str]:
+    def _generate_locality_queries(
+        self, target_audience: str, locality: str, city: str
+    ) -> List[str]:
         """
         Generates diversified queries pairing the active locality with category and specialty keywords
         to surface businesses categorized under varied Google Maps taxonomy tags.
@@ -218,22 +220,30 @@ class GoogleMapsScraper(PlaywrightScraper):
 
         audience_clean = target_audience.lower().strip()
         if "dental" in audience_clean or "dentist" in audience_clean:
-            variations.extend([
-                f"Dental Clinic in {geo_term}",
-                f"Dentist in {geo_term}",
-                f"Dental Hospital in {geo_term}",
-            ])
-        elif "doctor" in audience_clean or "clinic" in audience_clean or "hospital" in audience_clean:
-            variations.extend([
-                f"Clinic in {geo_term}",
-                f"Hospital in {geo_term}",
-                f"Doctor in {geo_term}",
-            ])
+            variations.extend(
+                [
+                    f"Dental Clinic in {geo_term}",
+                    f"Dentist in {geo_term}",
+                    f"Dental Hospital in {geo_term}",
+                ]
+            )
+        elif (
+            "doctor" in audience_clean or "clinic" in audience_clean or "hospital" in audience_clean
+        ):
+            variations.extend(
+                [
+                    f"Clinic in {geo_term}",
+                    f"Hospital in {geo_term}",
+                    f"Doctor in {geo_term}",
+                ]
+            )
         elif "restaurant" in audience_clean or "cafe" in audience_clean or "food" in audience_clean:
-            variations.extend([
-                f"Restaurants in {geo_term}",
-                f"Cafes in {geo_term}",
-            ])
+            variations.extend(
+                [
+                    f"Restaurants in {geo_term}",
+                    f"Cafes in {geo_term}",
+                ]
+            )
         else:
             variations.append(f"{target_audience} near {geo_term}")
 
@@ -246,10 +256,11 @@ class GoogleMapsScraper(PlaywrightScraper):
                 deduped.append(v)
         return deduped
 
-    async def extract_leads(self, page: Page, params: DiscoverySearchParams) -> List[DiscoveredLead]:
+    async def extract_leads(
+        self, page: Page, params: DiscoverySearchParams
+    ) -> List[DiscoveredLead]:
         target_audience = params.target_audience.strip()
         location = params.location.strip()
-        target_limit = params.limit if params.limit and params.limit > 0 else 50
 
         # 1. Geographic / Locality Subdivision
         from geo.localities import resolve_city_localities
@@ -276,15 +287,19 @@ class GoogleMapsScraper(PlaywrightScraper):
         active_locality = localities[locality_idx]
         self.current_locality = active_locality
         self.localities_remaining = max(0, len(localities) - (locality_idx + 1))
-        self.next_cursor = f"loc:{locality_idx + 1}" if (locality_idx + 1 < len(localities)) else None
+        self.next_cursor = (
+            f"loc:{locality_idx + 1}" if (locality_idx + 1 < len(localities)) else None
+        )
 
         logger.info(
-            f"GoogleMapsScraper: Active locality [{locality_idx+1}/{len(localities)}] '{active_locality}' "
+            f"GoogleMapsScraper: Active locality [{locality_idx + 1}/{len(localities)}] '{active_locality}' "
             f"for location '{location}' (cursor={params.cursor}, next={self.next_cursor})"
         )
 
         # 2. Query Diversification for the active locality
-        queries = params.query_variations or self._generate_locality_queries(target_audience, active_locality, location)
+        queries = params.query_variations or self._generate_locality_queries(
+            target_audience, active_locality, location
+        )
         if not queries:
             queries = [f"{target_audience} in {active_locality}, {location}".strip()]
 
@@ -294,14 +309,20 @@ class GoogleMapsScraper(PlaywrightScraper):
 
         for query_idx, search_query in enumerate(queries):
             if not memory_tracker.is_memory_safe():
-                logger.warning("Memory safety limit reached during Google Maps search. Halting further queries.")
+                logger.warning(
+                    "Memory safety limit reached during Google Maps search. Halting further queries."
+                )
                 break
 
             encoded_query = quote_plus(search_query)
             url = f"https://www.google.com/maps/search/{encoded_query}"
 
-            logger.info(f"GoogleMapsScraper: Navigating to query [{query_idx+1}/{len(queries)}] '{search_query}'")
-            memory_tracker.log_stage("source_navigation", source=self.source_name, extra={"query": search_query})
+            logger.info(
+                f"GoogleMapsScraper: Navigating to query [{query_idx + 1}/{len(queries)}] '{search_query}'"
+            )
+            memory_tracker.log_stage(
+                "source_navigation", source=self.source_name, extra={"query": search_query}
+            )
 
             try:
                 await page.goto(url, wait_until="domcontentloaded", timeout=25000)
@@ -326,7 +347,9 @@ class GoogleMapsScraper(PlaywrightScraper):
                 await page.wait_for_selector(feed_selector, timeout=6000)
             except Exception:
                 try:
-                    await page.wait_for_selector('div[role="article"], div.Nv2PK, a[href*="/maps/place/"]', timeout=4000)
+                    await page.wait_for_selector(
+                        'div[role="article"], div.Nv2PK, a[href*="/maps/place/"]', timeout=4000
+                    )
                 except Exception:
                     logger.info(f"No listings rendered for query '{search_query}'.")
                     continue
@@ -339,30 +362,34 @@ class GoogleMapsScraper(PlaywrightScraper):
 
             for scroll_idx in range(max_scroll_attempts):
                 if not memory_tracker.is_memory_safe():
-                    logger.warning("Memory safety ceiling reached during scroll. Stopping feed exploration.")
+                    logger.warning(
+                        "Memory safety ceiling reached during scroll. Stopping feed exploration."
+                    )
                     break
 
                 # Check for authentic Google Maps end-of-feed marker
-                is_end_of_feed = await page.evaluate('''() => {
+                is_end_of_feed = await page.evaluate("""() => {
                     const endMarker = document.querySelector('div.HlvSq, div.fontTitleMedium.HlvSq, span.HlvSq');
                     if (endMarker) return true;
                     const feed = document.querySelector('div[role="feed"]');
                     if (feed && feed.innerText.includes("You've reached the end of the list")) return true;
                     return false;
-                }''')
+                }""")
                 if is_end_of_feed:
                     logger.info(f"Query '{search_query}': Authentic end-of-list encountered.")
                     break
 
                 # Count current cards
-                card_count = await page.evaluate('''() => {
+                card_count = await page.evaluate("""() => {
                     return document.querySelectorAll('div[role="article"], div.Nv2PK, a.hfpxzc').length;
-                }''')
+                }""")
 
                 if card_count == previous_count:
                     consecutive_no_growth += 1
                     if consecutive_no_growth >= 4:
-                        logger.info(f"Query '{search_query}': Feed settled after {scroll_idx} scrolls ({card_count} cards).")
+                        logger.info(
+                            f"Query '{search_query}': Feed settled after {scroll_idx} scrolls ({card_count} cards)."
+                        )
                         break
                 else:
                     consecutive_no_growth = 0
@@ -370,7 +397,7 @@ class GoogleMapsScraper(PlaywrightScraper):
                 previous_count = card_count
 
                 # Scroll the feed or main scrollable container
-                await page.evaluate('''() => {
+                await page.evaluate("""() => {
                     const selectors = [
                         'div[role="feed"]',
                         'div.m6QErb[aria-label*="Results for"]',
@@ -387,14 +414,14 @@ class GoogleMapsScraper(PlaywrightScraper):
                     }
                     window.scrollTo(0, document.body.scrollHeight);
                     return false;
-                }''')
+                }""")
 
                 await asyncio.sleep(0.9)
 
             # Check if Google Maps redirected to a single place page
             current_url = page.url
             if "/maps/place/" in current_url:
-                single_lead_data = await page.evaluate('''() => {
+                single_lead_data = await page.evaluate(r"""() => {
                     const nameEl = document.querySelector('h1.DUwDvf, h1.fontHeadlineLarge, h1');
                     const name = nameEl ? nameEl.innerText.trim() : null;
                     if (!name) return null;
@@ -441,14 +468,16 @@ class GoogleMapsScraper(PlaywrightScraper):
                     }
 
                     return { name, website, phone, address, rating, reviewsCount, category, openingHours };
-                }''')
+                }""")
 
                 if single_lead_data and single_lead_data.get("name"):
                     s_name = clean_unicode_spaces(single_lead_data["name"])
                     lat, lng = extract_coordinates(current_url)
                     true_place_id = extract_place_id(current_url)
                     canonical_url = build_canonical_place_url(current_url)
-                    s_phone = extract_phone_number(single_lead_data.get("phone") or "", location=location)
+                    s_phone = extract_phone_number(
+                        single_lead_data.get("phone") or "", location=location
+                    )
                     s_addr = clean_unicode_spaces(single_lead_data.get("address") or "")
 
                     decimal_cid = extract_decimal_cid(current_url)
@@ -466,33 +495,41 @@ class GoogleMapsScraper(PlaywrightScraper):
                     if s_key not in seen_keys:
                         seen_keys.add(s_key)
 
-                        s_is_mobile = is_mobile_phone(s_phone, location=location) if s_phone else False
-                        s_whatsapp = get_whatsapp_url(s_phone, location=location) if (s_phone and s_is_mobile) else None
+                        s_is_mobile = (
+                            is_mobile_phone(s_phone, location=location) if s_phone else False
+                        )
+                        s_whatsapp = (
+                            get_whatsapp_url(s_phone, location=location)
+                            if (s_phone and s_is_mobile)
+                            else None
+                        )
 
-                        leads.append(DiscoveredLead(
-                            name=s_name,
-                            category=single_lead_data.get("category") or target_audience,
-                            city=location,
-                            address=s_addr or None,
-                            phone=s_phone,
-                            has_whatsapp=s_is_mobile,
-                            whatsapp=s_whatsapp,
-                            website=single_lead_data.get("website"),
-                            source_platform="google_maps",
-                            source_place_id=true_place_id,
-                            source_url=canonical_url,
-                            rating=single_lead_data.get("rating"),
-                            reviews_count=single_lead_data.get("reviewsCount"),
-                            latitude=lat,
-                            longitude=lng,
-                            google_place_id=true_place_id,
-                            google_maps_url=canonical_url,
-                            opening_hours=single_lead_data.get("openingHours"),
-                        ))
+                        leads.append(
+                            DiscoveredLead(
+                                name=s_name,
+                                category=single_lead_data.get("category") or target_audience,
+                                city=location,
+                                address=s_addr or None,
+                                phone=s_phone,
+                                has_whatsapp=s_is_mobile,
+                                whatsapp=s_whatsapp,
+                                website=single_lead_data.get("website"),
+                                source_platform="google_maps",
+                                source_place_id=true_place_id,
+                                source_url=canonical_url,
+                                rating=single_lead_data.get("rating"),
+                                reviews_count=single_lead_data.get("reviewsCount"),
+                                latitude=lat,
+                                longitude=lng,
+                                google_place_id=true_place_id,
+                                google_maps_url=canonical_url,
+                                opening_hours=single_lead_data.get("openingHours"),
+                            )
+                        )
                 continue
 
             # 4. Batch extract listing cards from the feed
-            raw_listings = await page.evaluate('''() => {
+            raw_listings = await page.evaluate("""() => {
                 const items = [];
                 const cards = document.querySelectorAll('div.Nv2PK, div[role="article"]');
 
@@ -525,7 +562,7 @@ class GoogleMapsScraper(PlaywrightScraper):
                         const ratingEl = card.querySelector('span.MW4etd, span[aria-label*="stars" i], span[role="img"][aria-label*="star" i]');
                         if (ratingEl) {
                             const rText = ratingEl.innerText || ratingEl.getAttribute('aria-label') || '';
-                            const match = rText.match(/([1-5]\.[0-9])/);
+                            const match = rText.match(/([1-5]\\.[0-9])/);
                             if (match) rating = parseFloat(match[1]);
                         }
 
@@ -599,7 +636,7 @@ class GoogleMapsScraper(PlaywrightScraper):
                     } catch (e) {}
                 }
                 return items;
-            }''')
+            }""")
 
             # 5. Strict 5-Link Location Verification Chain (Business → Place → URL → Address → Coordinate)
             for item in raw_listings:
@@ -639,13 +676,27 @@ class GoogleMapsScraper(PlaywrightScraper):
                     for blob in item.get("textBlobs", []):
                         b_clean = clean_unicode_spaces(blob)
                         b_lower = b_clean.lower()
-                        if any(reject in b_lower for reject in ("review", "open", "close", "pm", "am", "★", "http", "ratings")):
+                        if any(
+                            reject in b_lower
+                            for reject in (
+                                "review",
+                                "open",
+                                "close",
+                                "pm",
+                                "am",
+                                "★",
+                                "http",
+                                "ratings",
+                            )
+                        ):
                             continue
                         if PHONE_REGEX.search(b_clean):
                             continue
-                        if re.match(r'^[0-9.,() ]+$', b_clean):
+                        if re.match(r"^[0-9.,() ]+$", b_clean):
                             continue
-                        if len(b_clean) > 8 and (any(c.isdigit() for c in b_clean) or "," in b_clean):
+                        if len(b_clean) > 8 and (
+                            any(c.isdigit() for c in b_clean) or "," in b_clean
+                        ):
                             if b_clean != item.get("category"):
                                 address = b_clean
                                 break
@@ -679,7 +730,11 @@ class GoogleMapsScraper(PlaywrightScraper):
                         "whatsapp" in (blob or "").lower() or "wa.me" in (blob or "").lower()
                         for blob in item.get("textBlobs", [])
                     )
-                    whatsapp_val = get_whatsapp_url(phone, location=location) if (phone and has_whatsapp) else None
+                    whatsapp_val = (
+                        get_whatsapp_url(phone, location=location)
+                        if (phone and has_whatsapp)
+                        else None
+                    )
 
                     # Strict 5-Link Verification Rule:
                     # Stored google_maps_url, latitude, and longitude must belong exclusively to that verified place.
@@ -688,27 +743,30 @@ class GoogleMapsScraper(PlaywrightScraper):
                     verified_lat = lat if (lat is not None and verified_maps_url) else None
                     verified_lng = lng if (lng is not None and verified_maps_url) else None
 
-                    leads.append(DiscoveredLead(
-                        name=name,
-                        category=category,
-                        city=location,
-                        address=address,
-                        phone=phone,
-                        has_whatsapp=has_whatsapp,
-                        whatsapp=whatsapp_val,
-                        website=website,
-                        source_platform="google_maps",
-                        source_place_id=true_place_id or (f"cid:{decimal_cid}" if decimal_cid else None),
-                        source_url=verified_maps_url,
-                        rating=rating,
-                        reviews_count=reviews_count,
-                        latitude=verified_lat,
-                        longitude=verified_lng,
-                        google_place_id=true_place_id or decimal_cid,
-                        google_maps_url=verified_maps_url,
-                        opening_hours=opening_hours,
-                        business_status=business_status,
-                    ))
+                    leads.append(
+                        DiscoveredLead(
+                            name=name,
+                            category=category,
+                            city=location,
+                            address=address,
+                            phone=phone,
+                            has_whatsapp=has_whatsapp,
+                            whatsapp=whatsapp_val,
+                            website=website,
+                            source_platform="google_maps",
+                            source_place_id=true_place_id
+                            or (f"cid:{decimal_cid}" if decimal_cid else None),
+                            source_url=verified_maps_url,
+                            rating=rating,
+                            reviews_count=reviews_count,
+                            latitude=verified_lat,
+                            longitude=verified_lng,
+                            google_place_id=true_place_id or decimal_cid,
+                            google_maps_url=verified_maps_url,
+                            opening_hours=opening_hours,
+                            business_status=business_status,
+                        )
+                    )
                 except Exception as e:
                     logger.debug(f"Error parsing item: {e}")
 
@@ -721,4 +779,3 @@ class GoogleMapsScraper(PlaywrightScraper):
             f"(exhausted={self.is_exhausted}, remaining_localities={self.localities_remaining}, next_cursor={self.next_cursor})"
         )
         return leads
-

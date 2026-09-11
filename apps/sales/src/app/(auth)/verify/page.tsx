@@ -1,10 +1,16 @@
-import { Suspense } from "react"
-import { VerifyOtpForm } from "@/components/verify-otp-form"
+import { Suspense } from "react";
+import { VerifyOtpForm } from "@/features/auth/components/VerifyOtpForm";
 
 export default function VerifyPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center p-8 text-muted-foreground text-sm">Loading verification...</div>}>
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center p-8 text-muted-foreground text-sm">
+          Loading verification…
+        </div>
+      }
+    >
       <VerifyOtpForm />
     </Suspense>
-  )
+  );
 }

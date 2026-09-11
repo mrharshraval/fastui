@@ -26,17 +26,15 @@
       "@/*": [
         "./src/*"
       ],
-      "@/components/ui/*": [
-        "./src/components/ui/*"
+      "@/shared/*": [
+        "./src/shared/*"
       ],
       "@/shared/ui/*": [
+        "./src/shared/ui/*",
         "./src/components/ui/*"
       ],
-      "@/shared/utils/*": [
-        "./src/lib/*"
-      ],
-      "@/shared/hooks/*": [
-        "./src/hooks/*"
+      "@/components/ui/*": [
+        "./src/components/ui/*"
       ]
     }
   },

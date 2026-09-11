@@ -7,6 +7,7 @@ with the official business website.
 
 from typing import Dict
 from urllib.parse import urlparse
+
 from bs4 import BeautifulSoup
 
 KNOWN_SOCIAL_DOMAINS = {
@@ -20,8 +21,13 @@ KNOWN_SOCIAL_DOMAINS = {
 }
 
 SHARING_INTENTS = (
-    "sharer.php", "intent/tweet", "sharearticle", "share.php",
-    "share?", "dialog/share", "pin/create"
+    "sharer.php",
+    "intent/tweet",
+    "sharearticle",
+    "share.php",
+    "share?",
+    "dialog/share",
+    "pin/create",
 )
 
 
@@ -59,10 +65,25 @@ def extract_social_links(soup: BeautifulSoup) -> Dict[str, str]:
                 if domain in netloc:
                     path = parsed.path.strip("/")
                     # Ensure path is an actual profile/channel, not generic home, feed, or policy link
-                    if path and len(path) > 1 and not path.startswith((
-                        "home", "terms", "privacy", "about", "policies", "help", "login",
-                        "watch", "feed", "explore", "shorts"
-                    )):
+                    if (
+                        path
+                        and len(path) > 1
+                        and not path.startswith(
+                            (
+                                "home",
+                                "terms",
+                                "privacy",
+                                "about",
+                                "policies",
+                                "help",
+                                "login",
+                                "watch",
+                                "feed",
+                                "explore",
+                                "shorts",
+                            )
+                        )
+                    ):
                         if platform not in social_profiles:
                             scheme = parsed.scheme or "https"
                             full_url = f"{scheme}://{netloc}/{path}"

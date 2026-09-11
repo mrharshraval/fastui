@@ -18,10 +18,18 @@ from typing import Any, Dict, Optional
 
 correlation_id_ctx: ContextVar[str] = ContextVar("correlation_id", default="")
 
-REDACTED_KEYS = frozenset({
-    "password", "token", "worker_token", "x-worker-token", "secret", "authorization",
-    "gcp_service_account_key", "api_key",
-})
+REDACTED_KEYS = frozenset(
+    {
+        "password",
+        "token",
+        "worker_token",
+        "x-worker-token",
+        "secret",
+        "authorization",
+        "gcp_service_account_key",
+        "api_key",
+    }
+)
 
 
 def redact_sensitive_data(data: Any) -> Any:
@@ -105,10 +113,14 @@ class DevelopmentConsoleFormatter(logging.Formatter):
     def __init__(self, service_name: str = "fastui-worker") -> None:
         super().__init__()
         self.service_name = service_name
-        self.use_color = sys.platform != "win32" or "WT_SESSION" in os.environ or "TERM" in os.environ
+        self.use_color = (
+            sys.platform != "win32" or "WT_SESSION" in os.environ or "TERM" in os.environ
+        )
 
     def format(self, record: logging.LogRecord) -> str:
-        timestamp = datetime.fromtimestamp(record.created, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+        timestamp = datetime.fromtimestamp(record.created, tz=timezone.utc).strftime(
+            "%Y-%m-%d %H:%M:%S.%f"
+        )[:-3]
         corr_id = correlation_id_ctx.get() or getattr(record, "correlation_id", "")
         corr_tag = f" [{corr_id[:8]}]" if corr_id else ""
 
@@ -125,7 +137,9 @@ class DevelopmentConsoleFormatter(logging.Formatter):
         return formatted
 
 
-def setup_worker_logging(service_name: str = "fastui-worker", log_level: Optional[str] = None) -> None:
+def setup_worker_logging(
+    service_name: str = "fastui-worker", log_level: Optional[str] = None
+) -> None:
     env = os.getenv("ENVIRONMENT", "development").lower()
     resolved_level = log_level or os.getenv("LOG_LEVEL", "INFO").upper()
     numeric_level = getattr(logging, resolved_level, logging.INFO)

@@ -5,18 +5,17 @@ canonical place URL construction, locality decomposition, and card parsing.
 """
 
 from pathlib import Path
-from bs4 import BeautifulSoup
-import pytest
 
+from bs4 import BeautifulSoup
+
+from geo.localities import resolve_city_localities
 from sources.google_maps import (
-    extract_place_id,
-    extract_decimal_cid,
     build_canonical_place_url,
     extract_coordinates,
+    extract_decimal_cid,
     extract_phone_number,
-    clean_unicode_spaces,
+    extract_place_id,
 )
-from geo.localities import resolve_city_localities
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -37,7 +36,9 @@ def test_extract_coordinates_verified_pin_patterns():
 
 def test_extract_coordinates_rejects_viewport_and_search_urls():
     # Unverified camera viewport (/@lat,lng) without a pin is strictly rejected
-    url_viewport_only = "https://www.google.com/maps/place/Apex+Dental/@23.033812,72.585034,15z/data=!4m6!3m5"
+    url_viewport_only = (
+        "https://www.google.com/maps/place/Apex+Dental/@23.033812,72.585034,15z/data=!4m6!3m5"
+    )
     assert extract_coordinates(url_viewport_only) == (None, None)
 
     # Pure search URLs are strictly rejected to prevent viewport collision
@@ -66,7 +67,9 @@ def test_extract_place_id_hex_and_chij():
 
 def test_extract_place_id_never_returns_business_name():
     # URL has place name in path but no valid place ID pattern
-    url_name_only = "https://www.google.com/maps/place/Smile+Care+Dental+Studio/@23.0338,72.5850,15z"
+    url_name_only = (
+        "https://www.google.com/maps/place/Smile+Care+Dental+Studio/@23.0338,72.5850,15z"
+    )
     # MUST return None, NEVER "Smile Care Dental Studio"!
     assert extract_place_id(url_name_only) is None
 
@@ -112,7 +115,10 @@ def test_resolve_city_localities():
     locs_ahmedabad = resolve_city_localities("Ahmedabad, Gujarat, India")
     assert len(locs_ahmedabad) >= 10
     # Dynamic OSM includes areas like Naroda, Sahijpur, etc.
-    assert any("naroda" in loc.lower() or "paldi" in loc.lower() or "maninagar" in loc.lower() for loc in locs_ahmedabad)
+    assert any(
+        "naroda" in loc.lower() or "paldi" in loc.lower() or "maninagar" in loc.lower()
+        for loc in locs_ahmedabad
+    )
 
     # 2. Dynamic OSM resolution for Mumbai
     locs_mumbai = resolve_city_localities("Mumbai, Maharashtra")
@@ -182,9 +188,13 @@ def test_extract_phone_number_and_whatsapp():
     phone = extract_phone_number(text_with_phone, location="Ahmedabad, Gujarat, India")
     assert phone == "+91 98251 58578"
 
-    from utils.phone import is_mobile_phone, get_whatsapp_url
+    from utils.phone import get_whatsapp_url, is_mobile_phone
+
     assert is_mobile_phone(phone, location="Ahmedabad, Gujarat, India") is True
-    assert get_whatsapp_url(phone, location="Ahmedabad, Gujarat, India") == "https://wa.me/919825158578"
+    assert (
+        get_whatsapp_url(phone, location="Ahmedabad, Gujarat, India")
+        == "https://wa.me/919825158578"
+    )
 
 
 def test_extract_phone_number_does_not_raise_name_error():
@@ -195,6 +205,7 @@ def test_extract_phone_number_does_not_raise_name_error():
 
 def test_dynamic_locality_resolver_caching():
     from geo.localities import DynamicLocalityResolver
+
     resolver = DynamicLocalityResolver()
     resolver._memory_cache["testcity"] = ["Area A", "Area B", "Area C"]
     result = resolver.resolve("testcity, State, Country")
@@ -203,12 +214,18 @@ def test_dynamic_locality_resolver_caching():
 
 def test_dynamic_locality_resolver_fallback_on_network_error():
     from unittest.mock import patch
+
     from geo.localities import DynamicLocalityResolver
+
     resolver = DynamicLocalityResolver()
     resolver._memory_cache.pop("mumbai", None)
-    
-    with patch.object(resolver, "fetch_nominatim_iterative", side_effect=RuntimeError("Network down")), \
-         patch.object(resolver, "fetch_overpass", return_value=[]):
+
+    with (
+        patch.object(
+            resolver, "fetch_nominatim_iterative", side_effect=RuntimeError("Network down")
+        ),
+        patch.object(resolver, "fetch_overpass", return_value=[]),
+    ):
         locs = resolver.resolve("Mumbai, Maharashtra, India")
         # Gracefully falls back to curated registry
         assert "Bandra West" in locs
@@ -217,12 +234,16 @@ def test_dynamic_locality_resolver_fallback_on_network_error():
 
 def test_dynamic_locality_resolver_directional_fallback_for_unlisted():
     from unittest.mock import patch
+
     from geo.localities import DynamicLocalityResolver
+
     resolver = DynamicLocalityResolver()
     resolver._memory_cache.pop("marsopolis", None)
-    
-    with patch.object(resolver, "fetch_nominatim_iterative", return_value=[]), \
-         patch.object(resolver, "fetch_overpass", return_value=[]):
+
+    with (
+        patch.object(resolver, "fetch_nominatim_iterative", return_value=[]),
+        patch.object(resolver, "fetch_overpass", return_value=[]),
+    ):
         locs = resolver.resolve("Marsopolis, OuterSpace")
         assert "Central Marsopolis" in locs
         assert "North Marsopolis" in locs
@@ -231,6 +252,7 @@ def test_dynamic_locality_resolver_directional_fallback_for_unlisted():
 
 def test_dynamic_locality_resolver_subdivision_of_dense_areas():
     from geo.localities import DynamicLocalityResolver
+
     resolver = DynamicLocalityResolver()
     areas = ["Ring Road", "Tech Square", "Quiet Village"]
     subdivided = resolver.subdivide_dense_areas(areas, "SampleCity")
@@ -240,4 +262,3 @@ def test_dynamic_locality_resolver_subdivision_of_dense_areas():
     assert "Tech Square East" in subdivided
     assert "Quiet Village" in subdivided
     assert "Quiet Village East" not in subdivided
-

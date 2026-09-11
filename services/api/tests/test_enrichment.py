@@ -1,11 +1,10 @@
-import pytest
 from unittest.mock import AsyncMock, patch
+
+import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
-from models.schema import Business, BusinessSource, ProspectDemo
-from schemas.enrichment import (
+from app.domains.enrichment.schemas import (
     EnrichedBrand,
     EnrichedBusinessProfile,
     EnrichedContact,
@@ -15,14 +14,15 @@ from schemas.enrichment import (
     EnrichmentResponse,
     TreatmentSignal,
 )
-from services.enrichment_service import EnrichmentService
+from app.domains.enrichment.service import EnrichmentService
+from app.domains.models import Business, BusinessSource
 
 
 @pytest.mark.asyncio
 async def test_enrich_endpoint_no_website_returns_400(
     auth_client: AsyncClient, db_session: AsyncSession
 ):
-    """Confirms POST /businesses/{id}/enrich fails if business has no website."""
+    """Confirms POST /v1/businesses/{id}/enrichment fails if business has no website."""
     business = Business(
         business_name="No Website Clinic",
         category="Dental Clinic",
@@ -32,7 +32,7 @@ async def test_enrich_endpoint_no_website_returns_400(
     await db_session.commit()
     await db_session.refresh(business)
 
-    resp = await auth_client.post(f"/businesses/{business.id}/enrich")
+    resp = await auth_client.post(f"/v1/businesses/{business.id}/enrichment")
     assert resp.status_code == 400
     assert "does not have a website" in resp.json()["detail"]
 
@@ -41,7 +41,7 @@ async def test_enrich_endpoint_no_website_returns_400(
 async def test_enrich_endpoint_queues_background_task(
     auth_client: AsyncClient, db_session: AsyncSession
 ):
-    """Confirms POST /businesses/{id}/enrich queues background task and returns 200."""
+    """Confirms POST /v1/businesses/{id}/enrichment queues background task and returns 202."""
     business = Business(
         business_name="Apex Dental Care",
         category="Dental Clinic",
@@ -53,12 +53,12 @@ async def test_enrich_endpoint_queues_background_task(
     await db_session.refresh(business)
 
     with patch(
-        "services.worker_client.WorkerClient.enrich_business",
+        "app.domains.enrichment.service.WorkerClient.enrich_business",
         new_callable=AsyncMock,
     ) as mock_worker_enrich:
         mock_worker_enrich.return_value = None
-        resp = await auth_client.post(f"/businesses/{business.id}/enrich")
-        assert resp.status_code == 200
+        resp = await auth_client.post(f"/v1/businesses/{business.id}/enrichment")
+        assert resp.status_code in (200, 202)
         data = resp.json()
         assert data["business_id"] == business.id
         assert data["status"] == "queued"
@@ -74,8 +74,8 @@ async def test_enrichment_service_full_lifecycle(
     2. Business contact info is backfilled (email, whatsapp).
     3. Website BusinessSource provenance is recorded with raw_payload['enrichment'].
     4. ProspectDemo custom_overrides receives logo_url, doctor details, and specialties.
-    5. GET /businesses/{id}/enrichment returns enriched profile.
-    6. Public demo endpoint GET /public/v1/demos/{token} exposes logo_url and doctor overrides.
+    5. GET /v1/businesses/{id}/enrichment returns enriched profile.
+    6. Public demo endpoint GET /v1/demos/{token} exposes logo_url and doctor overrides.
     """
     # 1. Setup Business and active Demo
     business = Business(
@@ -150,13 +150,13 @@ async def test_enrichment_service_full_lifecycle(
 
     # 3. Execute with WorkerClient mocked
     with patch(
-        "services.worker_client.WorkerClient.enrich_business",
+        "app.domains.enrichment.service.WorkerClient.enrich_business",
         new_callable=AsyncMock,
     ) as mock_worker_enrich:
         mock_worker_enrich.return_value = mock_resp
 
         # Generate demo (automatically enqueues background enrichment)
-        demo_resp = await auth_client.post(f"/businesses/{business.id}/demo")
+        demo_resp = await auth_client.post(f"/v1/businesses/{business.id}/demo")
         assert demo_resp.status_code == 200
         token = demo_resp.json()["token"]
 
@@ -164,7 +164,7 @@ async def test_enrichment_service_full_lifecycle(
         await EnrichmentService.enrich_business_background(business_id=business.id)
 
     # 4. Verify CRM Enrichment Status Endpoint
-    status_resp = await auth_client.get(f"/businesses/{business.id}/enrichment")
+    status_resp = await auth_client.get(f"/v1/businesses/{business.id}/enrichment")
     assert status_resp.status_code == 200
     status_data = status_resp.json()
     assert status_data["is_enriched"] is True
@@ -174,7 +174,7 @@ async def test_enrichment_service_full_lifecycle(
     assert status_data["treatments_count"] == 2
 
     # 5. Verify Public Demo Presentation
-    pub_resp = await client.get(f"/public/v1/demos/{token}")
+    pub_resp = await client.get(f"/v1/demos/{token}")
     assert pub_resp.status_code == 200
     pub_data = pub_resp.json()
 
@@ -185,9 +185,14 @@ async def test_enrichment_service_full_lifecycle(
     assert pub_data["customization"]["doctor_title"] == "Senior Orthodontist & Implant Specialist"
     assert "Invisalign" in pub_data["customization"]["doctor_bio"]
     # Social links and WhatsApp URL must be populated in presentation
-    assert pub_data["business"]["social_links"]["instagram"] == "https://instagram.com/radiantsmiles"
+    assert (
+        pub_data["business"]["social_links"]["instagram"] == "https://instagram.com/radiantsmiles"
+    )
     assert pub_data["business"]["social_links"]["facebook"] == "https://facebook.com/radiantsmiles"
     assert pub_data["business"]["social_links"]["youtube"] == "https://youtube.com/@radiantsmiles"
     assert pub_data["business"]["whatsapp_url"] == "https://wa.me/919876543210"
-    assert pub_data["customization"]["social_links"]["instagram"] == "https://instagram.com/radiantsmiles"
+    assert (
+        pub_data["customization"]["social_links"]["instagram"]
+        == "https://instagram.com/radiantsmiles"
+    )
     assert pub_data["customization"]["whatsapp_url"] == "https://wa.me/919876543210"

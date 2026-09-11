@@ -14,6 +14,7 @@ logger = logging.getLogger("fastui.worker.memory")
 
 try:
     import psutil
+
     _PSUTIL_AVAILABLE = True
 except ImportError:
     _PSUTIL_AVAILABLE = False
@@ -29,7 +30,11 @@ class MemoryTracker:
     DEFAULT_SAFETY_LIMIT_MB = float(os.getenv("MEMORY_SAFETY_LIMIT_MB", "2048.0"))
 
     def __init__(self, safety_limit_mb: Optional[float] = None) -> None:
-        self.safety_limit_mb = safety_limit_mb if safety_limit_mb is not None else float(os.getenv("MEMORY_SAFETY_LIMIT_MB", "2048.0"))
+        self.safety_limit_mb = (
+            safety_limit_mb
+            if safety_limit_mb is not None
+            else float(os.getenv("MEMORY_SAFETY_LIMIT_MB", "2048.0"))
+        )
         self.peak_rss_mb: float = 0.0
         self._update_peak()
 

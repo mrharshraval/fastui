@@ -1,11 +1,24 @@
+from datetime import UTC, datetime
+
 import pytest
 from sqlalchemy import select
-from datetime import datetime, timezone
-from models.schema import (
-    Business, Lead, Contact, Note, Task, Reminder,
-    Outreach, Interaction, Activity, ProspectDemo, CrawledWebsite,
-    PipelineStage, ActivityType, OutreachChannel, OutreachStatus, User
+
+from app.domains.models import (
+    Activity,
+    ActivityType,
+    Business,
+    Contact,
+    Lead,
+    Note,
+    Outreach,
+    OutreachChannel,
+    OutreachStatus,
+    PipelineStage,
+    ProspectDemo,
+    Reminder,
+    Task,
 )
+
 
 @pytest.mark.asyncio
 async def test_single_business_cascade_deletion(auth_client, db_session):
@@ -20,7 +33,9 @@ async def test_single_business_cascade_deletion(auth_client, db_session):
     db_session.add(lead)
 
     # Attach contact
-    contact = Contact(business_id=biz.id, first_name="Dr. John", last_name="Doe", email="john@alpha.com")
+    contact = Contact(
+        business_id=biz.id, first_name="Dr. John", last_name="Doe", email="john@alpha.com"
+    )
     db_session.add(contact)
     await db_session.commit()
     await db_session.refresh(contact)
@@ -28,9 +43,14 @@ async def test_single_business_cascade_deletion(auth_client, db_session):
     # Attach note, task, reminder, activity, outreach, demo
     note = Note(business_id=biz.id, content="Important note")
     task = Task(business_id=biz.id, title="Follow up task")
-    reminder = Reminder(business_id=biz.id, title="Check in", due_at=datetime.now(timezone.utc))
+    reminder = Reminder(business_id=biz.id, title="Check in", due_at=datetime.now(UTC))
     activity = Activity(business_id=biz.id, type=ActivityType.CALL_INITIATED, channel="phone")
-    outreach = Outreach(business_id=biz.id, channel=OutreachChannel.CALL, status=OutreachStatus.CONNECTED, recipient="+919876543210")
+    outreach = Outreach(
+        business_id=biz.id,
+        channel=OutreachChannel.CALL,
+        status=OutreachStatus.CONNECTED,
+        recipient="+919876543210",
+    )
     demo = ProspectDemo(business_id=biz.id, token="token-123456789012345678")
     db_session.add_all([note, task, reminder, activity, outreach, demo])
     await db_session.commit()
@@ -45,13 +65,21 @@ async def test_single_business_cascade_deletion(auth_client, db_session):
     assert biz_check is None
 
     # Verify children are gone
-    leads = (await db_session.execute(select(Lead).where(Lead.business_id == biz.id))).scalars().all()
+    leads = (
+        (await db_session.execute(select(Lead).where(Lead.business_id == biz.id))).scalars().all()
+    )
     assert len(leads) == 0
 
-    contacts = (await db_session.execute(select(Contact).where(Contact.business_id == biz.id))).scalars().all()
+    contacts = (
+        (await db_session.execute(select(Contact).where(Contact.business_id == biz.id)))
+        .scalars()
+        .all()
+    )
     assert len(contacts) == 0
 
-    notes = (await db_session.execute(select(Note).where(Note.business_id == biz.id))).scalars().all()
+    notes = (
+        (await db_session.execute(select(Note).where(Note.business_id == biz.id))).scalars().all()
+    )
     assert len(notes) == 0
 
 
@@ -64,7 +92,9 @@ async def test_bulk_delete_businesses(auth_client, db_session):
     await db_session.refresh(b1)
     await db_session.refresh(b2)
 
-    res = await auth_client.request("DELETE", "/v1/businesses", json={"business_ids": [b1.id, b2.id]})
+    res = await auth_client.request(
+        "DELETE", "/v1/businesses", json={"business_ids": [b1.id, b2.id]}
+    )
     assert res.status_code == 200
     assert res.json()["deleted_count"] == 2
 
@@ -81,10 +111,9 @@ async def test_bulk_qualify_prospects(auth_client, db_session):
     await db_session.refresh(b1)
     await db_session.refresh(b2)
 
-    res = await auth_client.patch("/v1/prospects", json={
-        "business_ids": [b1.id, b2.id],
-        "qualification_status": "qualified"
-    })
+    res = await auth_client.patch(
+        "/v1/prospects", json={"business_ids": [b1.id, b2.id], "qualification_status": "qualified"}
+    )
     assert res.status_code == 200
     assert res.json()["updated_count"] == 2
 
@@ -108,10 +137,9 @@ async def test_bulk_update_stage(auth_client, db_session):
     db_session.add_all([l1, l2])
     await db_session.commit()
 
-    res = await auth_client.patch("/v1/leads", json={
-        "business_ids": [b1.id, b2.id],
-        "stage": "contacted"
-    })
+    res = await auth_client.patch(
+        "/v1/leads", json={"business_ids": [b1.id, b2.id], "stage": "contacted"}
+    )
     assert res.status_code == 200
     assert res.json()["updated_count"] == 2
 
@@ -128,7 +156,13 @@ async def test_contacts_crud(auth_client, db_session):
     await db_session.commit()
     await db_session.refresh(biz)
 
-    c = Contact(business_id=biz.id, first_name="Sarah", last_name="Connor", email="sarah@corp.com", role="CTO")
+    c = Contact(
+        business_id=biz.id,
+        first_name="Sarah",
+        last_name="Connor",
+        email="sarah@corp.com",
+        role="CTO",
+    )
     db_session.add(c)
     await db_session.commit()
     await db_session.refresh(c)

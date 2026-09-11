@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 load_dotenv(os.path.join(root_dir, '.env'))
 
-from models.schema import Base
+from app.domains.models import Base
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

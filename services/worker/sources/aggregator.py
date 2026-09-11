@@ -6,7 +6,8 @@ cross-source deduplication, field enrichment, and source exhaustion tracking.
 """
 
 import logging
-from typing import Dict, List, Tuple
+import threading
+from typing import Dict, List, Optional, Tuple
 
 from contracts import DiscoveredLead, DiscoverySearchParams
 from deduplication import LeadDeduplicator
@@ -37,12 +38,22 @@ class MultiSourceDiscoveryAggregator(DiscoverySourceAdapter):
         self.localities_remaining: Optional[int] = None
 
     async def discover_with_meta(
-        self, params: DiscoverySearchParams
-    ) -> Tuple[List[DiscoveredLead], bool, Dict[str, bool], float, Optional[str], Optional[str], Optional[int]]:
+        self,
+        params: DiscoverySearchParams,
+        cancel_event: Optional[threading.Event] = None,
+    ) -> Tuple[
+        List[DiscoveredLead],
+        bool,
+        Dict[str, bool],
+        float,
+        Optional[str],
+        Optional[str],
+        Optional[int],
+    ]:
         """
         Executes multi-source discovery and returns leads along with exhaustion, cursor, and memory metadata.
         """
-        leads = await self.discover(params)
+        leads = await self.discover(params, cancel_event=cancel_event)
         peak_rss = memory_tracker.peak_rss_mb
         return (
             leads,
@@ -54,7 +65,11 @@ class MultiSourceDiscoveryAggregator(DiscoverySourceAdapter):
             self.localities_remaining,
         )
 
-    async def discover(self, params: DiscoverySearchParams) -> List[DiscoveredLead]:
+    async def discover(
+        self,
+        params: DiscoverySearchParams,
+        cancel_event: Optional[threading.Event] = None,
+    ) -> List[DiscoveredLead]:
         logger.info(
             f"Starting MultiSource discovery for '{params.target_audience}' in '{params.location}' "
             f"(target={params.limit}, cursor={params.cursor})"
@@ -66,6 +81,11 @@ class MultiSourceDiscoveryAggregator(DiscoverySourceAdapter):
         # Check source preferences if specified
         enabled_sources = params.source_preferences or ["google_maps", "web_search"]
 
+        # Check cancellation before starting primary source
+        if cancel_event and cancel_event.is_set():
+            logger.info("Discovery aborted before Google Maps execution due to cancellation.")
+            return all_leads
+
         # 1. Primary discovery via Google Maps
         if "google_maps" in enabled_sources and len(all_leads) < target_limit:
             if memory_tracker.is_memory_safe():
@@ -73,10 +93,14 @@ class MultiSourceDiscoveryAggregator(DiscoverySourceAdapter):
                     memory_tracker.log_stage("source_started", source="google_maps")
                     maps_leads = await self.google_maps.discover(params)
                     all_leads.extend(maps_leads)
-                    self.sources_exhausted["google_maps"] = getattr(self.google_maps, "is_exhausted", False)
+                    self.sources_exhausted["google_maps"] = getattr(
+                        self.google_maps, "is_exhausted", False
+                    )
                     self.next_cursor = getattr(self.google_maps, "next_cursor", None)
                     self.current_locality = getattr(self.google_maps, "current_locality", None)
-                    self.localities_remaining = getattr(self.google_maps, "localities_remaining", None)
+                    self.localities_remaining = getattr(
+                        self.google_maps, "localities_remaining", None
+                    )
                     logger.info(
                         f"Google Maps returned {len(maps_leads)} leads "
                         f"(exhausted={self.sources_exhausted['google_maps']}, next_cursor={self.next_cursor})."
@@ -88,6 +112,10 @@ class MultiSourceDiscoveryAggregator(DiscoverySourceAdapter):
                 logger.warning("Memory safety limit reached before Google Maps execution.")
 
         # 2. Secondary discovery / enrichment via Web Search if target remaining or maps exhausted
+        if cancel_event and cancel_event.is_set():
+            logger.info("Discovery aborted before Web Search execution due to cancellation.")
+            return all_leads
+
         if "web_search" in enabled_sources and len(all_leads) < target_limit:
             if memory_tracker.is_memory_safe():
                 try:
@@ -97,7 +125,9 @@ class MultiSourceDiscoveryAggregator(DiscoverySourceAdapter):
                     secondary_params.limit = target_limit - len(all_leads)
                     web_leads = await self.web_search.discover(secondary_params)
                     all_leads.extend(web_leads)
-                    self.sources_exhausted["web_search"] = getattr(self.web_search, "is_exhausted", False)
+                    self.sources_exhausted["web_search"] = getattr(
+                        self.web_search, "is_exhausted", False
+                    )
                     logger.info(
                         f"Web Search returned {len(web_leads)} leads "
                         f"(exhausted={self.sources_exhausted['web_search']})."
@@ -146,12 +176,13 @@ class MultiSourceDiscoveryAggregator(DiscoverySourceAdapter):
                     matched_existing.business_status = lead.business_status
                 if not matched_existing.postal_code and lead.postal_code:
                     matched_existing.postal_code = lead.postal_code
-                if (not matched_existing.category or matched_existing.category in ("Business", "Businesses")) and lead.category:
+                if (
+                    not matched_existing.category
+                    or matched_existing.category in ("Business", "Businesses")
+                ) and lead.category:
                     matched_existing.category = lead.category
             else:
                 merged_leads.append(lead)
-
-
 
         # Truly unbounded discovery: return all merged unique leads without artificial slicing
         final_leads = merged_leads

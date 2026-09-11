@@ -6,6 +6,7 @@ from public HTML, meta tags, and script references.
 """
 
 from bs4 import BeautifulSoup
+
 from contracts import EnrichedTechnology
 
 
@@ -20,13 +21,25 @@ def detect_website_technology(soup: BeautifulSoup, html: str) -> EnrichedTechnol
     generator_tag = soup.find("meta", attrs={"name": "generator"})
     generator_content = generator_tag.get("content", "").lower() if generator_tag else ""
 
-    if "wordpress" in generator_content or "wp-content" in html_lower or "wp-includes" in html_lower:
+    if (
+        "wordpress" in generator_content
+        or "wp-content" in html_lower
+        or "wp-includes" in html_lower
+    ):
         tech.cms = "WordPress"
     elif "wix.com" in html_lower or "_wix_" in html_lower or "wixstatic.com" in html_lower:
         tech.cms = "Wix"
-    elif "squarespace" in generator_content or "squarespace.com" in html_lower or "static1.squarespace.com" in html_lower:
+    elif (
+        "squarespace" in generator_content
+        or "squarespace.com" in html_lower
+        or "static1.squarespace.com" in html_lower
+    ):
         tech.cms = "Squarespace"
-    elif "webflow" in generator_content or "assets.webflow.com" in html_lower or "webflow.com" in html_lower:
+    elif (
+        "webflow" in generator_content
+        or "assets.webflow.com" in html_lower
+        or "webflow.com" in html_lower
+    ):
         tech.cms = "Webflow"
     elif "shopify" in generator_content or "cdn.shopify.com" in html_lower:
         tech.cms = "Shopify"

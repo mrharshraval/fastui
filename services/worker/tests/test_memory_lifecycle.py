@@ -7,11 +7,12 @@ and resource management.
 
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 
 from contracts import DiscoverySearchParams
 from sources.playwright_base import PlaywrightScraper
-from utils.memory import MemoryTracker, memory_tracker
+from utils.memory import MemoryTracker
 
 
 class DummyScraper(PlaywrightScraper):
@@ -70,6 +71,7 @@ async def test_scraper_cleanup_on_success():
     mock_page = AsyncMock()
 
     mock_page.is_closed = MagicMock(return_value=False)
+    mock_page.on = MagicMock()
     mock_context.new_page = AsyncMock(return_value=mock_page)
     mock_browser.new_context = AsyncMock(return_value=mock_context)
     mock_playwright.chromium.launch = AsyncMock(return_value=mock_browser)
@@ -101,6 +103,7 @@ async def test_scraper_cleanup_on_exception():
     mock_page = AsyncMock()
 
     mock_page.is_closed = MagicMock(return_value=False)
+    mock_page.on = MagicMock()
     mock_context.new_page = AsyncMock(return_value=mock_page)
     mock_browser.new_context = AsyncMock(return_value=mock_context)
     mock_playwright.chromium.launch = AsyncMock(return_value=mock_browser)
@@ -131,6 +134,7 @@ async def test_scraper_cleanup_on_timeout():
     mock_page = AsyncMock()
 
     mock_page.is_closed = MagicMock(return_value=False)
+    mock_page.on = MagicMock()
     mock_context.new_page = AsyncMock(return_value=mock_page)
     mock_browser.new_context = AsyncMock(return_value=mock_context)
     mock_playwright.chromium.launch = AsyncMock(return_value=mock_browser)

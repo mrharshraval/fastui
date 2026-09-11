@@ -1,8 +1,8 @@
-import type { Metadata } from "next"
-import { SignupForm } from "@/components/signup-form"
+import type { Metadata } from "next";
+import { SignupForm } from "@/features/auth/components/SignupForm";
 
-export const metadata: Metadata = { title: "Sign up" }
+export const metadata: Metadata = { title: "Sign up" };
 
 export default function SignupPage() {
-  return <SignupForm />
+  return <SignupForm />;
 }

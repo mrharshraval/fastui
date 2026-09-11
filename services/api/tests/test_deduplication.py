@@ -1,16 +1,15 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from services.deduplication import (
-    normalize_phone,
-    normalize_website,
-    normalize_address,
+from app.domains.businesses.deduplication import (
     are_addresses_matching,
     are_coordinates_matching,
-    is_duplicate,
     find_duplicate,
+    is_duplicate,
+    normalize_phone,
+    normalize_website,
 )
-from models.schema import Business, BusinessSource
+from app.domains.models import Business, BusinessSource
 
 
 def test_normalize_phone():
@@ -37,34 +36,30 @@ def test_normalize_website():
 
 def test_are_addresses_matching():
     # Same physical address with abbreviations
-    assert are_addresses_matching(
-        "Shop 4, Sunrise Complex, Drive-in Road, Ahmedabad 380054",
-        "Sunrise Complex, Drive-in Rd, Memnagar, Ahmedabad 380054"
-    ) is True
+    assert (
+        are_addresses_matching(
+            "Shop 4, Sunrise Complex, Drive-in Road, Ahmedabad 380054",
+            "Sunrise Complex, Drive-in Rd, Memnagar, Ahmedabad 380054",
+        )
+        is True
+    )
 
     # Same address without postal code
-    assert are_addresses_matching(
-        "12 Park Street, Kolkata",
-        "12 Park St, Kolkata"
-    ) is True
+    assert are_addresses_matching("12 Park Street, Kolkata", "12 Park St, Kolkata") is True
 
     # Conflicting postal codes in same city
-    assert are_addresses_matching(
-        "12 Park Street, Kolkata 700016",
-        "Block CJ 241, Sector II, Salt Lake, Kolkata 700091"
-    ) is False
+    assert (
+        are_addresses_matching(
+            "12 Park Street, Kolkata 700016", "Block CJ 241, Sector II, Salt Lake, Kolkata 700091"
+        )
+        is False
+    )
 
     # Conflicting street numbers in same city
-    assert are_addresses_matching(
-        "12 Park Street, Kolkata",
-        "50 Park Street, Kolkata"
-    ) is False
+    assert are_addresses_matching("12 Park Street, Kolkata", "50 Park Street, Kolkata") is False
 
     # Different localities with no overlap
-    assert are_addresses_matching(
-        "Park Street, Kolkata",
-        "Salt Lake Sector V, Kolkata"
-    ) is False
+    assert are_addresses_matching("Park Street, Kolkata", "Salt Lake Sector V, Kolkata") is False
 
     # Insufficient data
     assert are_addresses_matching(None, "Park Street") is None
@@ -105,7 +100,10 @@ async def test_duplicate_detection_not_on_name_alone(db_session: AsyncSession):
     await db_session.commit()
 
     # 1. Match on website
-    assert await is_duplicate(db_session, None, "apexdentalcare.in", "Other Name", "Other City") is True
+    assert (
+        await is_duplicate(db_session, None, "apexdentalcare.in", "Other Name", "Other City")
+        is True
+    )
 
     # 2. Match on phone
     assert await is_duplicate(db_session, "+919830000001", None, "Other Name", "Other City") is True
@@ -114,44 +112,56 @@ async def test_duplicate_detection_not_on_name_alone(db_session: AsyncSession):
     assert await is_duplicate(db_session, None, None, "Apex Dental Care", "Kolkata") is False
 
     # 4. CRITICAL: Same name, same city, but DIFFERENT phone -> MUST NOT be duplicate!
-    assert await is_duplicate(
-        db_session,
-        normalized_phone="+919830000099",
-        normalized_website=None,
-        business_name="Apex Dental Care",
-        city="Kolkata"
-    ) is False
+    assert (
+        await is_duplicate(
+            db_session,
+            normalized_phone="+919830000099",
+            normalized_website=None,
+            business_name="Apex Dental Care",
+            city="Kolkata",
+        )
+        is False
+    )
 
     # 5. CRITICAL: Same name, same city, but DIFFERENT address / postal code -> MUST NOT be duplicate!
-    assert await is_duplicate(
-        db_session,
-        normalized_phone=None,
-        normalized_website=None,
-        business_name="Apex Dental Care",
-        city="Kolkata",
-        address="Block CJ 241, Sector II, Salt Lake, Kolkata",
-        postal_code="700091",
-    ) is False
+    assert (
+        await is_duplicate(
+            db_session,
+            normalized_phone=None,
+            normalized_website=None,
+            business_name="Apex Dental Care",
+            city="Kolkata",
+            address="Block CJ 241, Sector II, Salt Lake, Kolkata",
+            postal_code="700091",
+        )
+        is False
+    )
 
     # 6. Supporting address matches -> MUST be duplicate!
-    assert await is_duplicate(
-        db_session,
-        normalized_phone=None,
-        normalized_website=None,
-        business_name="Apex Dental Care",
-        city="Kolkata",
-        address="12 Park St, Kolkata",
-        postal_code="700016",
-    ) is True
+    assert (
+        await is_duplicate(
+            db_session,
+            normalized_phone=None,
+            normalized_website=None,
+            business_name="Apex Dental Care",
+            city="Kolkata",
+            address="12 Park St, Kolkata",
+            postal_code="700016",
+        )
+        is True
+    )
 
     # 7. CRITICAL: Same name, DIFFERENT city -> MUST NOT be duplicate!
-    assert await is_duplicate(
-        db_session,
-        normalized_phone=None,
-        normalized_website=None,
-        business_name="Apex Dental Care",
-        city="Mumbai",
-    ) is False
+    assert (
+        await is_duplicate(
+            db_session,
+            normalized_phone=None,
+            normalized_website=None,
+            business_name="Apex Dental Care",
+            city="Mumbai",
+        )
+        is False
+    )
 
 
 @pytest.mark.asyncio
@@ -202,4 +212,3 @@ async def test_find_duplicate_with_place_id_and_sources(db_session: AsyncSession
         postal_code="700064",
     )
     assert found_diff is None
-

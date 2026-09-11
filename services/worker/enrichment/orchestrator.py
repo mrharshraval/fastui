@@ -6,10 +6,9 @@ and multi-module semantic analysis into a feature-rich prospect profile.
 """
 
 import logging
-import re
 import time
+from typing import Dict, List, Tuple
 from urllib.parse import urljoin, urlparse
-from typing import Dict, List, Optional, Set, Tuple
 
 from bs4 import BeautifulSoup
 
@@ -61,7 +60,9 @@ class WebsiteEnrichmentEngine:
         target_url = params.website.strip()
         pages_crawled: List[str] = []
 
-        logger.info(f"Starting website enrichment for '{target_url}' (business='{params.business_name}')")
+        logger.info(
+            f"Starting website enrichment for '{target_url}' (business='{params.business_name}')"
+        )
 
         # 1. Fetch Homepage
         home_html, canonical_url, error = await self.client.fetch_html(target_url)
@@ -126,13 +127,17 @@ class WebsiteEnrichmentEngine:
                     sub_doctors, sub_prim = extract_practitioners(sub_soup)
                     if sub_doctors:
                         existing_names = {d.name.lower() for d in doctors}
-                        doctors.extend([d for d in sub_doctors if d.name.lower() not in existing_names])
+                        doctors.extend(
+                            [d for d in sub_doctors if d.name.lower() not in existing_names]
+                        )
                         if not primary_doctor and sub_prim:
                             primary_doctor = sub_prim
                     if not about_text:
                         about_text = extract_about_and_mission(sub_soup)
                     if not tagline:
-                        tagline = extract_tagline(sub_soup, getattr(brand, "brand_name", None) or params.business_name)
+                        tagline = extract_tagline(
+                            sub_soup, getattr(brand, "brand_name", None) or params.business_name
+                        )
                     # Merge certifications and facilities
                     for c in extract_certifications(sub_soup):
                         if c not in certifications:
@@ -145,7 +150,11 @@ class WebsiteEnrichmentEngine:
                     sub_treatments = analyze_dental_treatments(sub_soup)
                     for k, v in sub_treatments.items():
                         if v.detected:
-                            if k not in treatments or not treatments[k].detected or treatments[k].confidence < v.confidence:
+                            if (
+                                k not in treatments
+                                or not treatments[k].detected
+                                or treatments[k].confidence < v.confidence
+                            ):
                                 treatments[k] = v
                     for f in extract_facilities_and_amenities(sub_soup):
                         if f not in facilities:
@@ -171,14 +180,16 @@ class WebsiteEnrichmentEngine:
                     sub_ins = extract_insurance_info(sub_soup)
                     existing_provs = set(insurance_info.get("providers", []))
                     existing_provs.update(sub_ins.get("providers", []))
-                    insurance_info["providers"] = sorted(list(existing_provs))
+                    insurance_info["providers"] = sorted(existing_provs)
                     if sub_ins.get("has_emi"):
                         insurance_info["has_emi"] = True
                     if sub_ins.get("has_membership"):
                         insurance_info["has_membership"] = True
 
                 elif page_type in ("contact", "locations"):
-                    sub_contact = extract_contact_conversion(sub_soup, base_url, location_hint=params.location or "")
+                    sub_contact = extract_contact_conversion(
+                        sub_soup, base_url, location_hint=params.location or ""
+                    )
                     if sub_contact.emails:
                         for e in sub_contact.emails:
                             if e not in contact.emails:
@@ -265,7 +276,9 @@ class WebsiteEnrichmentEngine:
             duration_ms=round(duration_ms, 2),
         )
 
-    def _discover_subpages(self, soup: BeautifulSoup, base_url: str, max_pages: int = 3) -> List[Tuple[str, str]]:
+    def _discover_subpages(
+        self, soup: BeautifulSoup, base_url: str, max_pages: int = 3
+    ) -> List[Tuple[str, str]]:
         """
         Discovers internal links for team, services, reviews, faqs, insurance, and contact pages.
         Returns prioritized list of (page_type, absolute_url).
@@ -290,24 +303,39 @@ class WebsiteEnrichmentEngine:
                 continue
 
             # Prioritized category checks
-            if "team" not in candidates and any(k in path for k in ("doctor", "dentist", "our-team", "team", "faculty", "specialist")):
+            if "team" not in candidates and any(
+                k in path
+                for k in ("doctor", "dentist", "our-team", "team", "faculty", "specialist")
+            ):
                 candidates["team"] = full_url
-            elif "about" not in candidates and any(k in path for k in ("about", "our-story", "who-we-are", "mission", "profile")):
+            elif "about" not in candidates and any(
+                k in path for k in ("about", "our-story", "who-we-are", "mission", "profile")
+            ):
                 candidates["about"] = full_url
-            elif "services" not in candidates and any(k in path for k in ("service", "treatment", "procedure", "specialit")):
+            elif "services" not in candidates and any(
+                k in path for k in ("service", "treatment", "procedure", "specialit")
+            ):
                 candidates["services"] = full_url
-            elif "reviews" not in candidates and any(k in path for k in ("review", "testimonial", "patient-story", "feedback")):
+            elif "reviews" not in candidates and any(
+                k in path for k in ("review", "testimonial", "patient-story", "feedback")
+            ):
                 candidates["reviews"] = full_url
             elif "faqs" not in candidates and any(k in path for k in ("faq", "question")):
                 candidates["faqs"] = full_url
-            elif "insurance" not in candidates and any(k in path for k in ("insurance", "payment", "financing", "pricing", "plans")):
+            elif "insurance" not in candidates and any(
+                k in path for k in ("insurance", "payment", "financing", "pricing", "plans")
+            ):
                 candidates["insurance"] = full_url
-            elif "contact" not in candidates and any(k in path for k in ("contact", "reach", "location", "branch")):
+            elif "contact" not in candidates and any(
+                k in path for k in ("contact", "reach", "location", "branch")
+            ):
                 candidates["contact"] = full_url
-            elif "gallery" not in candidates and any(k in path for k in ("gallery", "before-after", "smile-gallery", "cases")):
+            elif "gallery" not in candidates and any(
+                k in path for k in ("gallery", "before-after", "smile-gallery", "cases")
+            ):
                 candidates["gallery"] = full_url
 
             if len(candidates) >= max_pages:
                 break
 
-        return [(k, v) for k, v in candidates.items()][:max_pages]
+        return list(candidates.items())[:max_pages]

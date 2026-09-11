@@ -8,18 +8,24 @@ These are the canonical request/response schemas for the API→Worker boundary.
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class DiscoverySearchParams(BaseModel):
     """Normalized search query parameters passed to source adapters."""
 
     target_audience: str = Field(..., description="Target business category, e.g. 'Dentist'")
-    location: str = Field(..., description="Target geographical location, e.g. 'Ahmedabad, Gujarat, India'")
+    location: str = Field(
+        ..., description="Target geographical location, e.g. 'Ahmedabad, Gujarat, India'"
+    )
     limit: Optional[int] = Field(default=None, description="Optional max leads; None for uncapped")
     batch_size: Optional[int] = Field(default=None, description="Bounded batch chunk size")
-    query_variations: Optional[List[str]] = Field(default=None, description="Optional query variations to broaden coverage")
-    source_preferences: Optional[List[str]] = Field(default=None, description="Enabled sources in order of preference")
+    query_variations: Optional[List[str]] = Field(
+        default=None, description="Optional query variations to broaden coverage"
+    )
+    source_preferences: Optional[List[str]] = Field(
+        default=None, description="Enabled sources in order of preference"
+    )
     cursor: Optional[str] = Field(default=None, description="Optional pagination/resumption cursor")
 
 
@@ -28,7 +34,9 @@ class DiscoveredLead(BaseModel):
 
     name: str = Field(..., min_length=1, description="Clean human-readable display name")
     raw_name: Optional[str] = Field(default=None, description="Exact untouched name from scraper")
-    normalized_name: Optional[str] = Field(default=None, description="Canonical search/matching key")
+    normalized_name: Optional[str] = Field(
+        default=None, description="Canonical search/matching key"
+    )
     category: Optional[str] = None
     city: Optional[str] = None
     state: Optional[str] = None
@@ -41,7 +49,9 @@ class DiscoveredLead(BaseModel):
     has_whatsapp: bool = False
     whatsapp: Optional[str] = None
     source_platform: str = Field(default="google_maps")
-    source_place_id: Optional[str] = Field(default=None, description="Unique source identifier (e.g. Google Place ID)")
+    source_place_id: Optional[str] = Field(
+        default=None, description="Unique source identifier (e.g. Google Place ID)"
+    )
     source_url: Optional[str] = None
     rating: Optional[float] = None
     reviews_count: Optional[int] = None
@@ -58,23 +68,38 @@ class DiscoverResponse(BaseModel):
 
     leads: List[DiscoveredLead]
     count: int
-    exhausted: bool = Field(default=False, description="True if all enabled sources have no further results")
-    sources_exhausted: Optional[dict[str, bool]] = Field(default=None, description="Per-source exhaustion status")
-    peak_rss_mb: Optional[float] = Field(default=None, description="Peak memory RSS observed during execution")
-    next_cursor: Optional[str] = Field(default=None, description="Cursor for the next geographic area or batch")
-    current_locality: Optional[str] = Field(default=None, description="Active locality or sector queried")
-    localities_remaining: Optional[int] = Field(default=None, description="Count of remaining localities in this city")
+    exhausted: bool = Field(
+        default=False, description="True if all enabled sources have no further results"
+    )
+    sources_exhausted: Optional[dict[str, bool]] = Field(
+        default=None, description="Per-source exhaustion status"
+    )
+    peak_rss_mb: Optional[float] = Field(
+        default=None, description="Peak memory RSS observed during execution"
+    )
+    next_cursor: Optional[str] = Field(
+        default=None, description="Cursor for the next geographic area or batch"
+    )
+    current_locality: Optional[str] = Field(
+        default=None, description="Active locality or sector queried"
+    )
+    localities_remaining: Optional[int] = Field(
+        default=None, description="Count of remaining localities in this city"
+    )
 
 
 # ─────────────────────────────────────────────────────────────
 # WEBSITE ENRICHMENT CONTRACTS
 # ─────────────────────────────────────────────────────────────
 
+
 class EnrichmentParams(BaseModel):
     """Parameters for on-demand official website enrichment."""
 
     website: str = Field(..., description="Target business official website URL")
-    business_name: Optional[str] = Field(default=None, description="Known clinic name for disambiguation")
+    business_name: Optional[str] = Field(
+        default=None, description="Known clinic name for disambiguation"
+    )
     location: Optional[str] = Field(default=None, description="Known geographic context")
     max_pages: int = Field(default=4, ge=1, le=8, description="Maximum internal subpages to visit")
 
@@ -83,7 +108,10 @@ class EnrichedBrand(BaseModel):
     """Brand identity assets and metadata extracted from official website."""
 
     logo_url: Optional[str] = None
-    logo_source: Optional[str] = Field(default=None, description="'json_ld', 'apple_touch_icon', 'favicon', 'header_img', 'og_image'")
+    logo_source: Optional[str] = Field(
+        default=None,
+        description="'json_ld', 'apple_touch_icon', 'favicon', 'header_img', 'og_image'",
+    )
     logo_type: Optional[str] = Field(default=None, description="'svg', 'png', 'webp', 'jpg', 'ico'")
     logo_confidence: float = Field(default=0.0, ge=0.0, le=1.0)
     favicon_url: Optional[str] = None
@@ -93,7 +121,9 @@ class EnrichedBrand(BaseModel):
     meta_title: Optional[str] = None
     meta_description: Optional[str] = None
     theme_color: Optional[str] = None
-    brand_colors: Dict[str, str] = Field(default_factory=dict, description="Extracted palette: primary, secondary, accent")
+    brand_colors: Dict[str, str] = Field(
+        default_factory=dict, description="Extracted palette: primary, secondary, accent"
+    )
     og_title: Optional[str] = None
     og_description: Optional[str] = None
     og_image_url: Optional[str] = None
@@ -149,6 +179,7 @@ class EnrichedBranch(BaseModel):
 
 class TreatmentSignal(BaseModel):
     """Semantic signal for a dental treatment or clinical specialty."""
+
     model_config = ConfigDict(extra="ignore")
 
     name: str
@@ -169,7 +200,6 @@ class TreatmentSignal(BaseModel):
             self.detected_terms = list(self.keywords_matched)
         elif not self.keywords_matched and self.detected_terms:
             self.keywords_matched = list(self.detected_terms)
-
 
 
 class EnrichedContact(BaseModel):
@@ -247,5 +277,3 @@ class EnrichmentResponse(BaseModel):
     error: Optional[str] = None
     profile: Optional[EnrichedBusinessProfile] = None
     duration_ms: float = 0.0
-
-

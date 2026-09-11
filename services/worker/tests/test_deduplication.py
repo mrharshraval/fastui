@@ -5,23 +5,21 @@ Tests multi-tier identity matching and conflict rejection.
 Verifies that duplicate detection is never based on business name alone.
 """
 
-import pytest
 from contracts import DiscoveredLead
 from deduplication import (
-    LeadDeduplicator,
-    normalize_phone,
-    normalize_website,
-    normalize_address,
-    extract_postal_code,
     are_addresses_matching,
     are_coordinates_matching,
     is_duplicate_lead,
+    normalize_phone,
+    normalize_website,
 )
 
 
 def test_normalize_phone():
     assert normalize_phone("+91 98300 12345") == "+919830012345"
-    assert normalize_phone("098300 12345", location="Kolkata, West Bengal, India") == "+919830012345"
+    assert (
+        normalize_phone("098300 12345", location="Kolkata, West Bengal, India") == "+919830012345"
+    )
     assert normalize_phone(None) is None
 
 
@@ -33,42 +31,47 @@ def test_normalize_website():
 
 def test_are_addresses_matching():
     # Same physical location with abbreviations
-    assert are_addresses_matching(
-        "12 Park Street, Kolkata",
-        "12 Park St, Kolkata",
-        city="Kolkata"
-    ) is True
+    assert (
+        are_addresses_matching("12 Park Street, Kolkata", "12 Park St, Kolkata", city="Kolkata")
+        is True
+    )
 
     # Same location with postal codes
-    assert are_addresses_matching(
-        "Sunrise Complex, Drive-in Rd, Ahmedabad 380054",
-        "Shop 4, Sunrise Complex, Drive-in Road, Ahmedabad 380054",
-        postal1="380054",
-        postal2="380054",
-    ) is True
+    assert (
+        are_addresses_matching(
+            "Sunrise Complex, Drive-in Rd, Ahmedabad 380054",
+            "Shop 4, Sunrise Complex, Drive-in Road, Ahmedabad 380054",
+            postal1="380054",
+            postal2="380054",
+        )
+        is True
+    )
 
     # Conflicting postal codes in same city -> False
-    assert are_addresses_matching(
-        "12 Park Street, Kolkata",
-        "Block CJ 241, Salt Lake, Kolkata",
-        postal1="700016",
-        postal2="700091",
-        city="Kolkata"
-    ) is False
+    assert (
+        are_addresses_matching(
+            "12 Park Street, Kolkata",
+            "Block CJ 241, Salt Lake, Kolkata",
+            postal1="700016",
+            postal2="700091",
+            city="Kolkata",
+        )
+        is False
+    )
 
     # Conflicting street numbers -> False
-    assert are_addresses_matching(
-        "12 Park Street, Kolkata",
-        "50 Park Street, Kolkata",
-        city="Kolkata"
-    ) is False
+    assert (
+        are_addresses_matching("12 Park Street, Kolkata", "50 Park Street, Kolkata", city="Kolkata")
+        is False
+    )
 
     # Different localities in same city -> False
-    assert are_addresses_matching(
-        "Park Street, Kolkata",
-        "Salt Lake Sector V, Kolkata",
-        city="Kolkata"
-    ) is False
+    assert (
+        are_addresses_matching(
+            "Park Street, Kolkata", "Salt Lake Sector V, Kolkata", city="Kolkata"
+        )
+        is False
+    )
 
 
 def test_are_coordinates_matching():

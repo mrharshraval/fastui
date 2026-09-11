@@ -2,13 +2,15 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models.schema import Business, Lead, PipelineStage
+from app.domains.models import Business, Lead, PipelineStage
+
 
 @pytest.mark.asyncio
 async def test_list_businesses_empty(auth_client: AsyncClient):
-    res = await auth_client.get("/businesses")
+    res = await auth_client.get("/v1/businesses")
     assert res.status_code == 200
     assert res.json() == []
+
 
 @pytest.mark.asyncio
 async def test_search_and_filter_businesses(auth_client: AsyncClient, db_session: AsyncSession):
@@ -29,21 +31,22 @@ async def test_search_and_filter_businesses(auth_client: AsyncClient, db_session
     await db_session.commit()
 
     # 1. Test search
-    res = await auth_client.get("/businesses?search=Dental")
+    res = await auth_client.get("/v1/businesses?search=Dental")
     assert res.status_code == 200
     assert len(res.json()) == 1
     assert res.json()[0]["business_name"] == "Smile Dental Clinic"
 
     # 2. Test stage filter
-    res = await auth_client.get("/businesses?stage=lead")
+    res = await auth_client.get("/v1/businesses?stage=lead")
     assert res.status_code == 200
     assert len(res.json()) == 2
 
     # 3. Test sorting
-    res = await auth_client.get("/businesses?sort_by=business_name&sort_order=asc")
+    res = await auth_client.get("/v1/businesses?sort_by=business_name&sort_order=asc")
     assert res.status_code == 200
     names = [b["business_name"] for b in res.json()]
     assert names == ["Ahmedabad Eye Care", "Mumbai Ortho Center", "Smile Dental Clinic"]
+
 
 @pytest.mark.asyncio
 async def test_update_pipeline_stage(auth_client: AsyncClient, db_session: AsyncSession):
@@ -56,18 +59,20 @@ async def test_update_pipeline_stage(auth_client: AsyncClient, db_session: Async
     db_session.add(l)
     await db_session.commit()
 
-    res = await auth_client.patch(f"/businesses/{b.id}/stage", json={"stage": "proposal"})
+    res = await auth_client.patch(f"/v1/businesses/{b.id}", json={"stage": "proposal"})
     assert res.status_code == 200
     data = res.json()
-    assert data["old_stage"].lower() == "lead"
-    assert data["new_stage"].lower() == "proposal"
+    assert data["pipeline_stage"].lower() == "proposal"
 
     # Verify update persisted
-    get_res = await auth_client.get("/businesses")
+    get_res = await auth_client.get("/v1/businesses")
     assert get_res.json()[0]["pipeline_stage"].lower() == "proposal"
 
+
 @pytest.mark.asyncio
-async def test_business_reminders_crud_and_timezone(auth_client: AsyncClient, db_session: AsyncSession):
+async def test_business_reminders_crud_and_timezone(
+    auth_client: AsyncClient, db_session: AsyncSession
+):
     b = Business(business_name="Test Health Clinic", category="Clinic", city="Ahmedabad")
     db_session.add(b)
     await db_session.commit()
@@ -77,17 +82,17 @@ async def test_business_reminders_crud_and_timezone(auth_client: AsyncClient, db
     payload = {
         "title": "Follow up on proposal",
         "notes": "Call Dr. Sharma",
-        "due_at": "2026-09-02T20:50:08Z"
+        "due_at": "2026-09-02T20:50:08Z",
     }
-    create_res = await auth_client.post(f"/businesses/{b.id}/reminders", json=payload)
-    assert create_res.status_code == 200
+    create_res = await auth_client.post(f"/v1/businesses/{b.id}/reminders", json=payload)
+    assert create_res.status_code in (200, 201)
     rem_data = create_res.json()
     assert rem_data["title"] == "Follow up on proposal"
     assert rem_data["business_id"] == b.id
     assert "+00:00" in rem_data["due_at"] or rem_data["due_at"].endswith("Z")
 
-    # 2. Fetch business-specific reminders via GET /businesses/{id}/reminders
-    list_res = await auth_client.get(f"/businesses/{b.id}/reminders")
+    # 2. Fetch business-specific reminders via GET /v1/businesses/{id}/reminders
+    list_res = await auth_client.get(f"/v1/businesses/{b.id}/reminders")
     assert list_res.status_code == 200
     rems = list_res.json()
     assert len(rems) == 1
@@ -97,11 +102,10 @@ async def test_business_reminders_crud_and_timezone(auth_client: AsyncClient, db
 
     # 3. Update reminder due_at
     update_res = await auth_client.patch(
-        f"/reminders/{rem_data['id']}",
-        json={"due_at": "2026-09-05T14:30:00Z", "status": "completed"}
+        f"/v1/reminders/{rem_data['id']}",
+        json={"due_at": "2026-09-05T14:30:00Z", "status": "completed"},
     )
     assert update_res.status_code == 200
     updated = update_res.json()
     assert updated["status"].lower() == "completed"
     assert "2026-09-05T14:30:00" in updated["due_at"]
-

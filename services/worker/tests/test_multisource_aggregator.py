@@ -5,6 +5,7 @@ Tests source orchestration, priority, failure isolation, and per-source exhausti
 """
 
 from unittest.mock import AsyncMock, patch
+
 import pytest
 
 from contracts import DiscoveredLead, DiscoverySearchParams
@@ -36,8 +37,10 @@ async def test_multisource_orchestration_and_enrichment():
         source_platform="web_search",
     )
 
-    with patch.object(aggregator.google_maps, "discover", new_callable=AsyncMock) as mock_maps, \
-         patch.object(aggregator.web_search, "discover", new_callable=AsyncMock) as mock_web:
+    with (
+        patch.object(aggregator.google_maps, "discover", new_callable=AsyncMock) as mock_maps,
+        patch.object(aggregator.web_search, "discover", new_callable=AsyncMock) as mock_web,
+    ):
         mock_maps.return_value = [lead_maps]
         mock_web.return_value = [lead_web]
 
@@ -67,8 +70,10 @@ async def test_multisource_failure_isolation():
     )
 
     # Google Maps fails, Web Search succeeds
-    with patch.object(aggregator.google_maps, "discover", side_effect=RuntimeError("Maps timeout")), \
-         patch.object(aggregator.web_search, "discover", new_callable=AsyncMock) as mock_web:
+    with (
+        patch.object(aggregator.google_maps, "discover", side_effect=RuntimeError("Maps timeout")),
+        patch.object(aggregator.web_search, "discover", new_callable=AsyncMock) as mock_web,
+    ):
         mock_web.return_value = [lead_web]
 
         params = DiscoverySearchParams(target_audience="Dentist", location="Kolkata", limit=50)
@@ -83,15 +88,25 @@ async def test_multisource_failure_isolation():
 async def test_multisource_exhaustion_detection():
     aggregator = MultiSourceDiscoveryAggregator(headless=True)
 
-    with patch.object(aggregator.google_maps, "discover", new_callable=AsyncMock) as mock_maps, \
-         patch.object(aggregator.web_search, "discover", new_callable=AsyncMock) as mock_web:
+    with (
+        patch.object(aggregator.google_maps, "discover", new_callable=AsyncMock) as mock_maps,
+        patch.object(aggregator.web_search, "discover", new_callable=AsyncMock) as mock_web,
+    ):
         mock_maps.return_value = []
         aggregator.google_maps.is_exhausted = True
         mock_web.return_value = []
         aggregator.web_search.is_exhausted = True
 
         params = DiscoverySearchParams(target_audience="Dentist", location="Kolkata", limit=50)
-        leads, exhausted, sources_ex, peak_rss, next_cur, cur_loc, locs_rem = await aggregator.discover_with_meta(params)
+        (
+            leads,
+            exhausted,
+            sources_ex,
+            peak_rss,
+            next_cur,
+            cur_loc,
+            locs_rem,
+        ) = await aggregator.discover_with_meta(params)
 
         assert len(leads) == 0
         assert exhausted is True

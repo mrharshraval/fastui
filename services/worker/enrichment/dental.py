@@ -7,67 +7,153 @@ Analyzes website text, headings, and structured data across
 
 import re
 from typing import Dict, List
+
 from bs4 import BeautifulSoup
 
 from contracts import TreatmentSignal
 
 DENTAL_SPECIALTIES_TAXONOMY: Dict[str, List[str]] = {
     "General Dentistry": [
-        "general dentistry", "dental checkup", "teeth cleaning", "dental fillings",
-        "cavity filling", "preventive dentistry", "oral examination", "dental hygiene", "scaling and polishing"
+        "general dentistry",
+        "dental checkup",
+        "teeth cleaning",
+        "dental fillings",
+        "cavity filling",
+        "preventive dentistry",
+        "oral examination",
+        "dental hygiene",
+        "scaling and polishing",
     ],
     "Cosmetic Dentistry": [
-        "cosmetic dentistry", "smile makeover", "aesthetic dentistry", "dental bonding",
-        "gum contouring", "enamel shaping", "teeth restoration", "hollywood smile"
+        "cosmetic dentistry",
+        "smile makeover",
+        "aesthetic dentistry",
+        "dental bonding",
+        "gum contouring",
+        "enamel shaping",
+        "teeth restoration",
+        "hollywood smile",
     ],
     "Dental Implants": [
-        "dental implant", "implants", "all-on-4", "all on 4", "single tooth implant",
-        "implantology", "basal implant", "full mouth dental implants", "nobel biocare", "osstem"
+        "dental implant",
+        "implants",
+        "all-on-4",
+        "all on 4",
+        "single tooth implant",
+        "implantology",
+        "basal implant",
+        "full mouth dental implants",
+        "nobel biocare",
+        "osstem",
     ],
     "Invisalign": [
-        "invisalign", "invisalign provider", "invisalign certified", "invisalign braces", "invisalign teen"
+        "invisalign",
+        "invisalign provider",
+        "invisalign certified",
+        "invisalign braces",
+        "invisalign teen",
     ],
     "Clear Aligners": [
-        "clear aligner", "invisible aligner", "invisible braces", "clear teeth aligner", "spark aligners"
+        "clear aligner",
+        "invisible aligner",
+        "invisible braces",
+        "clear teeth aligner",
+        "spark aligners",
     ],
     "Orthodontics": [
-        "orthodontics", "orthodontic treatment", "orthodontist", "malocclusion", "bite correction", "palatal expander"
+        "orthodontics",
+        "orthodontic treatment",
+        "orthodontist",
+        "malocclusion",
+        "bite correction",
+        "palatal expander",
     ],
     "Braces": [
-        "metal braces", "ceramic braces", "lingual braces", "self-ligating braces", "traditional braces"
+        "metal braces",
+        "ceramic braces",
+        "lingual braces",
+        "self-ligating braces",
+        "traditional braces",
     ],
     "Veneers": [
-        "porcelain veneers", "composite veneers", "dental veneers", "laminates", "lumineers"
+        "porcelain veneers",
+        "composite veneers",
+        "dental veneers",
+        "laminates",
+        "lumineers",
     ],
     "Teeth Whitening": [
-        "teeth whitening", "laser teeth whitening", "bleaching", "zoom whitening", "at-home whitening"
+        "teeth whitening",
+        "laser teeth whitening",
+        "bleaching",
+        "zoom whitening",
+        "at-home whitening",
     ],
     "Pediatric Dentistry": [
-        "pediatric dentistry", "pedodontist", "children's dentistry", "kids dental", "child dental care", "milk teeth"
+        "pediatric dentistry",
+        "pedodontist",
+        "children's dentistry",
+        "kids dental",
+        "child dental care",
+        "milk teeth",
     ],
     "Root Canal": [
-        "root canal", "root canal treatment", "rct", "single sitting root canal", "pain-free rct"
+        "root canal",
+        "root canal treatment",
+        "rct",
+        "single sitting root canal",
+        "pain-free rct",
     ],
-    "Endodontics": [
-        "endodontics", "endodontist", "dental pulp", "apicoectomy", "pulpectomy"
-    ],
+    "Endodontics": ["endodontics", "endodontist", "dental pulp", "apicoectomy", "pulpectomy"],
     "Oral Surgery": [
-        "oral surgery", "oral and maxillofacial", "surgical extraction", "jaw surgery", "bone grafting", "sinus lift"
+        "oral surgery",
+        "oral and maxillofacial",
+        "surgical extraction",
+        "jaw surgery",
+        "bone grafting",
+        "sinus lift",
     ],
     "Wisdom Tooth Extraction": [
-        "wisdom tooth", "wisdom tooth removal", "impacted tooth", "third molar extraction"
+        "wisdom tooth",
+        "wisdom tooth removal",
+        "impacted tooth",
+        "third molar extraction",
     ],
     "Emergency Dentistry": [
-        "emergency dentistry", "emergency dentist", "emergency dental care", "dental trauma", "broken tooth", "toothache relief", "same-day emergency"
+        "emergency dentistry",
+        "emergency dentist",
+        "emergency dental care",
+        "dental trauma",
+        "broken tooth",
+        "toothache relief",
+        "same-day emergency",
     ],
     "Prosthodontics": [
-        "prosthodontics", "dentures", "complete dentures", "partial dentures", "dental crown", "dental bridge", "fixed prosthesis"
+        "prosthodontics",
+        "dentures",
+        "complete dentures",
+        "partial dentures",
+        "dental crown",
+        "dental bridge",
+        "fixed prosthesis",
     ],
     "Periodontics": [
-        "periodontics", "periodontist", "gum disease", "pyorrhea", "gingivitis", "periodontitis", "deep cleaning", "gum flap surgery"
+        "periodontics",
+        "periodontist",
+        "gum disease",
+        "pyorrhea",
+        "gingivitis",
+        "periodontitis",
+        "deep cleaning",
+        "gum flap surgery",
     ],
     "Sedation Dentistry": [
-        "sedation dentistry", "sleep dentistry", "painless dentistry", "nitrous oxide", "laughing gas", "iv sedation"
+        "sedation dentistry",
+        "sleep dentistry",
+        "painless dentistry",
+        "nitrous oxide",
+        "laughing gas",
+        "iv sedation",
     ],
 }
 
@@ -80,11 +166,17 @@ def analyze_dental_treatments(soup: BeautifulSoup) -> Dict[str, TreatmentSignal]
     signals: Dict[str, TreatmentSignal] = {}
 
     # Extract text by prominence
-    headings = " ".join([h.get_text(separator=" ", strip=True) for h in soup.find_all(["h1", "h2", "h3", "nav"])])
-    meta_tags = " ".join([
-        meta.get("content", "")
-        for meta in soup.find_all("meta", attrs={"name": re.compile(r"description|keywords|services", re.I)})
-    ])
+    headings = " ".join(
+        [h.get_text(separator=" ", strip=True) for h in soup.find_all(["h1", "h2", "h3", "nav"])]
+    )
+    meta_tags = " ".join(
+        [
+            meta.get("content", "")
+            for meta in soup.find_all(
+                "meta", attrs={"name": re.compile(r"description|keywords|services", re.I)}
+            )
+        ]
+    )
     full_body = soup.get_text(separator=" ", strip=True)
 
     headings_lower = headings.lower()

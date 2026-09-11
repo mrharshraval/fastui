@@ -8,10 +8,11 @@ and metadata from official website HTML and structured data.
 import json
 import logging
 import re
+from typing import Optional
 from urllib.parse import urljoin
-from typing import Optional, Dict, Any
 
 from bs4 import BeautifulSoup
+
 from contracts import EnrichedBrand
 
 logger = logging.getLogger("fastui.worker.enrichment.brand")
@@ -62,7 +63,9 @@ def extract_brand_intelligence(soup: BeautifulSoup, base_url: str) -> EnrichedBr
     # Favicon resolution
     fav_link = (
         soup.find("link", attrs={"rel": lambda r: r and "apple-touch-icon" in r.lower()})
-        or soup.find("link", attrs={"rel": lambda r: r and "icon" in r.lower() and "svg" in str(r).lower()})
+        or soup.find(
+            "link", attrs={"rel": lambda r: r and "icon" in r.lower() and "svg" in str(r).lower()}
+        )
         or soup.find("link", attrs={"rel": lambda r: r and "icon" in r.lower()})
         or soup.find("link", attrs={"rel": lambda r: r and "shortcut icon" in r.lower()})
     )
@@ -90,7 +93,10 @@ def extract_brand_intelligence(soup: BeautifulSoup, base_url: str) -> EnrichedBr
                     if not isinstance(g_item, dict):
                         continue
                     item_type = str(g_item.get("@type", "")).lower()
-                    if any(t in item_type for t in ("dentist", "localbusiness", "organization", "medicalbusiness")):
+                    if any(
+                        t in item_type
+                        for t in ("dentist", "localbusiness", "organization", "medicalbusiness")
+                    ):
                         # Logo field
                         logo_field = g_item.get("logo") or g_item.get("image")
                         if logo_field:
@@ -99,7 +105,7 @@ def extract_brand_intelligence(soup: BeautifulSoup, base_url: str) -> EnrichedBr
                                 logo_raw = logo_field
                             elif isinstance(logo_field, dict):
                                 logo_raw = logo_field.get("url") or logo_field.get("contentUrl")
-                            
+
                             if logo_raw:
                                 brand.logo_url = urljoin(base_url, logo_raw.strip())
                                 brand.logo_source = "json_ld"
@@ -115,7 +121,9 @@ def extract_brand_intelligence(soup: BeautifulSoup, base_url: str) -> EnrichedBr
 
     # 2. Apple Touch Icon (clean square brand asset)
     if not brand.logo_url:
-        apple_icon = soup.find("link", attrs={"rel": lambda r: r and "apple-touch-icon" in r.lower()})
+        apple_icon = soup.find(
+            "link", attrs={"rel": lambda r: r and "apple-touch-icon" in r.lower()}
+        )
         if apple_icon and apple_icon.get("href"):
             brand.logo_url = urljoin(base_url, apple_icon["href"].strip())
             brand.logo_source = "apple_touch_icon"
@@ -128,14 +136,16 @@ def extract_brand_intelligence(soup: BeautifulSoup, base_url: str) -> EnrichedBr
             "link",
             attrs={
                 "rel": lambda r: r and "icon" in r.lower(),
-                "sizes": lambda s: s and any(dim in s for dim in ("192x192", "512x512", "180x180", "128x128")),
-            }
+                "sizes": lambda s: (
+                    s and any(dim in s for dim in ("192x192", "512x512", "180x180", "128x128"))
+                ),
+            },
         ) or soup.find(
             "link",
             attrs={
                 "rel": lambda r: r and "icon" in r.lower(),
-                "type": lambda t: t and "svg" in t.lower()
-            }
+                "type": lambda t: t and "svg" in t.lower(),
+            },
         )
         if high_res_fav and high_res_fav.get("href"):
             brand.logo_url = urljoin(base_url, high_res_fav["href"].strip())
@@ -157,7 +167,7 @@ def extract_brand_intelligence(soup: BeautifulSoup, base_url: str) -> EnrichedBr
                 sub_img = logo_img.find("img")
                 if sub_img and sub_img.get("src"):
                     logo_img = sub_img
-            
+
             src = logo_img.get("src") or logo_img.get("data-src")
             if src and not src.startswith("data:"):
                 brand.logo_url = urljoin(base_url, src.strip())

@@ -1,5 +1,6 @@
-import pytest
 from unittest.mock import AsyncMock, patch
+
+import pytest
 from httpx import ASGITransport, AsyncClient
 
 from contracts import DiscoveredLead
@@ -116,12 +117,12 @@ async def test_enrich_invalid_token_returns_401():
 async def test_enrich_valid_token_success():
     """Confirms POST /enrich returns 200 and calls enrichment engine when authorized."""
     from contracts import (
-        EnrichedBusinessProfile,
         EnrichedBrand,
-        EnrichedDoctor,
+        EnrichedBusinessProfile,
         EnrichedContact,
-        EnrichedTechnology,
+        EnrichedDoctor,
         EnrichedQualityAudit,
+        EnrichedTechnology,
         EnrichmentResponse,
     )
 
@@ -150,13 +151,18 @@ async def test_enrich_valid_token_success():
 
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
-                payload = {"website": "https://apexdental.example.com", "business_name": "Apex Dental"}
+                payload = {
+                    "website": "https://apexdental.example.com",
+                    "business_name": "Apex Dental",
+                }
                 headers = {"X-Worker-Token": "secure-test-token-123"}
                 resp = await client.post("/enrich", json=payload, headers=headers)
 
                 assert resp.status_code == 200
                 data = resp.json()
                 assert data["status"] == "completed"
-                assert data["profile"]["brand"]["logo_url"] == "https://apexdental.example.com/logo.png"
+                assert (
+                    data["profile"]["brand"]["logo_url"]
+                    == "https://apexdental.example.com/logo.png"
+                )
                 assert data["profile"]["primary_doctor"]["name"] == "Dr. Jane Smith"
-

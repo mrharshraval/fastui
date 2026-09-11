@@ -46,6 +46,7 @@ function CylinderWheel<T>({
   const lastTimeRef = React.useRef(0)
   const velocityRef = React.useRef(0)
   const animFrameRef = React.useRef<number | null>(null)
+  const scrollTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
 
   const selectedIndex = React.useMemo(() => {
     const idx = items.findIndex((it) => getKey(it) === getKey(value))
@@ -295,7 +296,6 @@ function CylinderWheel<T>({
       snapTo(offsetYRef.current)
     }, 90)
   }
-  const scrollTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
 
   return (
     <div

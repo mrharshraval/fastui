@@ -142,8 +142,30 @@ class PlaywrightScraper(DiscoverySourceAdapter, ABC):
         # 5. Release Python memory objects
         memory_tracker.force_garbage_collection()
 
+        # 6. Verify and reap any lingering orphaned child Chromium processes
+        try:
+            import psutil
+
+            parent = psutil.Process()
+            for child in parent.children(recursive=True):
+                try:
+                    name = child.name().lower()
+                    if "chrome" in name or "chromium" in name:
+                        logger.warning(f"Reaping orphaned Chromium child process PID {child.pid}")
+                        child.terminate()
+                        child.wait(timeout=1.0)
+                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.TimeoutExpired):
+                    try:
+                        child.kill()
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
     @abstractmethod
-    async def extract_leads(self, page: Page, params: DiscoverySearchParams) -> List[DiscoveredLead]:
+    async def extract_leads(
+        self, page: Page, params: DiscoverySearchParams
+    ) -> List[DiscoveredLead]:
         """Subclasses extract leads from the loaded page."""
         pass
 
@@ -189,7 +211,9 @@ class PlaywrightScraper(DiscoverySourceAdapter, ABC):
                 active_pages=1,
             )
 
-            logger.info(f"Starting discovery for '{params.target_audience}' in '{params.location}' (limit={params.limit})")
+            logger.info(
+                f"Starting discovery for '{params.target_audience}' in '{params.location}' (limit={params.limit})"
+            )
             leads = await self.extract_leads(self.page, params)
             return leads
 

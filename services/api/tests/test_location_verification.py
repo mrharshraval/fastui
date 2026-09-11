@@ -3,15 +3,21 @@ Tests for Google Maps location verification, canonical place URL retrieval,
 and locality cursor progression in DiscoveryService and BusinessService.
 """
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
-from models.schema import Business, BusinessSource, DiscoveryJob, JobStatus
-from schemas.discovery import DiscoveredLead, DiscoverResponse
-from services.discovery_service import DiscoveryService
-from services.business_service import BusinessService
+from app.domains.businesses.service import BusinessService
+from app.domains.models import Business, BusinessSource, DiscoveryJob, JobStatus
+from app.domains.prospecting.service import ProspectingService as DiscoveryService
+from app.domains.prospects.service import ProspectsService
+from app.infrastructure.external.worker_client import (
+    WorkerDiscoveredLead as DiscoveredLead,
+)
+from app.infrastructure.external.worker_client import (
+    WorkerDiscoverResponse as DiscoverResponse,
+)
 
 
 @pytest.mark.asyncio
@@ -45,7 +51,7 @@ async def test_business_service_returns_verified_location_metadata(
             "longitude": 72.585034,
             "place_id": "0x395e848aba5bd449:0x4fc14db35ff0a388",
             "google_maps_url": "https://www.google.com/maps?cid=5746960032305554312",
-        }
+        },
     )
     db_session.add(maps_source)
     await db_session.commit()
@@ -58,7 +64,7 @@ async def test_business_service_returns_verified_location_metadata(
     assert detail.google_place_id == "0x395e848aba5bd449:0x4fc14db35ff0a388"
 
     # 4. Test get_prospects batch retrieval
-    prospects = await BusinessService.get_prospects(db_session, limit=10)
+    prospects = await ProspectsService.list_prospects(db_session, limit=10)
     prospect = next((p for p in prospects if p.id == biz.id), None)
     assert prospect is not None
     assert prospect.google_maps_url == "https://www.google.com/maps?cid=5746960032305554312"
@@ -135,7 +141,10 @@ async def test_discovery_service_locality_cursor_progression(
         worker_calls.append(search_params.model_dump())
         return batch_responses.pop(0)
 
-    with patch("services.discovery_service.WorkerClient.discover_batch", side_effect=mock_discover_batch):
+    with patch(
+        "app.domains.prospecting.service.WorkerClient.discover_batch",
+        side_effect=mock_discover_batch,
+    ):
         await DiscoveryService.process_job(job.id)
 
     await db_session.refresh(job)

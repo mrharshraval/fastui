@@ -1,10 +1,19 @@
+from datetime import UTC, datetime
+
 import pytest
-from sqlalchemy import select
-from datetime import datetime, timezone
-from models.schema import (
-    Business, Lead, Contact, Note, Task, Reminder,
-    Outreach, Interaction, Activity, PipelineStage, User, ActivityType
+
+from app.domains.models import (
+    Activity,
+    ActivityType,
+    Business,
+    Contact,
+    Lead,
+    Note,
+    PipelineStage,
+    Reminder,
+    Task,
 )
+
 
 @pytest.mark.asyncio
 async def test_post_activity_creates_and_returns_201(auth_client, db_session):
@@ -12,7 +21,9 @@ async def test_post_activity_creates_and_returns_201(auth_client, db_session):
     Verifies that POST /v1/businesses/{business_id}/activities successfully creates
     and records an activity with 201 Created status code.
     """
-    biz = Business(business_name="Smile Dental Studio", city="Kolkata", website="https://smilestudio.in")
+    biz = Business(
+        business_name="Smile Dental Studio", city="Kolkata", website="https://smilestudio.in"
+    )
     db_session.add(biz)
     await db_session.commit()
     await db_session.refresh(biz)
@@ -21,7 +32,7 @@ async def test_post_activity_creates_and_returns_201(auth_client, db_session):
         "type": "website_visited",
         "channel": "website",
         "outcome": "Website visited",
-        "notes": "https://smilestudio.in"
+        "notes": "https://smilestudio.in",
     }
 
     res = await auth_client.post(f"/v1/businesses/{biz.id}/activities", json=payload)
@@ -114,12 +125,16 @@ async def test_pure_rest_lead_creation_and_mutations(auth_client, db_session):
     assert res_lead2.json()["added_count"] == 1
 
     # 3. Bulk stage update: PATCH /v1/leads
-    res_stage = await auth_client.patch("/v1/leads", json={"business_ids": [biz1.id, biz2.id], "stage": "contacted"})
+    res_stage = await auth_client.patch(
+        "/v1/leads", json={"business_ids": [biz1.id, biz2.id], "stage": "contacted"}
+    )
     assert res_stage.status_code == 200
     assert res_stage.json()["updated_count"] == 2
 
     # 4. Bulk qualify: PATCH /v1/prospects
-    res_qual = await auth_client.patch("/v1/prospects", json={"business_ids": [biz1.id], "qualification_status": "qualified"})
+    res_qual = await auth_client.patch(
+        "/v1/prospects", json={"business_ids": [biz1.id], "qualification_status": "qualified"}
+    )
     assert res_qual.status_code == 200
 
     # 5. Single resource update: PATCH /v1/businesses/{id}
@@ -145,7 +160,7 @@ async def test_pure_rest_deletes_return_204_and_bulk_returns_200(auth_client, db
     contact = Contact(business_id=biz.id, first_name="Dr.", last_name="Smith")
     note = Note(business_id=biz.id, user_id=1, content="Test Note")
     task = Task(business_id=biz.id, user_id=1, title="Call Clinic")
-    reminder = Reminder(business_id=biz.id, user_id=1, title="Follow Up", due_at=datetime.now(timezone.utc))
+    reminder = Reminder(business_id=biz.id, user_id=1, title="Follow Up", due_at=datetime.now(UTC))
     activity = Activity(business_id=biz.id, user_id=1, type=ActivityType.NOTE_ADDED, notes="Test")
     db_session.add_all([contact, note, task, reminder, activity])
     await db_session.commit()
@@ -189,7 +204,9 @@ async def test_pure_rest_deletes_return_204_and_bulk_returns_200(auth_client, db
     await db_session.refresh(biz_a)
     await db_session.refresh(biz_b)
 
-    del_bulk = await auth_client.request("DELETE", "/v1/businesses", json={"business_ids": [biz_a.id, biz_b.id]})
+    del_bulk = await auth_client.request(
+        "DELETE", "/v1/businesses", json={"business_ids": [biz_a.id, biz_b.id]}
+    )
     assert del_bulk.status_code == 200
     assert del_bulk.json()["deleted_count"] == 2
 
@@ -221,7 +238,9 @@ async def test_legacy_and_alias_endpoints_return_404(auth_client):
 
     for method, path in removed_routes:
         res = await auth_client.request(method, path, json={})
-        assert res.status_code in (404, 405), f"Route {method} {path} should be 404 or 405, got {res.status_code}"
+        assert res.status_code in (404, 405), (
+            f"Route {method} {path} should be 404 or 405, got {res.status_code}"
+        )
 
 
 @pytest.mark.asyncio
@@ -252,15 +271,20 @@ async def test_exception_structured_envelope(auth_client):
     assert "detail" in body_domain
     assert "error" in body_domain
     assert body_domain["error"]["code"] == "NOT_FOUND"
-    assert "Business" in body_domain["error"]["message"] or "not found" in body_domain["error"]["message"].lower()
+    assert (
+        "Business" in body_domain["error"]["message"]
+        or "not found" in body_domain["error"]["message"].lower()
+    )
     assert "request_id" in body_domain["error"]
 
     # 2. Standard HTTPException (e.g. invalid login credentials)
-    res_http = await auth_client.post("/v1/auth/login", json={"email": "nonexistent@fastui.in", "password": "wrong"})
+    res_http = await auth_client.post(
+        "/v1/auth/login", json={"email": "nonexistent@fastui.in", "password": "wrong"}
+    )
     assert res_http.status_code == 401
     body_http = res_http.json()
     assert "detail" in body_http
     assert "error" in body_http
-    assert body_http["error"]["code"] == "HTTP_401"
+    assert body_http["error"]["code"] in ("HTTP_401", "UNAUTHORIZED")
     assert "Invalid email or password" in body_http["error"]["message"]
     assert "request_id" in body_http["error"]

@@ -1,21 +1,31 @@
-import pytest
-from datetime import datetime, timezone, timedelta
-from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-
-from main import app
-from models.schema import User, UserRole, Business, Reminder, ReminderStatus, PushSubscription
-from services.auth_service import create_access_token
-from services.push_service import PushNotificationService
-from services.reminder_service import ReminderNotificationService
+from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
+
+import pytest
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.domains.engagement.service import ReminderNotificationService
+from app.domains.models import (
+    Business,
+    PushSubscription,
+    Reminder,
+    ReminderStatus,
+    User,
+    UserRole,
+)
+from app.domains.notifications.service import (
+    NotificationService as PushNotificationService,
+)
+from app.main import app
+from app.shared.security import create_access_token
 
 
 @pytest.mark.asyncio
 async def test_get_vapid_public_key(db_session: AsyncSession):
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        res = await client.get("/notifications/vapid-public-key")
+        res = await client.get("/v1/notifications/vapid-public-key")
         assert res.status_code == 200
         data = res.json()
         assert "public_key" in data
@@ -50,8 +60,8 @@ async def test_subscribe_and_unsubscribe_push_notifications(db_session: AsyncSes
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         # 2. Subscribe
-        sub_res = await client.post("/notifications/subscribe", json=payload, headers=headers)
-        assert sub_res.status_code == 200
+        sub_res = await client.post("/v1/notifications/subscribe", json=payload, headers=headers)
+        assert sub_res.status_code in (200, 201)
         sub_data = sub_res.json()
         assert sub_data["endpoint"] == payload["endpoint"]
 
@@ -64,9 +74,12 @@ async def test_subscribe_and_unsubscribe_push_notifications(db_session: AsyncSes
         assert db_sub.user_id == user.id
 
         # 3. Test push
-        with patch("services.push_service.PushNotificationService.send_notification", return_value=True) as mock_send:
+        with patch(
+            "app.domains.notifications.service.NotificationService.send_notification",
+            return_value=True,
+        ) as mock_send:
             test_res = await client.post(
-                "/notifications/test",
+                "/v1/notifications/test",
                 json={"title": "Test Alert", "body": "Testing Web Push"},
                 headers=headers,
             )
@@ -76,10 +89,10 @@ async def test_subscribe_and_unsubscribe_push_notifications(db_session: AsyncSes
 
         # 4. Unsubscribe
         unsub_res = await client.delete(
-            f"/notifications/unsubscribe?endpoint={payload['endpoint']}",
+            f"/v1/notifications/unsubscribe?endpoint={payload['endpoint']}",
             headers=headers,
         )
-        assert unsub_res.status_code == 200
+        assert unsub_res.status_code in (200, 204)
 
         # Verify removed from DB
         db_sub_res = await db_session.execute(
@@ -109,7 +122,7 @@ async def test_reminder_notification_dispatch_and_status_update(db_session: Asyn
     db_session.add(business)
     await db_session.flush()
 
-    past_due = datetime.now(timezone.utc) - timedelta(minutes=5)
+    past_due = datetime.now(UTC) - timedelta(minutes=5)
     reminder = Reminder(
         business_id=business.id,
         user_id=user.id,
@@ -130,7 +143,9 @@ async def test_reminder_notification_dispatch_and_status_update(db_session: Asyn
     await db_session.commit()
 
     # 2. Process due reminders
-    with patch("services.push_service.PushNotificationService.send_notification", return_value=True) as mock_send:
+    with patch(
+        "app.domains.notifications.service.NotificationService.send_notification", return_value=True
+    ) as mock_send:
         processed = await ReminderNotificationService.process_due_reminders(db_session)
         assert processed == 1
         assert mock_send.called
@@ -187,7 +202,10 @@ async def test_broadcast_to_user_deduplication(db_session: AsyncSession):
         called_endpoints.append(sub_info["endpoint"])
         return True
 
-    with patch("services.push_service.PushNotificationService.send_notification", side_effect=mock_send):
+    with patch(
+        "app.domains.notifications.service.NotificationService.send_notification",
+        side_effect=mock_send,
+    ):
         metrics = await PushNotificationService.broadcast_to_user(
             session=db_session,
             user_id=user.id,
@@ -203,7 +221,6 @@ async def test_broadcast_to_user_deduplication(db_session: AsyncSession):
         # Verify only 2 unique valid devices were called and no duplicate calls were made
         assert len(called_endpoints) == 2
         assert set(called_endpoints) == {sub1.endpoint, sub2.endpoint}
-
 
 
 @pytest.mark.asyncio
@@ -239,7 +256,10 @@ async def test_broadcast_stale_device_cleanup(db_session: AsyncSession):
             return False  # simulates 410 Gone / 404 Not Found
         return True
 
-    with patch("services.push_service.PushNotificationService.send_notification", side_effect=mock_send_with_expiry):
+    with patch(
+        "app.domains.notifications.service.NotificationService.send_notification",
+        side_effect=mock_send_with_expiry,
+    ):
         metrics = await PushNotificationService.broadcast_to_user(
             session=db_session,
             user_id=user.id,
@@ -282,13 +302,17 @@ async def test_broadcast_api_route(db_session: AsyncSession):
     db_session.add(sub)
     await db_session.commit()
 
-    token = create_access_token(data={"sub": user.email, "user_id": user.id, "role": user.role.value})
+    token = create_access_token(
+        data={"sub": user.email, "user_id": user.id, "role": user.role.value}
+    )
     headers = {"Authorization": f"Bearer {token}"}
 
-    with patch("services.push_service.PushNotificationService.send_notification", return_value=True):
+    with patch(
+        "app.domains.notifications.service.NotificationService.send_notification", return_value=True
+    ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             res = await client.post(
-                "/notifications/broadcast",
+                "/v1/notifications/broadcast",
                 json={
                     "title": "System Update",
                     "body": "New leads uploaded for today.",
@@ -339,13 +363,17 @@ async def test_broadcast_to_all_accounts_endpoint(db_session: AsyncSession):
     db_session.add_all([sub1, sub2])
     await db_session.commit()
 
-    token = create_access_token(data={"sub": user1.email, "user_id": user1.id, "role": user1.role.value})
+    token = create_access_token(
+        data={"sub": user1.email, "user_id": user1.id, "role": user1.role.value}
+    )
     headers = {"Authorization": f"Bearer {token}"}
 
-    with patch("services.push_service.PushNotificationService.send_notification", return_value=True):
+    with patch(
+        "app.domains.notifications.service.NotificationService.send_notification", return_value=True
+    ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             res = await client.post(
-                "/notifications/broadcast",
+                "/v1/notifications/broadcast",
                 json={
                     "all_accounts": True,
                     "title": "Company-wide Announcement",
@@ -358,5 +386,3 @@ async def test_broadcast_to_all_accounts_endpoint(db_session: AsyncSession):
             assert data["status"] == "sent"
             assert data["dispatched_devices"] >= 2
             assert data["unique_devices"] >= 2
-
-

@@ -7,7 +7,8 @@ or semantic HTML tables/sections.
 
 import json
 import re
-from typing import Dict, Optional, Any
+from typing import Any, Dict, Optional
+
 from bs4 import BeautifulSoup
 
 DAYS_OF_WEEK = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
@@ -32,7 +33,7 @@ def extract_opening_hours(soup: BeautifulSoup) -> Optional[Dict[str, Any]]:
                 for entity in graph:
                     if not isinstance(entity, dict):
                         continue
-                    
+
                     # Array of openingHoursSpecification
                     specs = entity.get("openingHoursSpecification")
                     if specs and isinstance(specs, list):
@@ -46,7 +47,9 @@ def extract_opening_hours(soup: BeautifulSoup) -> Optional[Dict[str, Any]]:
                             if day:
                                 day_str = day if isinstance(day, str) else str(day)
                                 day_clean = day_str.split("/")[-1].capitalize()
-                                hours_dict[day_clean] = f"{opens or ''} - {closes or ''}".strip(" -")
+                                hours_dict[day_clean] = f"{opens or ''} - {closes or ''}".strip(
+                                    " -"
+                                )
                         if hours_dict:
                             return hours_dict
 
@@ -61,7 +64,9 @@ def extract_opening_hours(soup: BeautifulSoup) -> Optional[Dict[str, Any]]:
             pass
 
     # 2. HTML Table or list with days of the week
-    hours_containers = soup.find_all(["table", "ul", "div"], attrs={"class": re.compile(r"hours|opening|timing|schedule", re.I)})
+    hours_containers = soup.find_all(
+        ["table", "ul", "div"], attrs={"class": re.compile(r"hours|opening|timing|schedule", re.I)}
+    )
     for container in hours_containers:
         text = container.get_text(separator=" ", strip=True)
         if any(d in text for d in ("Monday", "Mon", "Friday", "Fri")):

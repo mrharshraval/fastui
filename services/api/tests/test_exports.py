@@ -1,8 +1,10 @@
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from models.schema import ExportJob, ExportStatus, Business, Lead, PipelineStage
-from services.export_service import ExportService
+
+from app.domains.exports.service import ExportService
+from app.domains.models import Business, ExportJob, ExportStatus, Lead, PipelineStage
+
 
 @pytest.mark.asyncio
 async def test_create_export_default(auth_client: AsyncClient):
@@ -18,6 +20,7 @@ async def test_create_export_default(auth_client: AsyncClient):
     assert status_res.status_code == 200
     assert status_res.json()["id"] == export_id
 
+
 @pytest.mark.asyncio
 async def test_download_completed_export(auth_client: AsyncClient, db_session: AsyncSession):
     """Verifies downloading a completed export with UTF-8 BOM."""
@@ -30,7 +33,7 @@ async def test_download_completed_export(auth_client: AsyncClient, db_session: A
         id="test-uuid-1234",
         status=ExportStatus.COMPLETED,
         export_type="prospects",
-        progress_percent=100
+        progress_percent=100,
     )
     db_session.add(export_job)
     await db_session.commit()
@@ -42,6 +45,7 @@ async def test_download_completed_export(auth_client: AsyncClient, db_session: A
     # Check UTF-8 BOM (\ufeff / \xef\xbb\xbf)
     assert download_res.content.startswith(b"\xef\xbb\xbf")
 
+
 @pytest.mark.asyncio
 async def test_export_selected_records(auth_client: AsyncClient, db_session: AsyncSession):
     """Verifies exporting only selected records by IDs."""
@@ -52,11 +56,9 @@ async def test_export_selected_records(auth_client: AsyncClient, db_session: Asy
     await db_session.refresh(b1)
     await db_session.refresh(b2)
 
-    res = await auth_client.post("/v1/exports", json={
-        "export_type": "prospects",
-        "scope": "selected",
-        "record_ids": [b1.id]
-    })
+    res = await auth_client.post(
+        "/v1/exports", json={"export_type": "prospects", "scope": "selected", "record_ids": [b1.id]}
+    )
     assert res.status_code == 202
     export_id = res.json()["export_id"]
 
@@ -68,6 +70,7 @@ async def test_export_selected_records(auth_client: AsyncClient, db_session: Asy
     assert download_res.status_code == 200
     assert "Selected Clinic 1" in download_res.text
     assert "Unselected Clinic 2" not in download_res.text
+
 
 @pytest.mark.asyncio
 async def test_export_filtered_leads(auth_client: AsyncClient, db_session: AsyncSession):
@@ -84,14 +87,14 @@ async def test_export_filtered_leads(auth_client: AsyncClient, db_session: Async
     db_session.add_all([l1, l2])
     await db_session.commit()
 
-    res = await auth_client.post("/v1/exports", json={
-        "export_type": "leads",
-        "scope": "filtered",
-        "filters": {
-            "stage": "won",
-            "search": "Dental"
-        }
-    })
+    res = await auth_client.post(
+        "/v1/exports",
+        json={
+            "export_type": "leads",
+            "scope": "filtered",
+            "filters": {"stage": "won", "search": "Dental"},
+        },
+    )
     assert res.status_code == 202
     export_id = res.json()["export_id"]
 
@@ -105,20 +108,21 @@ async def test_export_filtered_leads(auth_client: AsyncClient, db_session: Async
     assert "Pipeline Stage" in download_res.text
     assert "Priority" in download_res.text
 
+
 @pytest.mark.asyncio
 async def test_csv_injection_sanitization(auth_client: AsyncClient, db_session: AsyncSession):
     """Verifies that cells beginning with dangerous characters are prefixed with apostrophe."""
     malicious_name = "=cmd|' /C calc'!A0"
-    b = Business(business_name=malicious_name, category="+malicious_category", phone="+91 99999 88888")
+    b = Business(
+        business_name=malicious_name, category="+malicious_category", phone="+91 99999 88888"
+    )
     db_session.add(b)
     await db_session.commit()
     await db_session.refresh(b)
 
-    res = await auth_client.post("/v1/exports", json={
-        "export_type": "prospects",
-        "scope": "selected",
-        "record_ids": [b.id]
-    })
+    res = await auth_client.post(
+        "/v1/exports", json={"export_type": "prospects", "scope": "selected", "record_ids": [b.id]}
+    )
     assert res.status_code == 202
     export_id = res.json()["export_id"]
     await ExportService.process_export(export_id)
@@ -130,16 +134,18 @@ async def test_csv_injection_sanitization(auth_client: AsyncClient, db_session: 
     assert "'+malicious_category" in download_res.text
     assert "'+91 99999 88888" in download_res.text
 
+
 @pytest.mark.asyncio
 async def test_export_empty_dataset(auth_client: AsyncClient):
     """Verifies exporting when no records match produces clean CSV with headers."""
-    res = await auth_client.post("/v1/exports", json={
-        "export_type": "prospects",
-        "scope": "filtered",
-        "filters": {
-            "search": "NonExistentCompanyXYZ999"
-        }
-    })
+    res = await auth_client.post(
+        "/v1/exports",
+        json={
+            "export_type": "prospects",
+            "scope": "filtered",
+            "filters": {"search": "NonExistentCompanyXYZ999"},
+        },
+    )
     assert res.status_code == 202
     export_id = res.json()["export_id"]
     await ExportService.process_export(export_id)

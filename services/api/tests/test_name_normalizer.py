@@ -4,8 +4,7 @@ Unit Tests for BusinessNameNormalizer
 Validates conservative business name normalization, noise stripping, and casing rules.
 """
 
-import pytest
-from services.business_name_normalizer import BusinessNameNormalizer, NormalizedBusinessName
+from app.domains.businesses.normalizer import BusinessNameNormalizer
 
 
 class TestBusinessNameNormalizer:
@@ -26,7 +25,9 @@ class TestBusinessNameNormalizer:
         Input: 'Maxsmile Dental Clinic || Dental Clinic in Sodepur'
         Expected: 'Maxsmile Dental Clinic'
         """
-        result = BusinessNameNormalizer.normalize("Maxsmile Dental Clinic || Dental Clinic in Sodepur")
+        result = BusinessNameNormalizer.normalize(
+            "Maxsmile Dental Clinic || Dental Clinic in Sodepur"
+        )
         assert result.display_name == "Maxsmile Dental Clinic"
         assert result.raw_name == "Maxsmile Dental Clinic || Dental Clinic in Sodepur"
         assert result.normalized_name == "maxsmile dental clinic"
@@ -110,7 +111,9 @@ class TestBusinessNameNormalizer:
         Input: 'Teeth Care Centre® Dental Hospital [High-end Dentistry]'
         Expected: 'Teeth Care Centre Dental Hospital'
         """
-        result = BusinessNameNormalizer.normalize("Teeth Care Centre® Dental Hospital [High-end Dentistry]")
+        result = BusinessNameNormalizer.normalize(
+            "Teeth Care Centre® Dental Hospital [High-end Dentistry]"
+        )
         assert result.display_name == "Teeth Care Centre Dental Hospital"
         assert result.raw_name == "Teeth Care Centre® Dental Hospital [High-end Dentistry]"
 
@@ -127,4 +130,3 @@ class TestBusinessNameNormalizer:
         )
         assert resolved.display_name == "Teeth Care Centre"
         assert resolved.raw_name == "Teeth Care Centre® Dental Hospital [High-end Dentistry]"
-

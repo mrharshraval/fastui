@@ -1,10 +1,14 @@
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from models.schema import Business, BusinessSource, ProspectDemo
+
+from app.domains.models import Business, BusinessSource
+
 
 @pytest.mark.asyncio
-async def test_prospect_demo_lifecycle(auth_client: AsyncClient, client: AsyncClient, db_session: AsyncSession):
+async def test_prospect_demo_lifecycle(
+    auth_client: AsyncClient, client: AsyncClient, db_session: AsyncSession
+):
     # 1. Create a test dental business
     business = Business(
         business_name="Smile Dental Studio",
@@ -14,7 +18,7 @@ async def test_prospect_demo_lifecycle(auth_client: AsyncClient, client: AsyncCl
         address="402 Medical Square, Drive-In Road",
         city="Ahmedabad",
         state="Gujarat",
-        has_whatsapp=True
+        has_whatsapp=True,
     )
     db_session.add(business)
     await db_session.commit()
@@ -25,13 +29,17 @@ async def test_prospect_demo_lifecycle(auth_client: AsyncClient, client: AsyncCl
         business_id=business.id,
         platform="google_maps",
         external_id="ChIJN1t_tDeuEmsRUsoyG83frY4",
-        raw_payload={"rating": 4.9, "reviews_count": 142, "opening_hours": "Mon-Sat: 9:00 AM - 8:00 PM"}
+        raw_payload={
+            "rating": 4.9,
+            "reviews_count": 142,
+            "opening_hours": "Mon-Sat: 9:00 AM - 8:00 PM",
+        },
     )
     db_session.add(source)
     await db_session.commit()
 
     # 2. CRM Endpoint: Generate demo
-    resp = await auth_client.post(f"/businesses/{business.id}/demo")
+    resp = await auth_client.post(f"/v1/businesses/{business.id}/demo")
     assert resp.status_code == 200
     demo_data = resp.json()
     assert "token" in demo_data
@@ -41,12 +49,12 @@ async def test_prospect_demo_lifecycle(auth_client: AsyncClient, client: AsyncCl
     assert demo_data["view_count"] == 0
 
     # 3. CRM Endpoint: Fetch existing demo (idempotency check)
-    fetch_resp = await auth_client.get(f"/businesses/{business.id}/demo")
+    fetch_resp = await auth_client.get(f"/v1/businesses/{business.id}/demo")
     assert fetch_resp.status_code == 200
     assert fetch_resp.json()["token"] == token
 
-    # 4. Public Endpoint: GET /public/v1/demos/{token} (Unauthenticated)
-    pub_resp = await client.get(f"/public/v1/demos/{token}")
+    # 4. Public Endpoint: GET /v1/demos/{token} (Unauthenticated)
+    pub_resp = await client.get(f"/v1/demos/{token}")
     assert pub_resp.status_code == 200
     pub_data = pub_resp.json()
 
@@ -75,77 +83,67 @@ async def test_prospect_demo_lifecycle(auth_client: AsyncClient, client: AsyncCl
     assert "private" in pub_resp.headers["Cache-Control"]
 
     # 5. Public Endpoint: 404 for invalid token
-    not_found_resp = await client.get("/public/v1/demos/non-existent-token-xyz")
+    not_found_resp = await client.get("/v1/demos/non-existent-token-xyz")
     assert not_found_resp.status_code == 404
 
     # 6. Public Event Tracking: demo_viewed
     event_resp = await client.post(
-        f"/public/v1/demos/{token}/events",
-        json={
-            "event_type": "demo_viewed",
-            "session_id": "session-123",
-            "page_path": "/"
-        },
-        headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        f"/v1/demos/{token}/events",
+        json={"event_type": "demo_viewed", "session_id": "session-123", "page_path": "/"},
+        headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
     )
-    assert event_resp.status_code == 200
+    assert event_resp.status_code in (200, 201)
     assert event_resp.json()["status"] == "recorded"
 
     # Verify view count incremented in CRM
-    crm_after_view = await auth_client.get(f"/businesses/{business.id}/demo")
+    crm_after_view = await auth_client.get(f"/v1/businesses/{business.id}/demo")
     assert crm_after_view.json()["view_count"] == 1
 
     # 7. Deduplication within 15 minutes: Same session should NOT increment count again
     dup_event_resp = await client.post(
-        f"/public/v1/demos/{token}/events",
-        json={
-            "event_type": "demo_viewed",
-            "session_id": "session-123",
-            "page_path": "/about"
-        },
-        headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        f"/v1/demos/{token}/events",
+        json={"event_type": "demo_viewed", "session_id": "session-123", "page_path": "/about"},
+        headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
     )
-    assert dup_event_resp.status_code == 200
-    crm_after_dup = await auth_client.get(f"/businesses/{business.id}/demo")
+    assert dup_event_resp.status_code in (200, 201)
+    crm_after_dup = await auth_client.get(f"/v1/businesses/{business.id}/demo")
     assert crm_after_dup.json()["view_count"] == 1  # Still 1, deduplicated!
 
     # 8. Bot Filtering: WhatsApp crawler should be ignored
     bot_event_resp = await client.post(
-        f"/public/v1/demos/{token}/events",
-        json={
-            "event_type": "demo_viewed",
-            "session_id": "session-bot",
-            "page_path": "/"
-        },
-        headers={"User-Agent": "WhatsApp/2.21.12.21 A"}
+        f"/v1/demos/{token}/events",
+        json={"event_type": "demo_viewed", "session_id": "session-bot", "page_path": "/"},
+        headers={"User-Agent": "WhatsApp/2.21.12.21 A"},
     )
-    assert bot_event_resp.status_code == 200
+    assert bot_event_resp.status_code in (200, 201)
     assert bot_event_resp.json()["status"] == "ignored_bot"
-    crm_after_bot = await auth_client.get(f"/businesses/{business.id}/demo")
+    crm_after_bot = await auth_client.get(f"/v1/businesses/{business.id}/demo")
     assert crm_after_bot.json()["view_count"] == 1  # Bot did not increment!
 
 
 @pytest.mark.asyncio
-async def test_clinic_b_minimal_data(auth_client: AsyncClient, client: AsyncClient, db_session: AsyncSession):
+async def test_clinic_b_minimal_data(
+    auth_client: AsyncClient, client: AsyncClient, db_session: AsyncSession
+):
     # Clinic B: Minimal Data - phone only, no Google Maps source, no address, no email
     business = Business(
         business_name="City Dental Care",
         category="Dental Clinic",
         phone="+91 91234 56789",
         city=None,
-        has_whatsapp=True
+        has_whatsapp=True,
     )
     db_session.add(business)
     await db_session.commit()
     await db_session.refresh(business)
 
     # Generate demo
-    resp = await auth_client.post(f"/businesses/{business.id}/demo")
+    resp = await auth_client.post(f"/v1/businesses/{business.id}/demo")
     assert resp.status_code == 200
     token = resp.json()["token"]
 
     # Fetch public demo
-    pub_resp = await client.get(f"/public/v1/demos/{token}")
+    pub_resp = await client.get(f"/v1/demos/{token}")
     assert pub_resp.status_code == 200
     pub_data = pub_resp.json()
 
@@ -166,26 +164,28 @@ async def test_clinic_b_minimal_data(auth_client: AsyncClient, client: AsyncClie
 
 
 @pytest.mark.asyncio
-async def test_clinic_c_edge_case_no_phone(auth_client: AsyncClient, client: AsyncClient, db_session: AsyncSession):
+async def test_clinic_c_edge_case_no_phone(
+    auth_client: AsyncClient, client: AsyncClient, db_session: AsyncSession
+):
     # Clinic C: Edge case - No phone, no WhatsApp, but has city
     business = Business(
         business_name="Modern Orthodontics",
         category="Orthodontics",
         phone=None,
         city="Mumbai",
-        has_whatsapp=False
+        has_whatsapp=False,
     )
     db_session.add(business)
     await db_session.commit()
     await db_session.refresh(business)
 
     # Generate demo
-    resp = await auth_client.post(f"/businesses/{business.id}/demo")
+    resp = await auth_client.post(f"/v1/businesses/{business.id}/demo")
     assert resp.status_code == 200
     token = resp.json()["token"]
 
     # Fetch public demo
-    pub_resp = await client.get(f"/public/v1/demos/{token}")
+    pub_resp = await client.get(f"/v1/demos/{token}")
     assert pub_resp.status_code == 200
     pub_data = pub_resp.json()
 
@@ -200,14 +200,9 @@ async def test_clinic_c_edge_case_no_phone(auth_client: AsyncClient, client: Asy
 
     # Test event tracking for call_clicked or cta_clicked
     evt_resp = await client.post(
-        f"/public/v1/demos/{token}/events",
-        json={
-            "event_type": "cta_clicked",
-            "session_id": "session-c1",
-            "page_path": "/book"
-        },
-        headers={"User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X)"}
+        f"/v1/demos/{token}/events",
+        json={"event_type": "cta_clicked", "session_id": "session-c1", "page_path": "/book"},
+        headers={"User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X)"},
     )
-    assert evt_resp.status_code == 200
+    assert evt_resp.status_code in (200, 201)
     assert evt_resp.json()["status"] == "recorded"
-

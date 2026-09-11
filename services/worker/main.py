@@ -16,11 +16,8 @@ import sys
 # Ensure the worker root is on sys.path so all local modules resolve correctly
 sys.path.insert(0, os.path.dirname(__file__))
 
-# On Windows, Playwright requires ProactorEventLoop for async subprocess support
-if sys.platform == "win32":
-    import asyncio
-    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-
+import asyncio
+import threading
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
@@ -28,11 +25,10 @@ from fastapi.responses import JSONResponse
 
 from contracts import DiscoverResponse, DiscoverySearchParams, EnrichmentParams, EnrichmentResponse
 from core.config import settings
-from core.security import verify_worker_token
-from sources.aggregator import MultiSourceDiscoveryAggregator
-from enrichment import WebsiteEnrichmentEngine
-
 from core.logger import setup_worker_logging
+from core.security import verify_worker_token
+from enrichment import WebsiteEnrichmentEngine
+from sources.aggregator import MultiSourceDiscoveryAggregator
 
 setup_worker_logging(service_name="fastui-worker")
 logger = logging.getLogger("fastui.worker")
@@ -60,7 +56,9 @@ app = FastAPI(
 )
 
 import uuid
+
 from core.logger import correlation_id_ctx
+
 
 @app.middleware("http")
 async def correlation_middleware(request: Request, call_next):
@@ -102,23 +100,19 @@ async def health() -> dict:
     return {"status": "ok", "service": "fastui-worker"}
 
 
-def _run_discovery_in_proactor(params: DiscoverySearchParams, headless: bool):
+def _run_discovery_in_proactor(
+    params: DiscoverySearchParams,
+    headless: bool,
+    cancel_event: threading.Event | None = None,
+):
     """
-    Executes the Playwright scraping pipeline inside a dedicated ProactorEventLoop thread.
-    Guarantees 100% subprocess support on Windows regardless of uvicorn's event loop policy.
+    Executes the Playwright scraping pipeline inside a dedicated event loop thread.
+    Uses asyncio.Runner with loop_factory for supported, deterministic lifecycle management.
     """
-    if sys.platform == "win32":
-        loop = asyncio.ProactorEventLoop()
-        asyncio.set_event_loop(loop)
-    else:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-    try:
+    loop_factory = asyncio.ProactorEventLoop if sys.platform == "win32" else None
+    with asyncio.Runner(loop_factory=loop_factory) as runner:
         aggregator = MultiSourceDiscoveryAggregator(headless=headless)
-        return loop.run_until_complete(aggregator.discover_with_meta(params))
-    finally:
-        loop.close()
+        return runner.run(aggregator.discover_with_meta(params, cancel_event=cancel_event))
 
 
 @app.post(
@@ -127,21 +121,48 @@ def _run_discovery_in_proactor(params: DiscoverySearchParams, headless: bool):
     tags=["discovery"],
     dependencies=[Depends(verify_worker_token)],
 )
-async def discover(params: DiscoverySearchParams) -> DiscoverResponse:
+async def discover(request: Request, params: DiscoverySearchParams) -> DiscoverResponse:
     """
     Runs multi-source Playwright scraping and returns discovered business leads.
     Requires a valid 'X-Worker-Token' authentication header.
+    Supports cooperative HTTP cancellation when clients abort connections.
     """
     logger.info(
         f"Received discover request: audience='{params.target_audience}' "
         f"location='{params.location}' limit={params.limit}"
     )
 
+    cancel_event = threading.Event()
+
+    async def _monitor_disconnect():
+        try:
+            while not cancel_event.is_set():
+                if await request.is_disconnected():
+                    logger.info(
+                        "Client disconnected during discovery; signaling cooperative abort."
+                    )
+                    cancel_event.set()
+                    break
+                await asyncio.sleep(0.5)
+        except asyncio.CancelledError:
+            pass
+
+    disconnect_task = asyncio.create_task(_monitor_disconnect())
+
     try:
-        leads, exhausted, sources_exhausted, peak_rss, next_cursor, current_locality, localities_remaining = await asyncio.to_thread(
+        (
+            leads,
+            exhausted,
+            sources_exhausted,
+            peak_rss,
+            next_cursor,
+            current_locality,
+            localities_remaining,
+        ) = await asyncio.to_thread(
             _run_discovery_in_proactor,
             params,
             settings.HEADLESS_BROWSER,
+            cancel_event,
         )
         logger.info(
             f"Discovery complete: {len(leads)} leads returned "
@@ -157,12 +178,23 @@ async def discover(params: DiscoverySearchParams) -> DiscoverResponse:
             current_locality=current_locality,
             localities_remaining=localities_remaining,
         )
+    except asyncio.CancelledError:
+        cancel_event.set()
+        logger.info("Discover request was cancelled; cooperative abort signaled to worker thread.")
+        raise
     except Exception as e:
         logger.error(f"Discovery failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Discovery failed: {str(e)}",
         )
+    finally:
+        cancel_event.set()
+        disconnect_task.cancel()
+        try:
+            await disconnect_task
+        except asyncio.CancelledError:
+            pass
 
 
 @app.post(
@@ -177,7 +209,9 @@ async def enrich(params: EnrichmentParams) -> EnrichmentResponse:
     and website quality signals from a prospect's official website.
     Requires a valid 'X-Worker-Token' authentication header.
     """
-    logger.info(f"Received enrich request for website='{params.website}' (business='{params.business_name}')")
+    logger.info(
+        f"Received enrich request for website='{params.website}' (business='{params.business_name}')"
+    )
     try:
         engine = WebsiteEnrichmentEngine()
         response = await engine.enrich_website(params)
@@ -195,6 +229,7 @@ async def enrich(params: EnrichmentParams) -> EnrichmentResponse:
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
         "main:app",
         host="0.0.0.0",

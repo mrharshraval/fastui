@@ -6,13 +6,18 @@ cross-source provenance, multi-run resumability, and source exhaustion.
 """
 
 from unittest.mock import AsyncMock, patch
+
 import pytest
-from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models.schema import Business, BusinessSource, DiscoveryJob, JobStatus
-from schemas.discovery import DiscoveredLead, DiscoverResponse
-from services.discovery_service import DiscoveryService
+from app.domains.models import Business, DiscoveryJob, JobStatus
+from app.domains.prospecting.service import ProspectingService as DiscoveryService
+from app.infrastructure.external.worker_client import (
+    WorkerDiscoveredLead as DiscoveredLead,
+)
+from app.infrastructure.external.worker_client import (
+    WorkerDiscoverResponse as DiscoverResponse,
+)
 
 
 @pytest.mark.asyncio
@@ -48,7 +53,9 @@ async def test_existing_prospects_deducted_and_zero_worker_calls_when_target_met
     await db_session.commit()
     await db_session.refresh(job)
 
-    with patch("services.discovery_service.WorkerClient.discover_batch", new_callable=AsyncMock) as mock_worker:
+    with patch(
+        "app.domains.prospecting.service.WorkerClient.discover_batch", new_callable=AsyncMock
+    ) as mock_worker:
         await DiscoveryService.process_job(job.id)
         mock_worker.assert_not_called()
 
@@ -173,7 +180,7 @@ async def test_mandatory_multi_source_and_multi_run_scenario(
     run_1_all_leads = source_a_leads + source_b_leads + source_c_leads
 
     # Deliver in chunks of 50
-    chunks = [run_1_all_leads[i:i+50] for i in range(0, len(run_1_all_leads), 50)]
+    chunks = [run_1_all_leads[i : i + 50] for i in range(0, len(run_1_all_leads), 50)]
     chunk_responses = [DiscoverResponse(leads=ch, count=len(ch), exhausted=False) for ch in chunks]
     # Final response signals exhaustion of current run
     chunk_responses.append(DiscoverResponse(leads=[], count=0, exhausted=True))
@@ -190,7 +197,9 @@ async def test_mandatory_multi_source_and_multi_run_scenario(
     await db_session.commit()
     await db_session.refresh(job1)
 
-    with patch("services.discovery_service.WorkerClient.discover_batch", side_effect=chunk_responses):
+    with patch(
+        "app.domains.prospecting.service.WorkerClient.discover_batch", side_effect=chunk_responses
+    ):
         await DiscoveryService.process_job(job1.id)
 
     await db_session.refresh(job1)
@@ -199,7 +208,9 @@ async def test_mandatory_multi_source_and_multi_run_scenario(
     assert job1.status == JobStatus.COMPLETED
     assert job1.existing_businesses == 100
     assert job1.new_leads == 700  # 200 from A + 300 from B + 200 from C
-    assert job1.duplicates == 300 # 100 (A dups with DB) + 100 (B dups with A) + 100 (C dups with B)
+    assert (
+        job1.duplicates == 300
+    )  # 100 (A dups with DB) + 100 (B dups with A) + 100 (C dups with B)
     total_in_scope_run1 = job1.existing_businesses + job1.new_leads
     assert total_in_scope_run1 == 800
     remaining_run1 = 1000 - total_in_scope_run1
@@ -235,7 +246,10 @@ async def test_mandatory_multi_source_and_multi_run_scenario(
         ]
         return DiscoverResponse(leads=lead_batch, count=len(lead_batch), exhausted=False)
 
-    with patch("services.discovery_service.WorkerClient.discover_batch", side_effect=mock_run2_discover_batch):
+    with patch(
+        "app.domains.prospecting.service.WorkerClient.discover_batch",
+        side_effect=mock_run2_discover_batch,
+    ):
         await DiscoveryService.process_job(job2.id)
 
     await db_session.refresh(job2)
@@ -278,7 +292,10 @@ async def test_job_cancellation_mid_run(db_session: AsyncSession):
             count=1,
         )
 
-    with patch("services.discovery_service.WorkerClient.discover_batch", side_effect=mock_discover_and_cancel):
+    with patch(
+        "app.domains.prospecting.service.WorkerClient.discover_batch",
+        side_effect=mock_discover_and_cancel,
+    ):
         await DiscoveryService.process_job(job.id)
 
     await db_session.refresh(job)

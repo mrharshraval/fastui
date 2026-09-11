@@ -15,6 +15,7 @@ class NormalizedBusinessName:
     """
     Immutable value object encapsulating raw, display, and search-normalized name representations.
     """
+
     raw_name: str
     display_name: str
     normalized_name: str
@@ -29,26 +30,65 @@ class BusinessNameNormalizer:
     """
 
     MINOR_WORDS: Set[str] = {
-        "a", "an", "and", "as", "at", "but", "by", "for", "in", "nor", "of",
-        "on", "or", "so", "the", "to", "up", "yet", "with", "via"
+        "a",
+        "an",
+        "and",
+        "as",
+        "at",
+        "but",
+        "by",
+        "for",
+        "in",
+        "nor",
+        "of",
+        "on",
+        "or",
+        "so",
+        "the",
+        "to",
+        "up",
+        "yet",
+        "with",
+        "via",
     }
 
     PRESERVED_ACRONYMS: Set[str] = {
-        "USA", "UK", "UAE", "IBM", "BMW", "LLC", "INC", "LTD", "PVT", "CORP",
-        "MD", "DDS", "DMD", "BDS", "MDS", "ENT", "IVF", "MRI", "CT", "ICU", "3M"
+        "USA",
+        "UK",
+        "UAE",
+        "IBM",
+        "BMW",
+        "LLC",
+        "INC",
+        "LTD",
+        "PVT",
+        "CORP",
+        "MD",
+        "DDS",
+        "DMD",
+        "BDS",
+        "MDS",
+        "ENT",
+        "IVF",
+        "MRI",
+        "CT",
+        "ICU",
+        "3M",
     }
 
     MAJOR_SEPARATORS = re.compile(r"\s*(?:\|\||\||//|--|—|–|•|·)\s*")
 
     TRADEMARK_SYMBOLS = re.compile(r"[®™℠©]+")
 
-    DECORATIVE_GLYPHS = re.compile(r"[\u2600-\u27bf\U0001f300-\U0001f9ff\U0001fa00-\U0001faff★⭐✨🦷⚕✓✔]+")
+    DECORATIVE_GLYPHS = re.compile(
+        r"[\u2600-\u27bf\U0001f300-\U0001f9ff\U0001fa00-\U0001faff★⭐✨🦷⚕✓✔]+"
+    )
 
     BRACKETED_MARKETING_PATTERN = re.compile(r"\s*(\[[^\]]*\]|\([^\)]*\)|\{[^\}]*\}|<[^>]*>)\s*")
 
     SEO_SUFFIX_PATTERN = re.compile(
         r"^(?:best|top|famous|leading|trusted)?\s*(?:dentist|dental clinic|doctor|clinic|hospital|lawyer|plumber|bakery|restaurant|services|shop|store)\s+in\s+[\w\s,]+$",
-        re.IGNORECASE
+        re.IGNORECASE,
     )
 
     @classmethod
@@ -57,14 +97,16 @@ class BusinessNameNormalizer:
             return NormalizedBusinessName(
                 raw_name="" if raw_name is None else str(raw_name),
                 display_name="",
-                normalized_name=""
+                normalized_name="",
             )
 
         original_raw = raw_name
         text = raw_name.strip()
 
         if not text:
-            return NormalizedBusinessName(raw_name=original_raw, display_name="", normalized_name="")
+            return NormalizedBusinessName(
+                raw_name=original_raw, display_name="", normalized_name=""
+            )
 
         # 1. Strip trademark symbols and decorative glyphs
         text = cls._strip_symbols_and_emojis(text)
@@ -86,9 +128,7 @@ class BusinessNameNormalizer:
         normalized_name = cls._generate_search_key(display_name)
 
         return NormalizedBusinessName(
-            raw_name=original_raw,
-            display_name=display_name,
-            normalized_name=normalized_name
+            raw_name=original_raw, display_name=display_name, normalized_name=normalized_name
         )
 
     @classmethod
@@ -152,9 +192,28 @@ class BusinessNameNormalizer:
         for m in matches:
             content = m[1:-1].strip().lower()
             marketing_indicators = (
-                "dentistry", "dental", "implant", "high-end", "award", "top", "best",
-                "dr", "branch", "rating", "star", "specialist", "hospital", "clinic",
-                "center", "centre", "care", "advanced", "cosmetic", "laser", "pvt", "ltd"
+                "dentistry",
+                "dental",
+                "implant",
+                "high-end",
+                "award",
+                "top",
+                "best",
+                "dr",
+                "branch",
+                "rating",
+                "star",
+                "specialist",
+                "hospital",
+                "clinic",
+                "center",
+                "centre",
+                "care",
+                "advanced",
+                "cosmetic",
+                "laser",
+                "pvt",
+                "ltd",
             )
             if any(ind in content for ind in marketing_indicators) or len(content) <= 30:
                 cleaned = cleaned.replace(m, " ")
@@ -192,7 +251,10 @@ class BusinessNameNormalizer:
                 continue
             if cls.SEO_SUFFIX_PATTERN.match(seg):
                 continue
-            if re.search(r"\b(?:in|at|near)\s+[A-Za-z]+(?:\s+[A-Za-z]+)*$", seg, re.IGNORECASE) and len(seg.split()) <= 6:
+            if (
+                re.search(r"\b(?:in|at|near)\s+[A-Za-z]+(?:\s+[A-Za-z]+)*$", seg, re.IGNORECASE)
+                and len(seg.split()) <= 6
+            ):
                 continue
             filtered_parts.append(seg)
 

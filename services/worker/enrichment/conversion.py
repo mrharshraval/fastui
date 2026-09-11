@@ -6,14 +6,14 @@ and appointment provider CTAs from website HTML.
 """
 
 import re
-from typing import List
 from urllib.parse import urljoin
+
 from bs4 import BeautifulSoup
 
 from contracts import EnrichedContact
-from utils.phone import normalize_global_phone, is_mobile_phone, get_whatsapp_url
+from utils.phone import get_whatsapp_url, is_mobile_phone, normalize_global_phone
 
-EMAIL_REGEX = re.compile(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}')
+EMAIL_REGEX = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
 
 BOOKING_DOMAINS = {
     "practo.com": "Practo",
@@ -25,7 +25,9 @@ BOOKING_DOMAINS = {
 }
 
 
-def extract_contact_conversion(soup: BeautifulSoup, base_url: str, location_hint: str = "") -> EnrichedContact:
+def extract_contact_conversion(
+    soup: BeautifulSoup, base_url: str, location_hint: str = ""
+) -> EnrichedContact:
     """
     Extracts emails, phones, WhatsApp links, and booking platform URLs.
     """
@@ -63,7 +65,10 @@ def extract_contact_conversion(soup: BeautifulSoup, base_url: str, location_hint
     # 3. WhatsApp links
     for a in soup.find_all("a", href=True):
         href = a["href"].strip()
-        if any(w in href.lower() for w in ("wa.me/", "api.whatsapp.com/send", "whatsapp://", "whatsapp.com")):
+        if any(
+            w in href.lower()
+            for w in ("wa.me/", "api.whatsapp.com/send", "whatsapp://", "whatsapp.com")
+        ):
             digits = re.sub(r"\D", "", href)
             if len(digits) >= 10:
                 contact.whatsapp = f"+{digits}"
@@ -92,7 +97,9 @@ def extract_contact_conversion(soup: BeautifulSoup, base_url: str, location_hint
                 break
 
         # Check internal booking URLs
-        if any(path in href_lower for path in ("/book", "/appointment", "/schedule", "/online-booking")):
+        if any(
+            path in href_lower for path in ("/book", "/appointment", "/schedule", "/online-booking")
+        ):
             full_url = urljoin(base_url, href)
             if full_url not in contact.booking_urls:
                 contact.booking_urls.append(full_url)
@@ -100,7 +107,9 @@ def extract_contact_conversion(soup: BeautifulSoup, base_url: str, location_hint
                     contact.booking_provider = "Clinic Direct"
 
         # Check contact page link
-        if any(path in href_lower for path in ("/contact", "/contact-us", "/reach-us", "/locate-us")):
+        if any(
+            path in href_lower for path in ("/contact", "/contact-us", "/reach-us", "/locate-us")
+        ):
             if not contact.contact_page_url:
                 contact.contact_page_url = urljoin(base_url, href)
 
@@ -111,7 +120,15 @@ def _is_valid_email(email: str) -> bool:
     if not email or len(email) < 6:
         return False
     # Filter out code artifacts and dummy examples
-    for ignore in ("example.com", "domain.com", "sentry.io", "wix.com", "schema.org", ".png", ".jpg"):
+    for ignore in (
+        "example.com",
+        "domain.com",
+        "sentry.io",
+        "wix.com",
+        "schema.org",
+        ".png",
+        ".jpg",
+    ):
         if ignore in email:
             return False
     return True

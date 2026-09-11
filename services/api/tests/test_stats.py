@@ -1,7 +1,9 @@
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from models.schema import Business, Lead, Activity, ActivityType, PipelineStage
+
+from app.domains.models import Activity, ActivityType, Business, Lead, PipelineStage
+
 
 @pytest.mark.asyncio
 async def test_dashboard_stats(auth_client: AsyncClient, db_session: AsyncSession):
@@ -19,11 +21,13 @@ async def test_dashboard_stats(auth_client: AsyncClient, db_session: AsyncSessio
     await db_session.commit()
 
     # Seed activity
-    act = Activity(business_id=b1.id, type=ActivityType.CALL_INITIATED, outcome="Scheduled consultation")
+    act = Activity(
+        business_id=b1.id, type=ActivityType.CALL_INITIATED, outcome="Scheduled consultation"
+    )
     db_session.add(act)
     await db_session.commit()
 
-    res = await auth_client.get("/stats")
+    res = await auth_client.get("/v1/stats")
     assert res.status_code == 200
     data = res.json()
     assert data["new_leads"] == 1

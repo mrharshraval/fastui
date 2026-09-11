@@ -18,10 +18,11 @@ Extracts authentic clinic content across all relevant pages:
 import json
 import logging
 import re
-from typing import Any, Dict, List, Optional, Tuple
-from urllib.parse import urljoin, urlparse
+from typing import Any, Dict, List, Optional
+from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
+
 from contracts import (
     EnrichedBranch,
     EnrichedFAQ,
@@ -37,11 +38,28 @@ IMAGE_EXT_REGEX = re.compile(r"\.(?:png|jpe?g|webp|avif)(?:\?.*)?$", re.I)
 FACILITY_KEYWORDS = {
     "CBCT 3D Imaging": ["cbct", "3d imaging", "cone beam", "3d scan"],
     "Digital X-Rays": ["digital x-ray", "digital radiograph", "rvg", "intraoral x-ray"],
-    "Intraoral Scanner": ["intraoral scanner", "3d intraoral", "digital impression", "trios", "itero"],
+    "Intraoral Scanner": [
+        "intraoral scanner",
+        "3d intraoral",
+        "digital impression",
+        "trios",
+        "itero",
+    ],
     "Laser Dentistry": ["laser dentistry", "dental laser", "diode laser", "biolase", "waterlase"],
     "CAD/CAM Digital Lab": ["cad/cam", "cerec", "same day crown", "digital smile design", "dsd"],
-    "Sterilization Protocol": ["autoclave", "sterilization room", "class b autoclave", "infection control", "100% sterile"],
-    "Painless Anesthesia": ["computerized anesthesia", "painless injection", "the wand", "needle-free"],
+    "Sterilization Protocol": [
+        "autoclave",
+        "sterilization room",
+        "class b autoclave",
+        "infection control",
+        "100% sterile",
+    ],
+    "Painless Anesthesia": [
+        "computerized anesthesia",
+        "painless injection",
+        "the wand",
+        "needle-free",
+    ],
     "Wheelchair Accessible": ["wheelchair accessible", "handicap accessible", "ramp access"],
     "On-Site Parking": ["free parking", "valet parking", "parking available", "dedicated parking"],
     "Wi-Fi & Lounge": ["wi-fi", "wifi", "comfort lounge", "beverage bar", "tv in operatory"],
@@ -53,16 +71,33 @@ CERTIFICATION_KEYWORDS = {
     "NABH Accredited": [r"\bnabh\b", r"national accreditation board"],
     "IDA Member": [r"\bida\b", r"indian dental association"],
     "ADA Member": [r"\bada\b", r"american dental association"],
-    "Invisalign Diamond Provider": [r"invisalign\s*diamond", r"invisalign\s*platinum", r"invisalign\s*provider"],
+    "Invisalign Diamond Provider": [
+        r"invisalign\s*diamond",
+        r"invisalign\s*platinum",
+        r"invisalign\s*provider",
+    ],
     "Nobel Biocare Certified": [r"nobel\s*biocare", r"straumann\s*certified"],
     "ICOI Fellow": [r"\bicoi\b", r"international congress of oral implantologists"],
 }
 
 # Insurance Providers
 INSURANCE_KEYWORDS = [
-    "Delta Dental", "Cigna", "Aetna", "MetLife", "Guardian", "United Healthcare",
-    "Blue Cross Blue Shield", "Humana", "Star Health", "Max Bupa", "HDFC ERGO",
-    "Bajaj Allianz", "Care Health", "ICICI Lombard", "Niva Bupa", "Reliance Health"
+    "Delta Dental",
+    "Cigna",
+    "Aetna",
+    "MetLife",
+    "Guardian",
+    "United Healthcare",
+    "Blue Cross Blue Shield",
+    "Humana",
+    "Star Health",
+    "Max Bupa",
+    "HDFC ERGO",
+    "Bajaj Allianz",
+    "Care Health",
+    "ICICI Lombard",
+    "Niva Bupa",
+    "Reliance Health",
 ]
 
 
@@ -71,7 +106,9 @@ def extract_tagline(soup: BeautifulSoup, brand_name: Optional[str] = None) -> Op
     Extracts authentic clinic tagline or slogan from hero headings or meta descriptions.
     """
     # 1. Look for explicit tagline classes or attributes
-    tagline_elem = soup.find(class_=re.compile(r"tagline|slogan|hero-sub|sub-heading|banner-sub", re.I))
+    tagline_elem = soup.find(
+        class_=re.compile(r"tagline|slogan|hero-sub|sub-heading|banner-sub", re.I)
+    )
     if tagline_elem:
         text = tagline_elem.get_text(separator=" ", strip=True)
         if 10 <= len(text) <= 140:
@@ -83,7 +120,10 @@ def extract_tagline(soup: BeautifulSoup, brand_name: Optional[str] = None) -> Op
         # Avoid generic single-word headings or exact brand name repetition
         if brand_name and text.lower() == brand_name.lower():
             continue
-        if 15 <= len(text) <= 120 and any(w in text.lower() for w in ("smile", "care", "dental", "gentle", "health", "specialist", "trusted")):
+        if 15 <= len(text) <= 120 and any(
+            w in text.lower()
+            for w in ("smile", "care", "dental", "gentle", "health", "specialist", "trusted")
+        ):
             return text
 
     return None
@@ -95,10 +135,10 @@ def extract_about_and_mission(soup: BeautifulSoup) -> Optional[str]:
     """
     about_containers = soup.find_all(
         ["section", "div", "article"],
-        attrs={"id": re.compile(r"about|mission|story|philosophy", re.I)}
+        attrs={"id": re.compile(r"about|mission|story|philosophy", re.I)},
     ) or soup.find_all(
         ["section", "div", "article"],
-        attrs={"class": re.compile(r"about|mission|story|philosophy|overview", re.I)}
+        attrs={"class": re.compile(r"about|mission|story|philosophy|overview", re.I)},
     )
 
     for container in about_containers[:3]:
@@ -107,7 +147,15 @@ def extract_about_and_mission(soup: BeautifulSoup) -> Optional[str]:
             text = p.get_text(separator=" ", strip=True)
             if 60 <= len(text) <= 500:
                 # Discard copyright/footer text
-                if any(w in text.lower() for w in ("copyright", "all rights reserved", "terms of service", "privacy policy")):
+                if any(
+                    w in text.lower()
+                    for w in (
+                        "copyright",
+                        "all rights reserved",
+                        "terms of service",
+                        "privacy policy",
+                    )
+                ):
                     continue
                 return text
 
@@ -153,7 +201,11 @@ def extract_testimonials(soup: BeautifulSoup) -> List[EnrichedTestimonial]:
                         if not isinstance(r, dict):
                             continue
                         author_obj = r.get("author") or {}
-                        author_name = author_obj.get("name") if isinstance(author_obj, dict) else str(author_obj)
+                        author_name = (
+                            author_obj.get("name")
+                            if isinstance(author_obj, dict)
+                            else str(author_obj)
+                        )
                         body = r.get("reviewBody") or r.get("description") or ""
                         if body and len(body.strip()) > 20:
                             clean_text = body.strip()
@@ -167,12 +219,16 @@ def extract_testimonials(soup: BeautifulSoup) -> List[EnrichedTestimonial]:
                                         rating_val = float(rating_obj["ratingValue"])
                                     except (ValueError, TypeError):
                                         pass
-                                testimonials.append(EnrichedTestimonial(
-                                    name=author_name.strip() if author_name else "Verified Patient",
-                                    quote=clean_text[:400],
-                                    rating=rating_val,
-                                    date=r.get("datePublished")
-                                ))
+                                testimonials.append(
+                                    EnrichedTestimonial(
+                                        name=author_name.strip()
+                                        if author_name
+                                        else "Verified Patient",
+                                        quote=clean_text[:400],
+                                        rating=rating_val,
+                                        date=r.get("datePublished"),
+                                    )
+                                )
         except Exception:
             pass
 
@@ -180,7 +236,9 @@ def extract_testimonials(soup: BeautifulSoup) -> List[EnrichedTestimonial]:
     if len(testimonials) < 6:
         review_cards = soup.find_all(
             ["div", "article", "blockquote"],
-            attrs={"class": re.compile(r"testimonial|review|patient-quote|feedback|client-card", re.I)}
+            attrs={
+                "class": re.compile(r"testimonial|review|patient-quote|feedback|client-card", re.I)
+            },
         )
         for card in review_cards:
             text_elem = card.find(["p", "blockquote", "q", "span"])
@@ -191,17 +249,21 @@ def extract_testimonials(soup: BeautifulSoup) -> List[EnrichedTestimonial]:
                 sig = quote[:50].lower()
                 if sig not in seen_texts:
                     seen_texts.add(sig)
-                    author_elem = card.find(class_=re.compile(r"name|author|patient|client|user", re.I))
-                    author_name = author_elem.get_text(strip=True) if author_elem else "Verified Patient"
+                    author_elem = card.find(
+                        class_=re.compile(r"name|author|patient|client|user", re.I)
+                    )
+                    author_name = (
+                        author_elem.get_text(strip=True) if author_elem else "Verified Patient"
+                    )
                     # Clean up common title artifacts
-                    author_name = re.sub(r"^(by|patient|verified|review by)\s*", "", author_name, flags=re.I).strip()
+                    author_name = re.sub(
+                        r"^(by|patient|verified|review by)\s*", "", author_name, flags=re.I
+                    ).strip()
                     if not author_name or len(author_name) > 40:
                         author_name = "Verified Patient"
-                    testimonials.append(EnrichedTestimonial(
-                        name=author_name,
-                        quote=quote,
-                        rating=5.0
-                    ))
+                    testimonials.append(
+                        EnrichedTestimonial(name=author_name, quote=quote, rating=5.0)
+                    )
             if len(testimonials) >= 6:
                 break
 
@@ -238,24 +300,22 @@ def extract_faqs(soup: BeautifulSoup) -> List[EnrichedFAQ]:
                                 continue
                             q_text = q_item.get("name", "").strip()
                             ans_obj = q_item.get("acceptedAnswer", {})
-                            ans_text = ans_obj.get("text", "").strip() if isinstance(ans_obj, dict) else ""
+                            ans_text = (
+                                ans_obj.get("text", "").strip() if isinstance(ans_obj, dict) else ""
+                            )
                             if q_text and ans_text and q_text.lower() not in seen_q:
                                 seen_q.add(q_text.lower())
                                 # Strip HTML tags from answer text
                                 clean_ans = re.sub(r"<[^>]+>", " ", ans_text)
                                 clean_ans = " ".join(clean_ans.split())
-                                faqs.append(EnrichedFAQ(
-                                    question=q_text,
-                                    answer=clean_ans[:500]
-                                ))
+                                faqs.append(EnrichedFAQ(question=q_text, answer=clean_ans[:500]))
         except Exception:
             pass
 
     # 2. HTML Accordion / FAQ blocks
     if len(faqs) < 8:
         faq_containers = soup.find_all(
-            ["div", "section", "dl"],
-            attrs={"class": re.compile(r"faq|accordion|question", re.I)}
+            ["div", "section", "dl"], attrs={"class": re.compile(r"faq|accordion|question", re.I)}
         )
         for container in faq_containers:
             # Check <details> <summary>
@@ -264,7 +324,13 @@ def extract_faqs(soup: BeautifulSoup) -> List[EnrichedFAQ]:
                 if summary:
                     q = summary.get_text(strip=True)
                     # Clone details without summary to get answer text
-                    ans = " ".join([elem.get_text(strip=True) for elem in details.children if elem != summary and elem.name])
+                    ans = " ".join(
+                        [
+                            elem.get_text(strip=True)
+                            for elem in details.children
+                            if elem != summary and elem.name
+                        ]
+                    )
                     if q and ans and q.lower() not in seen_q and 10 <= len(q) <= 150:
                         seen_q.add(q.lower())
                         faqs.append(EnrichedFAQ(question=q, answer=ans[:400]))
@@ -327,8 +393,16 @@ def extract_insurance_info(soup: BeautifulSoup) -> Dict[str, Any]:
         if re.search(r"\b" + re.escape(provider.lower()) + r"\b", text_lower):
             providers.append(provider)
 
-    has_emi = bool(re.search(r"\b(no\s*cost\s*emi|0%\s*emi|flexible\s*emi|installment|financing)\b", text_lower))
-    has_membership = bool(re.search(r"\b(membership\s*plan|dental\s*plan|annual\s*plan|discount\s*plan)\b", text_lower))
+    has_emi = bool(
+        re.search(
+            r"\b(no\s*cost\s*emi|0%\s*emi|flexible\s*emi|installment|financing)\b", text_lower
+        )
+    )
+    has_membership = bool(
+        re.search(
+            r"\b(membership\s*plan|dental\s*plan|annual\s*plan|discount\s*plan)\b", text_lower
+        )
+    )
 
     return {
         "providers": providers,
@@ -345,7 +419,7 @@ def extract_emergency_services(soup: BeautifulSoup) -> Optional[str]:
     match = re.search(
         r"(?:24[/-]7|same[ -]day|immediate)\s+(?:emergency|urgent|toothache)\s+(?:care|dentistry|appointment|relief|service)?",
         text,
-        re.I
+        re.I,
     )
     if match:
         return match.group(0).capitalize()
@@ -362,11 +436,17 @@ def extract_unique_selling_points(soup: BeautifulSoup) -> List[str]:
     usps = []
 
     # Numeric experience / patients patterns
-    exp_match = re.search(r"\b(\d{1,2}\+?\s*(?:years|yrs)(?:\s+of)?\s+(?:experience|clinical excellence))\b", text, re.I)
+    exp_match = re.search(
+        r"\b(\d{1,2}\+?\s*(?:years|yrs)(?:\s+of)?\s+(?:experience|clinical excellence))\b",
+        text,
+        re.I,
+    )
     if exp_match:
         usps.append(exp_match.group(1).title())
 
-    patients_match = re.search(r"\b(\d+[\d,]*\+?\s*(?:happy|satisfied)?\s*(?:patients|smiles|clients))\b", text, re.I)
+    patients_match = re.search(
+        r"\b(\d+[\d,]*\+?\s*(?:happy|satisfied)?\s*(?:patients|smiles|clients))\b", text, re.I
+    )
     if patients_match:
         usps.append(patients_match.group(1).title())
 
@@ -392,7 +472,7 @@ def extract_branches(soup: BeautifulSoup, base_url: str) -> List[EnrichedBranch]
 
     location_sections = soup.find_all(
         ["div", "section", "article"],
-        attrs={"class": re.compile(r"branch|location|clinic-address|centre|center", re.I)}
+        attrs={"class": re.compile(r"branch|location|clinic-address|centre|center", re.I)},
     )
 
     for sec in location_sections:
@@ -408,11 +488,11 @@ def extract_branches(soup: BeautifulSoup, base_url: str) -> List[EnrichedBranch]
                 # Check for phone in section
                 phone_match = re.search(r"(\+?[0-9\s\-()]{10,15})", addr_text)
                 branch_phone = phone_match.group(1).strip() if phone_match else None
-                branches.append(EnrichedBranch(
-                    name=branch_name[:60],
-                    address=addr_text[:180],
-                    phone=branch_phone
-                ))
+                branches.append(
+                    EnrichedBranch(
+                        name=branch_name[:60], address=addr_text[:180], phone=branch_phone
+                    )
+                )
         if len(branches) >= 8:
             break
 
@@ -457,7 +537,20 @@ def extract_reusable_images(soup: BeautifulSoup, base_url: str) -> Dict[str, Lis
 
         # Discard obvious icon / social images
         lower_url = full_url.lower()
-        if any(bad in lower_url for bad in ("icon", "logo", "arrow", "star", "social", "badge", "avatar", "flag", "pixel")):
+        if any(
+            bad in lower_url
+            for bad in (
+                "icon",
+                "logo",
+                "arrow",
+                "star",
+                "social",
+                "badge",
+                "avatar",
+                "flag",
+                "pixel",
+            )
+        ):
             continue
 
         seen_urls.add(full_url)
@@ -471,10 +564,24 @@ def extract_reusable_images(soup: BeautifulSoup, base_url: str) -> Dict[str, Lis
         elif any(k in img_context for k in ("doctor", "dentist", "team", "staff", "portrait")):
             if len(categorized["team"]) < 4:
                 categorized["team"].append(full_url)
-        elif any(k in img_context for k in ("clinic", "interior", "exterior", "operatory", "office", "facility", "infrastructure")):
+        elif any(
+            k in img_context
+            for k in (
+                "clinic",
+                "interior",
+                "exterior",
+                "operatory",
+                "office",
+                "facility",
+                "infrastructure",
+            )
+        ):
             if len(categorized["clinic"]) < 4:
                 categorized["clinic"].append(full_url)
-        elif any(k in img_context for k in ("before", "after", "result", "smile", "transformation", "case")):
+        elif any(
+            k in img_context
+            for k in ("before", "after", "result", "smile", "transformation", "case")
+        ):
             if len(categorized["gallery"]) < 6:
                 categorized["gallery"].append(full_url)
 

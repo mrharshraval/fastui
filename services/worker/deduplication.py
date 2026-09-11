@@ -16,16 +16,31 @@ Rules:
 
 import math
 import re
-from typing import Optional, Union
+from typing import Optional
 from urllib.parse import urlparse
 
 from contracts import DiscoveredLead
 
 GENERIC_DOMAINS = {
-    "facebook.com", "instagram.com", "twitter.com", "x.com", "linkedin.com",
-    "youtube.com", "google.com", "maps.google.com", "justdial.com", "indiamart.com",
-    "practo.com", "lybrate.com", "yelp.com", "yellowpages.com", "tripadvisor.com",
-    "wikipedia.org", "pinterest.com", "reddit.com", "github.com",
+    "facebook.com",
+    "instagram.com",
+    "twitter.com",
+    "x.com",
+    "linkedin.com",
+    "youtube.com",
+    "google.com",
+    "maps.google.com",
+    "justdial.com",
+    "indiamart.com",
+    "practo.com",
+    "lybrate.com",
+    "yelp.com",
+    "yellowpages.com",
+    "tripadvisor.com",
+    "wikipedia.org",
+    "pinterest.com",
+    "reddit.com",
+    "github.com",
 }
 
 STREET_ABBREVIATIONS = {
@@ -111,7 +126,7 @@ class LeadDeduplicator:
         if not address or not isinstance(address, str):
             return ""
         addr = address.lower()
-        addr = addr.replace('\u202f', ' ').replace('\xa0', ' ').replace('\u200b', ' ')
+        addr = addr.replace("\u202f", " ").replace("\xa0", " ").replace("\u200b", " ")
         for pattern, replacement in STREET_ABBREVIATIONS.items():
             addr = re.sub(pattern, replacement, addr)
         addr = re.sub(r"[^\w\s]", " ", addr)
@@ -147,7 +162,20 @@ class LeadDeduplicator:
         if n1 == n2:
             return True
 
-        noise = {"near", "opposite", "behind", "beside", "at", "in", "on", "the", "and", "of", "floor", "number"}
+        noise = {
+            "near",
+            "opposite",
+            "behind",
+            "beside",
+            "at",
+            "in",
+            "on",
+            "the",
+            "and",
+            "of",
+            "floor",
+            "number",
+        }
         tokens1 = {t for t in n1.split() if len(t) > 1 and t not in noise}
         tokens2 = {t for t in n2.split() if len(t) > 1 and t not in noise}
 
@@ -224,7 +252,10 @@ class LeadDeduplicator:
         delta_phi = math.radians(l2 - l1)
         delta_lambda = math.radians(o2 - o1)
 
-        a = math.sin(delta_phi / 2.0) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2.0) ** 2
+        a = (
+            math.sin(delta_phi / 2.0) ** 2
+            + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2.0) ** 2
+        )
         c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
         dist = R * c
 
@@ -255,7 +286,13 @@ class LeadDeduplicator:
         p2 = cls.normalize_phone(lead2.phone)
         if p1 and p2 and p1 == p2:
             # Check for hard location conflict (different postal codes or conflicting addresses)
-            post_match = cls.are_addresses_matching(lead1.address, lead2.address, lead1.postal_code, lead2.postal_code, city=effective_city)
+            post_match = cls.are_addresses_matching(
+                lead1.address,
+                lead2.address,
+                lead1.postal_code,
+                lead2.postal_code,
+                city=effective_city,
+            )
             if post_match is False:
                 return False
             return True
@@ -268,7 +305,13 @@ class LeadDeduplicator:
             if p1 and p2 and p1 != p2:
                 return False
             # Check for address conflict
-            addr_match = cls.are_addresses_matching(lead1.address, lead2.address, lead1.postal_code, lead2.postal_code, city=effective_city)
+            addr_match = cls.are_addresses_matching(
+                lead1.address,
+                lead2.address,
+                lead1.postal_code,
+                lead2.postal_code,
+                city=effective_city,
+            )
             if addr_match is False:
                 return False
             return True
@@ -298,12 +341,16 @@ class LeadDeduplicator:
             return False
 
         # - Conflicting addresses / postal codes
-        addr_match = cls.are_addresses_matching(lead1.address, lead2.address, lead1.postal_code, lead2.postal_code, city=effective_city)
+        addr_match = cls.are_addresses_matching(
+            lead1.address, lead2.address, lead1.postal_code, lead2.postal_code, city=effective_city
+        )
         if addr_match is False:
             return False
 
         # - Conflicting coordinates (>= 350m apart)
-        coord_match = cls.are_coordinates_matching(lead1.latitude, lead1.longitude, lead2.latitude, lead2.longitude)
+        coord_match = cls.are_coordinates_matching(
+            lead1.latitude, lead1.longitude, lead2.latitude, lead2.longitude
+        )
         if coord_match is False:
             return False
 
