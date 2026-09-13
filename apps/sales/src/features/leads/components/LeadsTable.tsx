@@ -55,7 +55,7 @@ export function LeadsTable({
   return (
     <div className="flex flex-col -ml-12 w-[calc(100%+3rem)] overflow-x-auto">
       {/* Table Header Row */}
-      <div className="flex items-center group/header w-full pb-3 select-none min-w-[900px] border-b border-border/40">
+      <div className="flex items-center group/header w-full pb-3 select-none min-w-[900px] relative">
         {/* Checkbox Gutter Column */}
         <div className="w-9 shrink-0 flex items-center justify-center">
           <div
@@ -82,13 +82,14 @@ export function LeadsTable({
           <div className="text-right">Added</div>
           <div className="w-8" />
         </div>
+        <div className="absolute bottom-0 left-12 right-0 h-[1px] bg-border/40 pointer-events-none" />
       </div>
 
       {/* Table Body Rows */}
       <div className="flex flex-col w-full min-w-[900px]">
         {loading ? (
           Array.from({ length: 10 }).map((_, i) => (
-            <div key={i} className="flex items-center w-full py-2.5 border-b border-border/30">
+            <div key={i} className="flex items-center w-full py-2.5 relative">
               <div className="w-9 shrink-0 flex items-center justify-center">
                 <Skeleton className="size-4 rounded" />
               </div>
@@ -102,6 +103,7 @@ export function LeadsTable({
                 <Skeleton className="h-4 rounded" />
                 <Skeleton className="size-5 rounded-full justify-self-end" />
               </div>
+              <div className="absolute bottom-0 left-12 right-0 h-[1px] bg-border/30 pointer-events-none" />
             </div>
           ))
         ) : leads.length === 0 ? (
@@ -128,7 +130,7 @@ export function LeadsTable({
             }
 
             return (
-              <div key={lead.id} className="flex items-center group/row w-full border-b border-border/30 relative">
+              <div key={lead.id} className="flex items-center group/row w-full relative">
                 {/* Checkbox Column */}
                 <div className="w-9 shrink-0 flex items-center justify-center">
                   <div
@@ -303,6 +305,7 @@ export function LeadsTable({
                     </DropdownMenu>
                   </div>
                 </div>
+                <div className="absolute bottom-0 left-12 right-0 h-[1px] bg-border/30 pointer-events-none" />
               </div>
             );
           })
@@ -313,7 +316,7 @@ export function LeadsTable({
           {loadingMore && (
             <div className="flex flex-col w-full py-1">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-center w-full py-2.5">
+                <div key={i} className="flex items-center w-full py-2.5 relative">
                   <div className="w-9 shrink-0 flex items-center justify-center">
                     <Skeleton className="size-4 rounded" />
                   </div>
@@ -327,6 +330,7 @@ export function LeadsTable({
                     <Skeleton className="h-4 rounded" />
                     <div />
                   </div>
+                  <div className="absolute bottom-0 left-12 right-0 h-[1px] bg-border/30 pointer-events-none" />
                 </div>
               ))}
             </div>

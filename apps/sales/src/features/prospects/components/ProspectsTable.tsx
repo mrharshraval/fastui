@@ -61,7 +61,7 @@ export function ProspectsTable({
   return (
     <div className="flex flex-col -ml-12 w-[calc(100%+3rem)] overflow-x-auto">
       {/* Table Header Row */}
-      <div className="flex items-center group/header w-full pb-3 select-none min-w-[900px] border-b border-border/40">
+      <div className="flex items-center group/header w-full pb-3 select-none min-w-[900px] relative">
         <div className="w-9 shrink-0 flex items-center justify-center">
           <div
             className={`transition-opacity duration-150 ${
@@ -86,13 +86,14 @@ export function ProspectsTable({
           <div className="text-right">Added</div>
           <div />
         </div>
+        <div className="absolute bottom-0 left-12 right-0 h-[1px] bg-border/40 pointer-events-none" />
       </div>
 
       {/* Table Body Rows */}
       <div className="flex flex-col w-full min-w-[900px]">
         {loading ? (
           Array.from({ length: 10 }).map((_, i) => (
-            <div key={i} className="flex items-center w-full py-2.5 border-b border-border/30">
+            <div key={i} className="flex items-center w-full py-2.5 relative">
               <div className="w-9 shrink-0 flex items-center justify-center">
                 <Skeleton className="size-4 rounded" />
               </div>
@@ -106,6 +107,7 @@ export function ProspectsTable({
                 <Skeleton className="h-4 rounded" />
                 <Skeleton className="h-4 w-4 rounded-full justify-self-end" />
               </div>
+              <div className="absolute bottom-0 left-12 right-0 h-[1px] bg-border/30 pointer-events-none" />
             </div>
           ))
         ) : prospects.length === 0 ? (
@@ -132,7 +134,7 @@ export function ProspectsTable({
             }
 
             return (
-              <div key={prospect.id} className="flex items-center group/row w-full border-b border-border/30 relative">
+              <div key={prospect.id} className="flex items-center group/row w-full relative">
                 <div className="w-9 shrink-0 flex items-center justify-center">
                   <div
                     className={`transition-opacity duration-150 ${
@@ -312,6 +314,7 @@ export function ProspectsTable({
                     </DropdownMenu>
                   </div>
                 </div>
+                <div className="absolute bottom-0 left-12 right-0 h-[1px] bg-border/30 pointer-events-none" />
               </div>
             );
           })
@@ -322,7 +325,7 @@ export function ProspectsTable({
           {loadingMore && (
             <div className="flex flex-col w-full py-1">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-center w-full py-2.5">
+                <div key={i} className="flex items-center w-full py-2.5 relative">
                   <div className="w-9 shrink-0 flex items-center justify-center">
                     <Skeleton className="size-4 rounded" />
                   </div>
@@ -336,6 +339,7 @@ export function ProspectsTable({
                     <Skeleton className="h-4 rounded" />
                     <div />
                   </div>
+                  <div className="absolute bottom-0 left-12 right-0 h-[1px] bg-border/30 pointer-events-none" />
                 </div>
               ))}
             </div>
