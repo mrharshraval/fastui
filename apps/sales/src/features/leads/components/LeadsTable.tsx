@@ -15,6 +15,17 @@ import {
 import { MoreHorizontal, Check } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import type { LeadModel } from "../types";
+import type { ColumnConfig } from "@/components/column-visibility-dropdown";
+
+export const LEAD_COLUMNS: ColumnConfig[] = [
+  { key: "business", label: "Business", gridTrack: "minmax(180px,2fr)", canHide: false },
+  { key: "location", label: "Location", gridTrack: "minmax(140px,1.4fr)", canHide: true },
+  { key: "website", label: "Website", gridTrack: "minmax(140px,1.3fr)", canHide: true },
+  { key: "phone", label: "Phone", gridTrack: "minmax(140px,1.3fr)", canHide: true },
+  { key: "email", label: "Email", gridTrack: "minmax(170px,1.5fr)", canHide: true },
+  { key: "whatsapp", label: "WhatsApp", gridTrack: "minmax(90px,0.9fr)", canHide: true },
+  { key: "added", label: "Added", gridTrack: "minmax(80px,0.8fr)", canHide: true },
+];
 
 interface LeadsTableProps {
   leads: LeadModel[];
@@ -32,6 +43,7 @@ interface LeadsTableProps {
   onDeleteSingle: (id: string, name: string) => void;
   onAction: (lead: LeadModel, type: "website" | "call" | "email" | "whatsapp", value: string) => void;
   sentinelRef: React.RefObject<HTMLDivElement | null>;
+  visibleColumns?: Record<string, boolean>;
 }
 
 export function LeadsTable({
@@ -49,13 +61,31 @@ export function LeadsTable({
   onDeleteSingle,
   onAction,
   sentinelRef,
+  visibleColumns = {},
 }: LeadsTableProps) {
   const isSelectionMode = selectedLeads.size > 0;
+
+  const gridTemplateColumns = [
+    visibleColumns.business !== false ? "minmax(180px,2fr)" : null,
+    visibleColumns.location !== false ? "minmax(140px,1.4fr)" : null,
+    visibleColumns.website !== false ? "minmax(140px,1.3fr)" : null,
+    visibleColumns.phone !== false ? "minmax(140px,1.3fr)" : null,
+    visibleColumns.email !== false ? "minmax(170px,1.5fr)" : null,
+    visibleColumns.whatsapp !== false ? "minmax(90px,0.9fr)" : null,
+    visibleColumns.added !== false ? "minmax(80px,0.8fr)" : null,
+    "36px",
+  ].filter(Boolean).join(" ");
+
+  const activeColCount = LEAD_COLUMNS.filter((c) => visibleColumns[c.key] !== false).length;
+  const minTableWidth = Math.max(500, activeColCount * 115 + 70);
 
   return (
     <div className="flex flex-col -ml-12 w-[calc(100%+3rem)] overflow-x-auto">
       {/* Table Header Row */}
-      <div className="flex items-center group/header w-full pb-3 select-none min-w-[900px] relative">
+      <div
+        className="flex items-center group/header w-full pb-3 select-none relative"
+        style={{ minWidth: `${minTableWidth}px` }}
+      >
         {/* Checkbox Gutter Column */}
         <div className="w-9 shrink-0 flex items-center justify-center">
           <div
@@ -72,35 +102,44 @@ export function LeadsTable({
         </div>
 
         {/* Column Titles */}
-        <div className="flex-1 grid grid-cols-[minmax(180px,2fr)_minmax(140px,1.4fr)_minmax(140px,1.3fr)_minmax(140px,1.3fr)_minmax(170px,1.5fr)_minmax(90px,0.9fr)_minmax(80px,0.8fr)_36px] gap-4 px-3 text-[14px] font-medium text-muted-foreground items-center">
-          <div>Business</div>
-          <div>Location</div>
-          <div>Website</div>
-          <div>Phone</div>
-          <div>Email</div>
-          <div>WhatsApp</div>
-          <div className="text-right">Added</div>
+        <div
+          className="flex-1 grid gap-4 px-3 text-[14px] font-medium text-muted-foreground items-center"
+          style={{ gridTemplateColumns }}
+        >
+          {visibleColumns.business !== false && <div>Business</div>}
+          {visibleColumns.location !== false && <div>Location</div>}
+          {visibleColumns.website !== false && <div>Website</div>}
+          {visibleColumns.phone !== false && <div>Phone</div>}
+          {visibleColumns.email !== false && <div>Email</div>}
+          {visibleColumns.whatsapp !== false && <div>WhatsApp</div>}
+          {visibleColumns.added !== false && <div className="text-right">Added</div>}
           <div className="w-8" />
         </div>
         <div className="absolute bottom-0 left-12 right-0 h-[1px] bg-border/40 pointer-events-none" />
       </div>
 
       {/* Table Body Rows */}
-      <div className="flex flex-col w-full min-w-[900px]">
+      <div
+        className="flex flex-col w-full"
+        style={{ minWidth: `${minTableWidth}px` }}
+      >
         {loading ? (
           Array.from({ length: 10 }).map((_, i) => (
             <div key={i} className="flex items-center w-full py-2.5 relative">
               <div className="w-9 shrink-0 flex items-center justify-center">
                 <Skeleton className="size-4 rounded" />
               </div>
-              <div className="flex-1 grid grid-cols-[minmax(180px,2fr)_minmax(140px,1.4fr)_minmax(140px,1.3fr)_minmax(140px,1.3fr)_minmax(170px,1.5fr)_minmax(90px,0.9fr)_minmax(80px,0.8fr)_36px] gap-4 px-3 items-center">
-                <Skeleton className="h-4 rounded" />
-                <Skeleton className="h-4 rounded" />
-                <Skeleton className="h-4 rounded" />
-                <Skeleton className="h-4 rounded" />
-                <Skeleton className="h-4 rounded" />
-                <Skeleton className="h-4 rounded" />
-                <Skeleton className="h-4 rounded" />
+              <div
+                className="flex-1 grid gap-4 px-3 items-center"
+                style={{ gridTemplateColumns }}
+              >
+                {visibleColumns.business !== false && <Skeleton className="h-4 rounded" />}
+                {visibleColumns.location !== false && <Skeleton className="h-4 rounded" />}
+                {visibleColumns.website !== false && <Skeleton className="h-4 rounded" />}
+                {visibleColumns.phone !== false && <Skeleton className="h-4 rounded" />}
+                {visibleColumns.email !== false && <Skeleton className="h-4 rounded" />}
+                {visibleColumns.whatsapp !== false && <Skeleton className="h-4 rounded" />}
+                {visibleColumns.added !== false && <Skeleton className="h-4 rounded" />}
                 <Skeleton className="size-5 rounded-full justify-self-end" />
               </div>
               <div className="absolute bottom-0 left-12 right-0 h-[1px] bg-border/30 pointer-events-none" />
@@ -152,115 +191,130 @@ export function LeadsTable({
                 {/* Main Row Content */}
                 <div
                   onClick={() => onToggleLead(lead.id)}
-                  className={`flex-1 grid grid-cols-[minmax(180px,2fr)_minmax(140px,1.4fr)_minmax(140px,1.3fr)_minmax(140px,1.3fr)_minmax(170px,1.5fr)_minmax(90px,0.9fr)_minmax(80px,0.8fr)_36px] gap-4 px-3 py-3 text-sm items-center transition-colors cursor-pointer ${
+                  style={{ gridTemplateColumns }}
+                  className={`flex-1 grid gap-4 px-3 py-3 text-sm items-center transition-colors cursor-pointer ${
                     isSelected
                       ? `bg-secondary text-foreground ${selectionRounding}`
                       : "hover:bg-accent/40 rounded-lg"
                   }`}
                 >
                   {/* 1. Business */}
-                  <div className="flex items-center min-w-0">
-                    <Link
-                      href={`/business/${lead.id}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="font-medium text-foreground hover:text-primary transition-colors truncate"
-                      title={lead.business_name}
-                    >
-                      {lead.business_name}
-                    </Link>
-                  </div>
+                  {visibleColumns.business !== false && (
+                    <div className="flex items-center min-w-0">
+                      <Link
+                        href={`/business/${lead.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="font-medium text-foreground hover:text-primary transition-colors truncate"
+                        title={lead.business_name}
+                      >
+                        {lead.business_name}
+                      </Link>
+                    </div>
+                  )}
 
                   {/* 2. Location */}
-                  <div className="text-muted-foreground text-xs truncate" title={lead.location || "—"}>
-                    {lead.location || "—"}
-                  </div>
+                  {visibleColumns.location !== false && (
+                    <div className="text-muted-foreground text-xs truncate" title={lead.location || "—"}>
+                      {lead.location || "—"}
+                    </div>
+                  )}
 
                   {/* 3. Website */}
-                  <div className="min-w-0">
-                    {lead.website ? (
-                      <a
-                        href={lead.website.startsWith("http") ? lead.website : `https://${lead.website}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onAction(lead, "website", lead.website!);
-                        }}
-                        className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground hover:underline truncate transition-colors max-w-full group/link py-1 px-1.5 -ml-1.5 rounded-lg hover:bg-accent/50"
-                        title={`Open ${lead.website}`}
-                      >
-                        <span className="truncate">
-                          {lead.website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
-                        </span>
-                      </a>
-                    ) : (
-                      <span className="text-xs text-muted-foreground/40">—</span>
-                    )}
-                  </div>
+                  {visibleColumns.website !== false && (
+                    <div className="min-w-0">
+                      {lead.website ? (
+                        <a
+                          href={lead.website.startsWith("http") ? lead.website : `https://${lead.website}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onAction(lead, "website", lead.website!);
+                          }}
+                          className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground hover:underline truncate transition-colors max-w-full group/link py-1 px-1.5 -ml-1.5 rounded-lg hover:bg-accent/50"
+                          title={`Open ${lead.website}`}
+                        >
+                          <span className="truncate">
+                            {lead.website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
+                          </span>
+                        </a>
+                      ) : (
+                        <span className="text-xs text-muted-foreground/40">—</span>
+                      )}
+                    </div>
+                  )}
 
                   {/* 4. Phone */}
-                  <div className="min-w-0">
-                    {lead.phone ? (
-                      <a
-                        href={`tel:${lead.phone}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onAction(lead, "call", lead.phone!);
-                        }}
-                        className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground hover:underline truncate transition-colors max-w-full group/phone py-1 px-1.5 -ml-1.5 rounded-lg hover:bg-accent/50"
-                        title={`Call ${lead.phone}`}
-                      >
-                        <span className="truncate">{lead.phone}</span>
-                      </a>
-                    ) : (
-                      <span className="text-xs text-muted-foreground/40">—</span>
-                    )}
-                  </div>
+                  {visibleColumns.phone !== false && (
+                    <div className="min-w-0">
+                      {lead.phone ? (
+                        <a
+                          href={`tel:${lead.phone}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onAction(lead, "call", lead.phone!);
+                          }}
+                          className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground hover:underline truncate transition-colors max-w-full group/phone py-1 px-1.5 -ml-1.5 rounded-lg hover:bg-accent/50"
+                          title={`Call ${lead.phone}`}
+                        >
+                          <span className="truncate">{lead.phone}</span>
+                        </a>
+                      ) : (
+                        <span className="text-xs text-muted-foreground/40">—</span>
+                      )}
+                    </div>
+                  )}
 
                   {/* 5. Email */}
-                  <div className="min-w-0">
-                    {lead.email ? (
-                      <a
-                        href={`mailto:${lead.email}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onAction(lead, "email", lead.email!);
-                        }}
-                        className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground hover:underline truncate transition-colors max-w-full group/email py-1 px-1.5 -ml-1.5 rounded-lg hover:bg-accent/50"
-                        title={`Email ${lead.email}`}
-                      >
-                        <span className="truncate">{lead.email}</span>
-                      </a>
-                    ) : (
-                      <span className="text-xs text-muted-foreground/40">—</span>
-                    )}
-                  </div>
+                  {visibleColumns.email !== false && (
+                    <div className="min-w-0">
+                      {lead.email ? (
+                        <a
+                          href={`mailto:${lead.email}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onAction(lead, "email", lead.email!);
+                          }}
+                          className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground hover:underline truncate transition-colors max-w-full group/email py-1 px-1.5 -ml-1.5 rounded-lg hover:bg-accent/50"
+                          title={`Email ${lead.email}`}
+                        >
+                          <span className="truncate">{lead.email}</span>
+                        </a>
+                      ) : (
+                        <span className="text-xs text-muted-foreground/40">—</span>
+                      )}
+                    </div>
+                  )}
 
                   {/* 6. WhatsApp */}
-                  <div className="min-w-0">
-                    {lead.whatsapp || lead.phone ? (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const targetNumber = (lead.whatsapp || lead.phone || "").replace(/[^0-9]/g, "");
-                          window.open(`https://wa.me/${targetNumber}`, "_blank", "noopener,noreferrer");
-                          onAction(lead, "whatsapp", lead.whatsapp || lead.phone!);
-                        }}
-                        className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-success-muted text-success hover:bg-success/20 active:scale-95 transition-all cursor-pointer"
-                        title={`Chat on WhatsApp (${lead.whatsapp || lead.phone})`}
-                      >
-                        <span>Chat</span>
-                      </button>
-                    ) : (
-                      <span className="text-xs text-muted-foreground/40">—</span>
-                    )}
-                  </div>
+                  {visibleColumns.whatsapp !== false && (
+                    <div className="min-w-0">
+                      {lead.whatsapp || lead.phone ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const targetNumber = (lead.whatsapp || lead.phone || "").replace(/[^0-9]/g, "");
+                            window.open(`https://wa.me/${targetNumber}`, "_blank", "noopener,noreferrer");
+                            onAction(lead, "whatsapp", lead.whatsapp || lead.phone!);
+                          }}
+                          className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-success-muted text-success hover:bg-success/20 active:scale-95 transition-all cursor-pointer"
+                          title={`Chat on WhatsApp (${lead.whatsapp || lead.phone})`}
+                        >
+                          <span>Chat</span>
+                        </button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground/40">—</span>
+                      )}
+                    </div>
+                  )}
 
                   {/* 7. Added */}
-                  <div className="text-xs text-muted-foreground text-right truncate">
-                    {formatDate(lead.created_at)}
-                  </div>
+                  {visibleColumns.added !== false && (
+                    <div className="text-xs text-muted-foreground text-right truncate">
+                      {formatDate(lead.created_at)}
+                    </div>
+                  )}
 
                   {/* 8. Actions Menu */}
                   <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>

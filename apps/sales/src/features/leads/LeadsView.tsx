@@ -21,10 +21,14 @@ import { useInfiniteScroll } from "@/shared/hooks/useInfiniteScroll";
 import { useConfirmDialog } from "@/shared/hooks/useConfirmDialog";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { ExportDialog } from "@/features/exports/components/ExportDialog";
-import { LeadsTable } from "./components/LeadsTable";
+import { LeadsTable, LEAD_COLUMNS } from "./components/LeadsTable";
 import { LeadsMobileList } from "./components/LeadsMobileList";
 import { LeadsFilterBar, LeadsFilterDropdown, type FilterState } from "./components/LeadsFilterBar";
 import { LeadsBulkBar } from "./components/LeadsBulkBar";
+import {
+  ColumnVisibilityDropdown,
+  useColumnVisibility,
+} from "@/components/column-visibility-dropdown";
 import type { LeadModel } from "./types";
 
 interface LeadsViewProps {
@@ -36,6 +40,9 @@ export function LeadsView({ initialLeads = [] }: LeadsViewProps) {
 
   const [searchQuery, setSearchQuery] = React.useState("");
   const [statusTab, setStatusTab] = React.useState("all");
+  const { visibleColumns, toggleColumn, resetColumns } = useColumnVisibility(
+    "fastui_leads_columns"
+  );
   const [filters, setFilters] = React.useState<FilterState>({
     status: "all",
     signal: "all",
@@ -447,6 +454,12 @@ export function LeadsView({ initialLeads = [] }: LeadsViewProps) {
                   hideDesktopFilter={true}
                 />
                 <div className="flex items-center gap-2 shrink-0">
+                  <ColumnVisibilityDropdown
+                    columns={LEAD_COLUMNS}
+                    visibleColumns={visibleColumns}
+                    onToggleColumn={toggleColumn}
+                    onReset={resetColumns}
+                  />
                   <LeadsFilterDropdown
                     filters={filters}
                     onFilterChange={(k, v) => setFilters((prev) => ({ ...prev, [k]: v }))}
@@ -486,6 +499,12 @@ export function LeadsView({ initialLeads = [] }: LeadsViewProps) {
                 onExport={() => setExportDialogOpen(true)}
                 searchSlot={
                   <div className="flex items-center gap-2 shrink-0">
+                    <ColumnVisibilityDropdown
+                      columns={LEAD_COLUMNS}
+                      visibleColumns={visibleColumns}
+                      onToggleColumn={toggleColumn}
+                      onReset={resetColumns}
+                    />
                     <LeadsFilterDropdown
                       filters={filters}
                       onFilterChange={(k, v) => setFilters((prev) => ({ ...prev, [k]: v }))}
@@ -548,6 +567,7 @@ export function LeadsView({ initialLeads = [] }: LeadsViewProps) {
             onDeleteSingle={handleDeleteSingle}
             onAction={handleAction}
             sentinelRef={desktopSentinelRef}
+            visibleColumns={visibleColumns}
           />
         )}
       </div>

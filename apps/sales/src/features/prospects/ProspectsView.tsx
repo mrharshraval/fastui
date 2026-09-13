@@ -20,10 +20,14 @@ import { useSelection } from "@/shared/hooks/useSelection";
 import { useInfiniteScroll } from "@/shared/hooks/useInfiniteScroll";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { ExportDialog } from "@/features/exports/components/ExportDialog";
-import { ProspectsTable } from "./components/ProspectsTable";
+import { ProspectsTable, PROSPECT_COLUMNS } from "./components/ProspectsTable";
 import { ProspectsMobileList } from "./components/ProspectsMobileList";
 import { ProspectsFilterBar, ProspectsFilterDropdown, type ProspectFilterState } from "./components/ProspectsFilterBar";
 import { ProspectsBulkBar } from "./components/ProspectsBulkBar";
+import {
+  ColumnVisibilityDropdown,
+  useColumnVisibility,
+} from "@/components/column-visibility-dropdown";
 import type { ProspectModel } from "./types";
 
 interface ProspectsViewProps {
@@ -32,9 +36,11 @@ interface ProspectsViewProps {
 
 export function ProspectsView({ initialProspects = [] }: ProspectsViewProps) {
   const router = useRouter();
-
-  const [searchQuery, setSearchQuery] = React.useState("");
-  const [statusTab, setStatusTab] = React.useState("all");
+  const [statusTab, setStatusTab] = React.useState<string>("all");
+  const [searchQuery, setSearchQuery] = React.useState<string>("");
+  const { visibleColumns, toggleColumn, resetColumns } = useColumnVisibility(
+    "fastui_prospects_columns"
+  );
   const [filters, setFilters] = React.useState<ProspectFilterState>({
     qualification: "all",
     website: "all",
@@ -476,6 +482,12 @@ export function ProspectsView({ initialProspects = [] }: ProspectsViewProps) {
                   hideDesktopFilter={true}
                 />
                 <div className="flex items-center gap-2 shrink-0">
+                  <ColumnVisibilityDropdown
+                    columns={PROSPECT_COLUMNS}
+                    visibleColumns={visibleColumns}
+                    onToggleColumn={toggleColumn}
+                    onReset={resetColumns}
+                  />
                   <ProspectsFilterDropdown
                     filters={filters}
                     onFilterChange={(k, v) => setFilters((prev) => ({ ...prev, [k]: v }))}
@@ -512,6 +524,12 @@ export function ProspectsView({ initialProspects = [] }: ProspectsViewProps) {
                 onExport={() => setExportDialogOpen(true)}
                 searchSlot={
                   <div className="flex items-center gap-2 shrink-0">
+                    <ColumnVisibilityDropdown
+                      columns={PROSPECT_COLUMNS}
+                      visibleColumns={visibleColumns}
+                      onToggleColumn={toggleColumn}
+                      onReset={resetColumns}
+                    />
                     <ProspectsFilterDropdown
                       filters={filters}
                       onFilterChange={(k, v) => setFilters((prev) => ({ ...prev, [k]: v }))}
@@ -573,6 +591,7 @@ export function ProspectsView({ initialProspects = [] }: ProspectsViewProps) {
             onDeleteSingle={handleDeleteSingle}
             onAction={handleAction}
             sentinelRef={desktopSentinelRef}
+            visibleColumns={visibleColumns}
           />
         )}
       </div>
