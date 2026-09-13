@@ -184,9 +184,9 @@ export function ProspectsFilterBar({
 
   return (
     <>
-      <div className="flex items-center justify-between min-h-9 w-full">
+      <div className={cn("flex items-center justify-between h-9", hideDesktopFilter ? "w-auto min-w-0 shrink-0" : "w-full")}>
         {/* Status Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 min-w-0 flex-1">
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar min-w-0 shrink-0 h-9">
           {["all", "unqualified", "reviewing", "qualified", "disqualified"].map((tab) => (
             <button
               key={tab}

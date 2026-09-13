@@ -29,14 +29,14 @@ export function LeadsBulkBar({
   searchSlot,
 }: LeadsBulkBarProps) {
   return (
-    <div className="flex items-center justify-between w-full animate-in fade-in duration-150">
-      <div className="flex items-center gap-2">
+    <div className="flex items-center justify-between w-full h-9 animate-in fade-in duration-150">
+      <div className="flex items-center gap-2 shrink-0">
         {/* Change Status Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="h-9 px-3.5 rounded-full bg-secondary hover:bg-accent text-sm font-medium text-foreground transition-colors cursor-pointer"
+              className="h-9 px-3.5 rounded-full bg-secondary hover:bg-accent text-sm font-medium text-foreground transition-colors cursor-pointer shrink-0"
             >
               Status
             </button>
@@ -61,7 +61,7 @@ export function LeadsBulkBar({
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="h-9 px-3.5 rounded-full bg-secondary hover:bg-accent text-sm font-medium text-foreground transition-colors cursor-pointer"
+              className="h-9 px-3.5 rounded-full bg-secondary hover:bg-accent text-sm font-medium text-foreground transition-colors cursor-pointer shrink-0"
             >
               Follow-up
             </button>
@@ -91,7 +91,7 @@ export function LeadsBulkBar({
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="h-9 px-3.5 rounded-full bg-secondary hover:bg-accent text-sm font-medium text-foreground transition-colors cursor-pointer"
+              className="h-9 px-3.5 rounded-full bg-secondary hover:bg-accent text-sm font-medium text-foreground transition-colors cursor-pointer shrink-0"
             >
               Reminder
             </button>
@@ -120,7 +120,7 @@ export function LeadsBulkBar({
         <button
           type="button"
           onClick={onDeleteSelected}
-          className="h-9 px-3.5 rounded-full border border-destructive/30 text-destructive hover:bg-destructive-muted text-sm font-medium transition-colors cursor-pointer"
+          className="h-9 px-3.5 rounded-full border border-destructive/30 text-destructive hover:bg-destructive-muted text-sm font-medium transition-colors cursor-pointer shrink-0"
         >
           Delete
         </button>
@@ -129,23 +129,23 @@ export function LeadsBulkBar({
         <button
           type="button"
           onClick={onExport}
-          className="h-9 px-3.5 rounded-full bg-secondary hover:bg-accent text-sm font-medium text-foreground transition-colors cursor-pointer"
+          className="h-9 px-3.5 rounded-full bg-secondary hover:bg-accent text-sm font-medium text-foreground transition-colors cursor-pointer shrink-0"
         >
           Export
         </button>
       </div>
 
-      <div className="flex items-center gap-3">
-        <span className="text-sm text-muted-foreground font-normal">
+      <div className="flex items-center gap-3 shrink-0">
+        <span className="text-sm text-muted-foreground font-normal shrink-0 whitespace-nowrap">
           {selectedCount} selected
         </span>
         <button
           type="button"
           onClick={onClearSelection}
-          className="flex items-center justify-center size-7 rounded-full hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+          className="flex items-center justify-center size-7 rounded-full hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer shrink-0"
           title="Clear selection"
         >
-          <X size={20} />
+          <X size={18} />
         </button>
         {searchSlot}
       </div>

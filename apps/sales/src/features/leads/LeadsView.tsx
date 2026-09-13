@@ -427,7 +427,7 @@ export function LeadsView({ initialLeads = [] }: LeadsViewProps) {
               : "bg-background border-b border-transparent"
           )}
         >
-          <div className="flex items-center justify-between min-h-9 w-full">
+          <div className="flex items-center justify-between h-9 w-full">
             {!isSelectionMode ? (
               <>
                 <LeadsFilterBar
@@ -446,7 +446,7 @@ export function LeadsView({ initialLeads = [] }: LeadsViewProps) {
                   }
                   hideDesktopFilter={true}
                 />
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   <LeadsFilterDropdown
                     filters={filters}
                     onFilterChange={(k, v) => setFilters((prev) => ({ ...prev, [k]: v }))}
@@ -460,7 +460,7 @@ export function LeadsView({ initialLeads = [] }: LeadsViewProps) {
                       })
                     }
                   />
-                  <div className="relative group/search">
+                  <div className="relative group/search shrink-0">
                     <Search
                       size={16}
                       className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground group-focus-within/search:text-foreground transition-colors"
@@ -470,7 +470,7 @@ export function LeadsView({ initialLeads = [] }: LeadsViewProps) {
                       placeholder="Search leads..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="h-9 w-44 sm:w-56 pl-9 pr-4 rounded-full bg-accent/50 hover:bg-accent/80 focus:bg-accent focus:ring-2 focus:ring-foreground/20 text-sm font-medium text-foreground focus:outline-none transition-all placeholder:text-muted-foreground"
+                      className="h-9 w-44 sm:w-56 pl-9 pr-4 rounded-full bg-accent/50 hover:bg-accent/80 focus:bg-accent focus:ring-2 focus:ring-foreground/20 text-sm font-medium text-foreground focus:outline-none transition-all placeholder:text-muted-foreground shrink-0"
                     />
                   </div>
                 </div>
@@ -485,7 +485,7 @@ export function LeadsView({ initialLeads = [] }: LeadsViewProps) {
                 onDeleteSelected={handleDeleteSelected}
                 onExport={() => setExportDialogOpen(true)}
                 searchSlot={
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 shrink-0">
                     <LeadsFilterDropdown
                       filters={filters}
                       onFilterChange={(k, v) => setFilters((prev) => ({ ...prev, [k]: v }))}
@@ -499,7 +499,7 @@ export function LeadsView({ initialLeads = [] }: LeadsViewProps) {
                         })
                       }
                     />
-                    <div className="relative group/search">
+                    <div className="relative group/search shrink-0">
                       <Search
                         size={16}
                         className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground group-focus-within/search:text-foreground transition-colors"
@@ -509,7 +509,7 @@ export function LeadsView({ initialLeads = [] }: LeadsViewProps) {
                         placeholder="Search leads..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="h-9 w-44 sm:w-56 pl-9 pr-4 rounded-full bg-accent/50 hover:bg-accent/80 focus:bg-accent focus:ring-2 focus:ring-foreground/20 text-sm font-medium text-foreground focus:outline-none transition-all placeholder:text-muted-foreground"
+                        className="h-9 w-44 sm:w-56 pl-9 pr-4 rounded-full bg-accent/50 hover:bg-accent/80 focus:bg-accent focus:ring-2 focus:ring-foreground/20 text-sm font-medium text-foreground focus:outline-none transition-all placeholder:text-muted-foreground shrink-0"
                       />
                     </div>
                   </div>
