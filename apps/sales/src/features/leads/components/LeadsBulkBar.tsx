@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Download, X } from "lucide-react";
+import { X } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuItem,
@@ -15,6 +15,7 @@ interface LeadsBulkBarProps {
   onBulkReminder: (time: string) => void;
   onDeleteSelected: () => void;
   onExport: () => void;
+  searchSlot?: React.ReactNode;
 }
 
 export function LeadsBulkBar({
@@ -25,6 +26,7 @@ export function LeadsBulkBar({
   onBulkReminder,
   onDeleteSelected,
   onExport,
+  searchSlot,
 }: LeadsBulkBarProps) {
   return (
     <div className="flex items-center justify-between w-full animate-in fade-in duration-150">
@@ -127,10 +129,9 @@ export function LeadsBulkBar({
         <button
           type="button"
           onClick={onExport}
-          className="flex items-center gap-1.5 h-9 px-3.5 rounded-full bg-secondary hover:bg-accent text-sm font-medium text-foreground transition-colors cursor-pointer"
+          className="h-9 px-3.5 rounded-full bg-secondary hover:bg-accent text-sm font-medium text-foreground transition-colors cursor-pointer"
         >
-          <Download size={14} />
-          <span>Export</span>
+          Export
         </button>
       </div>
 
@@ -146,6 +147,7 @@ export function LeadsBulkBar({
         >
           <X size={20} />
         </button>
+        {searchSlot}
       </div>
     </div>
   );

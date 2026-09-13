@@ -54,7 +54,8 @@ export const leadsApi = {
     const raw = await client.get<BusinessResponse[]>("/v1/leads", {
       params: {
         skip: params?.skip ?? 0,
-        limit: params?.limit ?? 50,
+        limit: params?.limit ?? 20,
+        cursor: params?.cursor,
         stage: params?.stage,
         search: params?.search,
         sort_by: params?.sort_by ?? "created_at",

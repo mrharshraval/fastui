@@ -55,7 +55,7 @@ export function LeadsTable({
   return (
     <div className="flex flex-col -ml-12 w-[calc(100%+3rem)] overflow-x-auto">
       {/* Table Header Row */}
-      <div className="flex items-center group/header w-full pb-2.5 select-none min-w-[900px]">
+      <div className="flex items-center group/header w-full pb-3 select-none min-w-[900px] border-b border-border/40">
         {/* Checkbox Gutter Column */}
         <div className="w-9 shrink-0 flex items-center justify-center">
           <div
@@ -87,8 +87,8 @@ export function LeadsTable({
       {/* Table Body Rows */}
       <div className="flex flex-col w-full min-w-[900px]">
         {loading ? (
-          Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="flex items-center w-full py-2.5">
+          Array.from({ length: 10 }).map((_, i) => (
+            <div key={i} className="flex items-center w-full py-2.5 border-b border-border/30">
               <div className="w-9 shrink-0 flex items-center justify-center">
                 <Skeleton className="size-4 rounded" />
               </div>
@@ -106,7 +106,7 @@ export function LeadsTable({
           ))
         ) : leads.length === 0 ? (
           <div className="py-16 text-center text-sm text-muted-foreground">
-            No leads found.
+            No leads.
           </div>
         ) : (
           leads.map((lead, idx) => {
@@ -114,21 +114,21 @@ export function LeadsTable({
             const prevSelected = idx > 0 && selectedLeads.has(leads[idx - 1].id);
             const nextSelected = idx < leads.length - 1 && selectedLeads.has(leads[idx + 1].id);
 
-            let selectionRounding = "rounded-xl";
+            let selectionRounding = "rounded-lg";
             if (isSelected) {
               if (!prevSelected && nextSelected) {
-                selectionRounding = "rounded-t-xl border-b border-border/40";
+                selectionRounding = "rounded-t-lg";
               } else if (prevSelected && nextSelected) {
-                selectionRounding = "rounded-none border-b border-border/40";
+                selectionRounding = "rounded-none";
               } else if (prevSelected && !nextSelected) {
-                selectionRounding = "rounded-b-xl";
+                selectionRounding = "rounded-b-lg";
               } else {
-                selectionRounding = "rounded-xl";
+                selectionRounding = "rounded-lg";
               }
             }
 
             return (
-              <div key={lead.id} className="flex items-center group/row w-full my-[1px] relative">
+              <div key={lead.id} className="flex items-center group/row w-full border-b border-border/30 relative">
                 {/* Checkbox Column */}
                 <div className="w-9 shrink-0 flex items-center justify-center">
                   <div
@@ -153,7 +153,7 @@ export function LeadsTable({
                   className={`flex-1 grid grid-cols-[minmax(180px,2fr)_minmax(140px,1.4fr)_minmax(140px,1.3fr)_minmax(140px,1.3fr)_minmax(170px,1.5fr)_minmax(90px,0.9fr)_minmax(80px,0.8fr)_36px] gap-4 px-3 py-3 text-sm items-center transition-colors cursor-pointer ${
                     isSelected
                       ? `bg-secondary text-foreground ${selectionRounding}`
-                      : "hover:bg-accent/50 rounded-xl"
+                      : "hover:bg-accent/40 rounded-lg"
                   }`}
                 >
                   {/* 1. Business */}
@@ -338,7 +338,7 @@ export function LeadsTable({
                 onClick={onLoadMore}
                 className="text-xs text-muted-foreground hover:text-foreground underline cursor-pointer"
               >
-                Failed to load more leads. Click to retry.
+                Unable to load more. Try Again.
               </button>
             </div>
           )}

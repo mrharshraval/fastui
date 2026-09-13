@@ -14,6 +14,7 @@ export interface ProspectModel {
 export interface ProspectFilterParams {
   skip?: number;
   limit?: number;
+  cursor?: string | null;
   qualification_status?: string;
   search?: string;
   sort_by?: string;

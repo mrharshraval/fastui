@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Download, X } from "lucide-react";
+import { X } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuItem,
@@ -14,6 +14,7 @@ interface ProspectsBulkBarProps {
   onBulkQualify: (status: string) => void;
   onDeleteSelected: () => void;
   onExport: () => void;
+  searchSlot?: React.ReactNode;
 }
 
 export function ProspectsBulkBar({
@@ -23,6 +24,7 @@ export function ProspectsBulkBar({
   onBulkQualify,
   onDeleteSelected,
   onExport,
+  searchSlot,
 }: ProspectsBulkBarProps) {
   return (
     <div className="flex items-center justify-between w-full animate-in fade-in duration-150">
@@ -74,10 +76,9 @@ export function ProspectsBulkBar({
         <button
           type="button"
           onClick={onExport}
-          className="flex items-center gap-1.5 h-9 px-3.5 rounded-full bg-secondary hover:bg-accent text-sm font-medium text-foreground transition-colors cursor-pointer"
+          className="h-9 px-3.5 rounded-full bg-secondary hover:bg-accent text-sm font-medium text-foreground transition-colors cursor-pointer"
         >
-          <Download size={14} />
-          <span>Export</span>
+          Export
         </button>
       </div>
 
@@ -93,6 +94,7 @@ export function ProspectsBulkBar({
         >
           <X size={20} />
         </button>
+        {searchSlot}
       </div>
     </div>
   );

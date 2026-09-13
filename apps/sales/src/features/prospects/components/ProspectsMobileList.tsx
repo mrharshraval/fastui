@@ -48,7 +48,7 @@ export function ProspectsMobileList({
   return (
     <div className="flex flex-col gap-3 px-4 pt-3 pb-8">
       {loading ? (
-        Array.from({ length: 6 }).map((_, i) => (
+        Array.from({ length: 8 }).map((_, i) => (
           <div key={i} className="bg-card rounded-2xl border border-border/50 p-4 flex flex-col gap-2.5">
             <div className="flex items-center justify-between">
               <Skeleton className="h-4 w-40 rounded" />
@@ -60,7 +60,7 @@ export function ProspectsMobileList({
         ))
       ) : prospects.length === 0 ? (
         <div className="py-20 text-center text-sm text-muted-foreground">
-          No prospects found.
+          No prospects.
         </div>
       ) : (
         prospects.map((prospect) => (
@@ -216,7 +216,7 @@ export function ProspectsMobileList({
             onClick={onLoadMore}
             className="text-xs text-muted-foreground hover:text-foreground underline py-2 cursor-pointer"
           >
-            Failed to load more. Tap to retry.
+            Unable to load more. Try Again.
           </button>
         )}
       </div>

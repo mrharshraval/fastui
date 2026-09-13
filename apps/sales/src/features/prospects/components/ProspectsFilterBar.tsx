@@ -1,5 +1,6 @@
 import * as React from "react";
 import { ListFilter, Check, CircleDashed, Globe, Database, X } from "lucide-react";
+import { cn } from "@/shared/lib/cn";
 import {
   DropdownMenu,
   DropdownMenuItem,
@@ -24,12 +25,143 @@ export interface ProspectFilterState {
   source: string;
 }
 
-interface ProspectsFilterBarProps {
+const renderSubMenu = (
+  label: string,
+  icon: React.ReactNode,
+  options: { id: string; label: string }[],
+  currentValue: string,
+  onChange: (val: string) => void
+) => (
+  <DropdownMenuSub>
+    <DropdownMenuSubTrigger className="flex items-center justify-between min-h-9 px-2.5 rounded-xl cursor-pointer text-[13px] font-[500]">
+      <div className="flex items-center gap-2">
+        {icon}
+        <span>{label}</span>
+      </div>
+    </DropdownMenuSubTrigger>
+    <DropdownMenuPortal>
+      <DropdownMenuSubContent className="w-48" sideOffset={8}>
+        <div className="flex flex-col gap-1">
+          {options.map((opt) => (
+            <DropdownMenuItem
+              key={opt.id}
+              onClick={() => onChange(opt.id)}
+              className="flex items-center justify-between min-h-9 px-2.5 rounded-xl cursor-pointer text-[13px] font-[500] transition-colors outline-none hover:bg-accent/60 text-foreground capitalize"
+            >
+              <span>{opt.label}</span>
+              {currentValue === opt.id && <Check className="size-3.5" />}
+            </DropdownMenuItem>
+          ))}
+        </div>
+      </DropdownMenuSubContent>
+    </DropdownMenuPortal>
+  </DropdownMenuSub>
+);
+
+export interface ProspectsFilterDropdownProps {
+  filters: ProspectFilterState;
+  onFilterChange: (key: keyof ProspectFilterState, value: string) => void;
+  onResetFilters: () => void;
+  className?: string;
+}
+
+export function ProspectsFilterDropdown({
+  filters,
+  onFilterChange,
+  onResetFilters,
+  className,
+}: ProspectsFilterDropdownProps) {
+  const activeSecondaryFilterCount = [filters.website, filters.source].filter(
+    (v) => v !== "all"
+  ).length;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label="Filter"
+          className={cn(
+            "relative flex items-center justify-center size-9 rounded-full bg-accent/50 hover:bg-accent/80 text-muted-foreground hover:text-foreground active:scale-95 transition-all cursor-pointer shrink-0",
+            activeSecondaryFilterCount > 0 && "text-foreground bg-accent",
+            className
+          )}
+        >
+          <ListFilter size={17} />
+          {activeSecondaryFilterCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 size-4 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-bold pointer-events-none">
+              {activeSecondaryFilterCount}
+            </span>
+          )}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <div className="flex items-center justify-between px-3 py-1.5 border-b border-border/40 mb-1">
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Filter
+          </span>
+          {activeSecondaryFilterCount > 0 && (
+            <button
+              onClick={onResetFilters}
+              className="text-xs text-primary font-medium hover:underline cursor-pointer"
+            >
+              Reset
+            </button>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-1">
+          {renderSubMenu(
+            "Status",
+            <CircleDashed size={16} className="shrink-0 text-muted-foreground" />,
+            [
+              { id: "all", label: "All Statuses" },
+              { id: "unqualified", label: "Unqualified" },
+              { id: "reviewing", label: "Reviewing" },
+              { id: "qualified", label: "Qualified" },
+              { id: "disqualified", label: "Disqualified" },
+            ],
+            filters.qualification,
+            (v) => onFilterChange("qualification", v)
+          )}
+
+          {renderSubMenu(
+            "Website",
+            <Globe size={16} className="shrink-0 text-muted-foreground" />,
+            [
+              { id: "all", label: "Any" },
+              { id: "has_website", label: "Has Website" },
+              { id: "no_website", label: "No Website" },
+            ],
+            filters.website,
+            (v) => onFilterChange("website", v)
+          )}
+
+          {renderSubMenu(
+            "Source",
+            <Database size={16} className="shrink-0 text-muted-foreground" />,
+            [
+              { id: "all", label: "All Sources" },
+              { id: "discover", label: "Discover" },
+              { id: "import", label: "Import" },
+              { id: "manual", label: "Manual" },
+            ],
+            filters.source,
+            (v) => onFilterChange("source", v)
+          )}
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+export interface ProspectsFilterBarProps {
   statusTab: string;
   onStatusTabChange: (tab: string) => void;
   filters: ProspectFilterState;
   onFilterChange: (key: keyof ProspectFilterState, value: string) => void;
   onResetFilters: () => void;
+  hideDesktopFilter?: boolean;
 }
 
 export function ProspectsFilterBar({
@@ -38,6 +170,7 @@ export function ProspectsFilterBar({
   filters,
   onFilterChange,
   onResetFilters,
+  hideDesktopFilter = false,
 }: ProspectsFilterBarProps) {
   const [mobileFiltersOpen, setMobileFiltersOpen] = React.useState(false);
   const [pendingFilters, setPendingFilters] = React.useState({
@@ -48,39 +181,6 @@ export function ProspectsFilterBar({
   const activeSecondaryFilterCount = [filters.website, filters.source].filter(
     (v) => v !== "all"
   ).length;
-
-  const renderSubMenu = (
-    label: string,
-    icon: React.ReactNode,
-    options: { id: string; label: string }[],
-    currentValue: string,
-    onChange: (val: string) => void
-  ) => (
-    <DropdownMenuSub>
-      <DropdownMenuSubTrigger className="flex items-center justify-between min-h-9 px-2.5 rounded-xl cursor-pointer text-[13px] font-[500]">
-        <div className="flex items-center gap-2">
-          {icon}
-          <span>{label}</span>
-        </div>
-      </DropdownMenuSubTrigger>
-      <DropdownMenuPortal>
-        <DropdownMenuSubContent className="w-48" sideOffset={8}>
-          <div className="flex flex-col gap-1">
-            {options.map((opt) => (
-              <DropdownMenuItem
-                key={opt.id}
-                onClick={() => onChange(opt.id)}
-                className="flex items-center justify-between min-h-9 px-2.5 rounded-xl cursor-pointer text-[13px] font-[500] transition-colors outline-none hover:bg-accent/60 text-foreground capitalize"
-              >
-                <span>{opt.label}</span>
-                {currentValue === opt.id && <Check className="size-3.5" />}
-              </DropdownMenuItem>
-            ))}
-          </div>
-        </DropdownMenuSubContent>
-      </DropdownMenuPortal>
-    </DropdownMenuSub>
-  );
 
   return (
     <>
@@ -103,81 +203,16 @@ export function ProspectsFilterBar({
           ))}
         </div>
 
-        {/* Desktop Filter Dropdown */}
-        <div className="hidden md:flex items-center">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                aria-label="Filter"
-                className="relative flex items-center justify-center size-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent/60 active:scale-95 transition-colors cursor-pointer shrink-0"
-              >
-                <ListFilter size={18} />
-                {activeSecondaryFilterCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 size-4 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-bold pointer-events-none">
-                    {activeSecondaryFilterCount}
-                  </span>
-                )}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <div className="flex items-center justify-between px-3 py-1.5 border-b border-border/40 mb-1">
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Filter
-                </span>
-                {activeSecondaryFilterCount > 0 && (
-                  <button
-                    onClick={onResetFilters}
-                    className="text-xs text-primary font-medium hover:underline cursor-pointer"
-                  >
-                    Reset
-                  </button>
-                )}
-              </div>
-
-              <div className="flex flex-col gap-1">
-                {renderSubMenu(
-                  "Status",
-                  <CircleDashed size={16} className="shrink-0 text-muted-foreground" />,
-                  [
-                    { id: "all", label: "All Statuses" },
-                    { id: "unqualified", label: "Unqualified" },
-                    { id: "reviewing", label: "Reviewing" },
-                    { id: "qualified", label: "Qualified" },
-                    { id: "disqualified", label: "Disqualified" },
-                  ],
-                  filters.qualification,
-                  (v) => onFilterChange("qualification", v)
-                )}
-
-                {renderSubMenu(
-                  "Website",
-                  <Globe size={16} className="shrink-0 text-muted-foreground" />,
-                  [
-                    { id: "all", label: "Any" },
-                    { id: "has_website", label: "Has Website" },
-                    { id: "no_website", label: "No Website" },
-                  ],
-                  filters.website,
-                  (v) => onFilterChange("website", v)
-                )}
-
-                {renderSubMenu(
-                  "Source",
-                  <Database size={16} className="shrink-0 text-muted-foreground" />,
-                  [
-                    { id: "all", label: "All Sources" },
-                    { id: "discover", label: "Discover" },
-                    { id: "import", label: "Import" },
-                    { id: "manual", label: "Manual" },
-                  ],
-                  filters.source,
-                  (v) => onFilterChange("source", v)
-                )}
-              </div>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        {/* Desktop Filter Dropdown (if not hidden) */}
+        {!hideDesktopFilter && (
+          <div className="hidden md:flex items-center">
+            <ProspectsFilterDropdown
+              filters={filters}
+              onFilterChange={onFilterChange}
+              onResetFilters={onResetFilters}
+            />
+          </div>
+        )}
 
         {/* Mobile Filter Button */}
         <div className="flex md:hidden items-center">

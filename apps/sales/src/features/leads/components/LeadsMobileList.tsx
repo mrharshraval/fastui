@@ -42,7 +42,7 @@ export function LeadsMobileList({
   return (
     <div className="flex flex-col w-full divide-y divide-border/30">
       {loading ? (
-        Array.from({ length: 6 }).map((_, i) => (
+        Array.from({ length: 8 }).map((_, i) => (
           <div key={i} className="flex flex-col gap-2 py-3.5 px-4">
             <div className="flex items-center justify-between">
               <Skeleton className="h-4 w-40 rounded" />
@@ -54,7 +54,7 @@ export function LeadsMobileList({
         ))
       ) : leads.length === 0 ? (
         <div className="py-20 text-center text-sm text-muted-foreground">
-          No leads found.
+          No leads.
         </div>
       ) : (
         leads.map((lead) => (
@@ -201,7 +201,7 @@ export function LeadsMobileList({
             onClick={onLoadMore}
             className="text-xs text-muted-foreground hover:text-foreground underline py-2 cursor-pointer"
           >
-            Failed to load more. Tap to retry.
+            Unable to load more. Try Again.
           </button>
         )}
       </div>

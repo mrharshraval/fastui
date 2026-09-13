@@ -18,6 +18,7 @@ export interface LeadModel {
 export interface LeadFilterParams {
   skip?: number;
   limit?: number;
+  cursor?: string | null;
   stage?: string;
   search?: string;
   sort_by?: string;

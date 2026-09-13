@@ -61,7 +61,7 @@ export function ProspectsTable({
   return (
     <div className="flex flex-col -ml-12 w-[calc(100%+3rem)] overflow-x-auto">
       {/* Table Header Row */}
-      <div className="flex items-center group/header w-full pb-2.5 select-none min-w-[900px]">
+      <div className="flex items-center group/header w-full pb-3 select-none min-w-[900px] border-b border-border/40">
         <div className="w-9 shrink-0 flex items-center justify-center">
           <div
             className={`transition-opacity duration-150 ${
@@ -91,8 +91,8 @@ export function ProspectsTable({
       {/* Table Body Rows */}
       <div className="flex flex-col w-full min-w-[900px]">
         {loading ? (
-          Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="flex items-center w-full py-2.5">
+          Array.from({ length: 10 }).map((_, i) => (
+            <div key={i} className="flex items-center w-full py-2.5 border-b border-border/30">
               <div className="w-9 shrink-0 flex items-center justify-center">
                 <Skeleton className="size-4 rounded" />
               </div>
@@ -110,7 +110,7 @@ export function ProspectsTable({
           ))
         ) : prospects.length === 0 ? (
           <div className="py-16 text-center text-sm text-muted-foreground">
-            No prospects found.
+            No prospects.
           </div>
         ) : (
           prospects.map((prospect, idx) => {
@@ -118,21 +118,21 @@ export function ProspectsTable({
             const prevSelected = idx > 0 && selectedProspects.has(prospects[idx - 1].id);
             const nextSelected = idx < prospects.length - 1 && selectedProspects.has(prospects[idx + 1].id);
 
-            let selectionRounding = "rounded-xl";
+            let selectionRounding = "rounded-lg";
             if (isSelected) {
               if (!prevSelected && nextSelected) {
-                selectionRounding = "rounded-t-xl border-b border-border/40";
+                selectionRounding = "rounded-t-lg";
               } else if (prevSelected && nextSelected) {
-                selectionRounding = "rounded-none border-b border-border/40";
+                selectionRounding = "rounded-none";
               } else if (prevSelected && !nextSelected) {
-                selectionRounding = "rounded-b-xl";
+                selectionRounding = "rounded-b-lg";
               } else {
-                selectionRounding = "rounded-xl";
+                selectionRounding = "rounded-lg";
               }
             }
 
             return (
-              <div key={prospect.id} className="flex items-center group/row w-full my-[1px] relative">
+              <div key={prospect.id} className="flex items-center group/row w-full border-b border-border/30 relative">
                 <div className="w-9 shrink-0 flex items-center justify-center">
                   <div
                     className={`transition-opacity duration-150 ${
@@ -155,7 +155,7 @@ export function ProspectsTable({
                   className={`flex-1 grid grid-cols-[minmax(180px,2fr)_minmax(130px,1.3fr)_minmax(130px,1.2fr)_minmax(130px,1.2fr)_minmax(160px,1.4fr)_minmax(80px,0.8fr)_minmax(70px,0.7fr)_32px] gap-4 px-3 py-3 text-sm items-center transition-colors cursor-pointer ${
                     isSelected
                       ? `bg-secondary text-foreground ${selectionRounding}`
-                      : "hover:bg-accent/50 rounded-xl"
+                      : "hover:bg-accent/40 rounded-lg"
                   }`}
                 >
                   {/* 1. Business */}
@@ -347,7 +347,7 @@ export function ProspectsTable({
                 onClick={onLoadMore}
                 className="text-xs text-muted-foreground hover:text-foreground underline cursor-pointer"
               >
-                Failed to load more prospects. Click to retry.
+                Unable to load more. Try Again.
               </button>
             </div>
           )}

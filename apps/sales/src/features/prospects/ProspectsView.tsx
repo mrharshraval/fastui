@@ -1,8 +1,19 @@
 "use client";
 
 import * as React from "react";
+
+/** 150 ms debounce — only recomputes filter after the user stops typing. */
+function useDebouncedValue<T>(value: T, delay = 150): T {
+  const [debounced, setDebounced] = React.useState<T>(value);
+  React.useEffect(() => {
+    const id = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(id);
+  }, [value, delay]);
+  return debounced;
+}
 import { useRouter } from "next/navigation";
 import { Search, Download } from "lucide-react";
+import { cn } from "@/shared/lib/cn";
 import { prospectsApi } from "./api";
 import { useProspects } from "./hooks/useProspects";
 import { useSelection } from "@/shared/hooks/useSelection";
@@ -11,7 +22,7 @@ import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-di
 import { ExportDialog } from "@/features/exports/components/ExportDialog";
 import { ProspectsTable } from "./components/ProspectsTable";
 import { ProspectsMobileList } from "./components/ProspectsMobileList";
-import { ProspectsFilterBar, type ProspectFilterState } from "./components/ProspectsFilterBar";
+import { ProspectsFilterBar, ProspectsFilterDropdown, type ProspectFilterState } from "./components/ProspectsFilterBar";
 import { ProspectsBulkBar } from "./components/ProspectsBulkBar";
 import type { ProspectModel } from "./types";
 
@@ -30,12 +41,30 @@ export function ProspectsView({ initialProspects = [] }: ProspectsViewProps) {
     source: "all",
   });
 
+  const debouncedQuery = useDebouncedValue(searchQuery, 150);
+
+  const queryParams = React.useMemo(() => {
+    const effStatus =
+      statusTab !== "all"
+        ? statusTab
+        : filters.qualification !== "all"
+        ? filters.qualification
+        : undefined;
+    return {
+      search: debouncedQuery.trim() || undefined,
+      qualification_status: effStatus,
+      sort_by: "created_at",
+      sort_order: "desc",
+    };
+  }, [debouncedQuery, statusTab, filters.qualification]);
+
   const {
     prospects,
     loading,
     loadingMore,
     hasMore,
-    error: loadMoreError,
+    error,
+    loadMoreError,
     loadMore,
     updateProspectOptimistic,
     removeProspectsOptimistic,
@@ -44,66 +73,77 @@ export function ProspectsView({ initialProspects = [] }: ProspectsViewProps) {
     refetch,
   } = useProspects({
     initialProspects,
-    pageSize: 50,
+    pageSize: 20,
+    params: queryParams,
   });
 
-  // Infinite scroll sentinels
+  // Infinite scroll sentinels with 400px prefetch margin
   const { sentinelRef: mobileSentinelRef } = useInfiniteScroll({
     hasMore,
     isLoading: loading || loadingMore,
     onLoadMore: loadMore,
+    rootMargin: "400px",
   });
 
   const { sentinelRef: desktopSentinelRef } = useInfiniteScroll({
     hasMore,
     isLoading: loading || loadingMore,
     onLoadMore: loadMore,
+    rootMargin: "400px",
   });
 
-  // Client-side filtering and sorting
+  // Sticky toolbar detection on scroll down
+  const [isScrolled, setIsScrolled] = React.useState(false);
+
+  React.useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 40);
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Layer 1: Sort once when the prospects array itself changes.
+  const sortedProspects = React.useMemo(() =>
+    [...prospects].sort((a, b) => {
+      const timeA = new Date(a.created_at).getTime();
+      const timeB = new Date(b.created_at).getTime();
+      if (timeB !== timeA) return timeB - timeA;
+      const numA = parseInt(a.id.replace(/[^0-9]/g, ""), 10) || 0;
+      const numB = parseInt(b.id.replace(/[^0-9]/g, ""), 10) || 0;
+      return numB - numA;
+    }),
+    [prospects]
+  );
+
+  // Layer 2: Filter the sorted list on client filters + instant local search.
   const filteredItems = React.useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    return prospects
-      .filter((p) => {
-        const matchesSearch =
-          !q ||
-          p.business_name.toLowerCase().includes(q) ||
-          (p.location ?? "").toLowerCase().includes(q) ||
-          (p.website ?? "").toLowerCase().includes(q) ||
-          (p.phone ?? "").toLowerCase().includes(q) ||
-          (p.email ?? "").toLowerCase().includes(q);
+    return sortedProspects.filter((p) => {
+      const matchesSearch =
+        !q ||
+        p.business_name.toLowerCase().includes(q) ||
+        (p.location ?? "").toLowerCase().includes(q) ||
+        (p.website ?? "").toLowerCase().includes(q) ||
+        (p.phone ?? "").toLowerCase().includes(q) ||
+        (p.email ?? "").toLowerCase().includes(q);
 
-        const matchesStatusTab =
-          statusTab === "all" || p.qualification_status === statusTab;
+      const matchesFilterWebsite =
+        filters.website === "all" ||
+        (filters.website === "has_website" && Boolean(p.website)) ||
+        (filters.website === "no_website" && !p.website);
 
-        const matchesFilterStatus =
-          filters.qualification === "all" || p.qualification_status === filters.qualification;
+      const matchesFilterSource =
+        filters.source === "all" || p.source === filters.source;
 
-        const matchesFilterWebsite =
-          filters.website === "all" ||
-          (filters.website === "has_website" && Boolean(p.website)) ||
-          (filters.website === "no_website" && !p.website);
-
-        const matchesFilterSource =
-          filters.source === "all" || p.source === filters.source;
-
-        return (
-          matchesSearch &&
-          matchesStatusTab &&
-          matchesFilterStatus &&
-          matchesFilterWebsite &&
-          matchesFilterSource
-        );
-      })
-      .sort((a, b) => {
-        const timeA = new Date(a.created_at).getTime();
-        const timeB = new Date(b.created_at).getTime();
-        if (timeB !== timeA) return timeB - timeA;
-        const numA = parseInt(a.id.replace(/[^0-9]/g, ""), 10) || 0;
-        const numB = parseInt(b.id.replace(/[^0-9]/g, ""), 10) || 0;
-        return numB - numA;
-      });
-  }, [prospects, searchQuery, statusTab, filters]);
+      return (
+        matchesSearch &&
+        matchesFilterWebsite &&
+        matchesFilterSource
+      );
+    });
+  }, [sortedProspects, searchQuery, filters]);
 
   // Selection hook
   const {
@@ -373,97 +413,168 @@ export function ProspectsView({ initialProspects = [] }: ProspectsViewProps) {
           />
         </div>
 
-        <ProspectsMobileList
-          prospects={filteredItems}
-          loading={loading}
-          loadingMore={loadingMore}
-          loadMoreError={loadMoreError}
-          onLoadMore={loadMore}
-          onNavigate={(id) => router.push(`/business/${id}`)}
-          onSingleAddToLeads={handleSingleAddToLeads}
-          onSingleQualify={handleSingleQualify}
-          onDeleteSingle={handleDeleteSingle}
-          onAction={handleAction}
-          sentinelRef={mobileSentinelRef}
-        />
+        {error && prospects.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center px-4">
+            <p className="text-sm font-medium text-foreground mb-1">Unable to load prospects</p>
+            <p className="text-xs text-muted-foreground mb-4 max-w-sm">{error}</p>
+            <button
+              type="button"
+              onClick={refetch}
+              className="h-8 px-4 rounded-full bg-foreground text-background text-xs font-medium hover:opacity-90 active:scale-95 transition-all cursor-pointer"
+            >
+              Try Again
+            </button>
+          </div>
+        ) : (
+          <ProspectsMobileList
+            prospects={filteredItems}
+            loading={loading}
+            loadingMore={loadingMore}
+            loadMoreError={loadMoreError}
+            onLoadMore={loadMore}
+            onNavigate={(id) => router.push(`/business/${id}`)}
+            onSingleAddToLeads={handleSingleAddToLeads}
+            onSingleQualify={handleSingleQualify}
+            onDeleteSingle={handleDeleteSingle}
+            onAction={handleAction}
+            sentinelRef={mobileSentinelRef}
+          />
+        )}
       </div>
 
       {/* DESKTOP VIEW (>= md) */}
-      <div className="hidden md:flex flex-col gap-8 px-8 lg:px-12 xl:px-16 pt-14 pb-8 max-w-[1600px] w-full mx-auto">
-        <div className="flex items-center justify-between mb-2">
+      <div className="hidden md:flex flex-col gap-6 px-8 lg:px-12 xl:px-16 pt-14 pb-8 max-w-[1600px] w-full mx-auto">
+        {/* Page Title */}
+        <div className="flex items-center justify-between min-h-[36px]">
           <h2 className="text-xl font-bold tracking-tight text-foreground">Prospects</h2>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setExportDialogOpen(true)}
-              title="Export prospects as CSV"
-              className="flex items-center gap-1.5 h-9 px-3.5 rounded-full bg-accent/50 hover:bg-accent text-muted-foreground hover:text-foreground text-xs font-medium transition-colors cursor-pointer"
-            >
-              <Download size={14} />
-              <span>Export</span>
-            </button>
+        </div>
 
-            <div className="relative group/search">
-              <Search
-                size={16}
-                className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground group-focus-within/search:text-foreground transition-colors"
+        {/* Sticky Action Row: Sticks naturally on scroll down with filter button & search bar on right */}
+        <div
+          className={cn(
+            "sticky top-0 z-20 -mx-8 px-8 lg:-mx-12 lg:px-12 xl:-mx-16 xl:px-16 transition-all duration-150 py-2.5",
+            isScrolled
+              ? "bg-background/95 backdrop-blur-md border-b border-border/40 shadow-xs"
+              : "bg-background border-b border-transparent"
+          )}
+        >
+          <div className="flex items-center justify-between min-h-9 w-full">
+            {!isSelectionMode ? (
+              <>
+                <ProspectsFilterBar
+                  statusTab={statusTab}
+                  onStatusTabChange={setStatusTab}
+                  filters={filters}
+                  onFilterChange={(k, v) => setFilters((prev) => ({ ...prev, [k]: v }))}
+                  onResetFilters={() =>
+                    setFilters({
+                      qualification: "all",
+                      website: "all",
+                      source: "all",
+                    })
+                  }
+                  hideDesktopFilter={true}
+                />
+                <div className="flex items-center gap-2">
+                  <ProspectsFilterDropdown
+                    filters={filters}
+                    onFilterChange={(k, v) => setFilters((prev) => ({ ...prev, [k]: v }))}
+                    onResetFilters={() =>
+                      setFilters({
+                        qualification: "all",
+                        website: "all",
+                        source: "all",
+                      })
+                    }
+                  />
+                  <div className="relative group/search">
+                    <Search
+                      size={16}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground group-focus-within/search:text-foreground transition-colors"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Search prospects..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="h-9 w-44 sm:w-56 pl-9 pr-4 rounded-full bg-accent/50 hover:bg-accent/80 focus:bg-accent focus:ring-2 focus:ring-foreground/20 text-sm font-medium text-foreground focus:outline-none transition-all placeholder:text-muted-foreground"
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <ProspectsBulkBar
+                selectedCount={selectedCount}
+                onClearSelection={clearSelection}
+                onBulkApprove={handleBulkAddToLeads}
+                onBulkQualify={handleBulkQualify}
+                onDeleteSelected={handleDeleteSelected}
+                onExport={() => setExportDialogOpen(true)}
+                searchSlot={
+                  <div className="flex items-center gap-2">
+                    <ProspectsFilterDropdown
+                      filters={filters}
+                      onFilterChange={(k, v) => setFilters((prev) => ({ ...prev, [k]: v }))}
+                      onResetFilters={() =>
+                        setFilters({
+                          qualification: "all",
+                          website: "all",
+                          source: "all",
+                        })
+                      }
+                    />
+                    <div className="relative group/search">
+                      <Search
+                        size={16}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground group-focus-within/search:text-foreground transition-colors"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Search prospects..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="h-9 w-44 sm:w-56 pl-9 pr-4 rounded-full bg-accent/50 hover:bg-accent/80 focus:bg-accent focus:ring-2 focus:ring-foreground/20 text-sm font-medium text-foreground focus:outline-none transition-all placeholder:text-muted-foreground"
+                      />
+                    </div>
+                  </div>
+                }
               />
-              <input
-                type="text"
-                placeholder="Search prospects..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-9 w-44 sm:w-56 pl-9 pr-4 rounded-full bg-accent/50 hover:bg-accent/80 focus:bg-accent focus:ring-2 focus:ring-foreground/20 text-sm font-medium text-foreground focus:outline-none transition-all placeholder:text-muted-foreground"
-              />
-            </div>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center justify-between min-h-9">
-          {!isSelectionMode ? (
-            <ProspectsFilterBar
-              statusTab={statusTab}
-              onStatusTabChange={setStatusTab}
-              filters={filters}
-              onFilterChange={(k, v) => setFilters((prev) => ({ ...prev, [k]: v }))}
-              onResetFilters={() =>
-                setFilters({
-                  qualification: "all",
-                  website: "all",
-                  source: "all",
-                })
-              }
-            />
-          ) : (
-            <ProspectsBulkBar
-              selectedCount={selectedCount}
-              onClearSelection={clearSelection}
-              onBulkApprove={handleBulkAddToLeads}
-              onBulkQualify={handleBulkQualify}
-              onDeleteSelected={handleDeleteSelected}
-              onExport={() => setExportDialogOpen(true)}
-            />
-          )}
-        </div>
-
-        <ProspectsTable
-          prospects={filteredItems}
-          selectedProspects={selectedIds}
-          onToggleProspect={toggle}
-          onToggleAll={toggleAll}
-          isAllSelected={isAllSelected}
-          isSomeSelected={isSomeSelected}
-          loading={loading}
-          loadingMore={loadingMore}
-          hasMore={hasMore}
-          loadMoreError={loadMoreError}
-          onLoadMore={loadMore}
-          onSingleAddToLeads={handleSingleAddToLeads}
-          onSingleQualify={handleSingleQualify}
-          onDeleteSingle={handleDeleteSingle}
-          onAction={handleAction}
-          sentinelRef={desktopSentinelRef}
-        />
+        {error && prospects.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-24 text-center px-4">
+            <p className="text-sm font-medium text-foreground mb-1">Unable to load prospects</p>
+            <p className="text-xs text-muted-foreground mb-4 max-w-sm">{error}</p>
+            <button
+              type="button"
+              onClick={refetch}
+              className="h-8 px-4 rounded-full bg-foreground text-background text-xs font-medium hover:opacity-90 active:scale-95 transition-all cursor-pointer"
+            >
+              Try Again
+            </button>
+          </div>
+        ) : (
+          <ProspectsTable
+            prospects={filteredItems}
+            selectedProspects={selectedIds}
+            onToggleProspect={toggle}
+            onToggleAll={toggleAll}
+            isAllSelected={isAllSelected}
+            isSomeSelected={isSomeSelected}
+            loading={loading}
+            loadingMore={loadingMore}
+            hasMore={hasMore}
+            loadMoreError={loadMoreError}
+            onLoadMore={loadMore}
+            onSingleAddToLeads={handleSingleAddToLeads}
+            onSingleQualify={handleSingleQualify}
+            onDeleteSingle={handleDeleteSingle}
+            onAction={handleAction}
+            sentinelRef={desktopSentinelRef}
+          />
+        )}
       </div>
 
       <DeleteConfirmationDialog

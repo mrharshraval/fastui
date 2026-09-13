@@ -52,7 +52,8 @@ export const prospectsApi = {
     const raw = await client.get<BusinessResponse[]>("/v1/prospects", {
       params: {
         skip: params?.skip ?? 0,
-        limit: params?.limit ?? 50,
+        limit: params?.limit ?? 20,
+        cursor: params?.cursor,
         qualification_status: params?.qualification_status,
         search: params?.search,
         sort_by: params?.sort_by ?? "created_at",
