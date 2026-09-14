@@ -17,9 +17,9 @@ export function Footer() {
     return (
         <footer className="bg-muted/30 border-t">
             <div className="container px-8 sm:px-4 md:px-12 py-12 md:py-16 lg:py-20">
-                <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4 text-center md:text-left">
+                <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4 text-left">
                     {/* Brand Section */}
-                    <div className="space-y-4 flex flex-col items-center md:items-start">
+                    <div className="space-y-4 flex flex-col items-start">
                         <Link href={demoLink("/")} className="flex items-center space-x-2">
                             {business?.logo_url ? (
                                 <img
@@ -35,10 +35,10 @@ export function Footer() {
                                 </>
                             )}
                         </Link>
-                        <p className="text-sm text-muted-foreground max-w-xs text-center md:text-left">
+                        <p className="text-sm text-muted-foreground max-w-xs text-left">
                             {customization?.tagline || "Providing advanced dental care with a focus on comfort and precision. Your smile is our priority."}
                         </p>
-                        <div className="flex justify-center md:justify-start space-x-4">
+                        <div className="flex justify-start space-x-4">
                             {socialLinks.facebook ? (
                                 <a href={socialLinks.facebook} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors">
                                     <Facebook className="h-5 w-5" />
@@ -82,9 +82,9 @@ export function Footer() {
                     </div>
 
                     {/* Quick Links */}
-                    <div className="space-y-4 flex flex-col items-center md:items-start">
+                    <div className="space-y-4 flex flex-col items-start">
                         <h3 className="font-semibold text-foreground">Quick Links</h3>
-                        <ul className="space-y-2 text-sm text-center md:text-left">
+                        <ul className="space-y-2 text-sm text-left">
                             <li>
                                 <Link href={demoLink("/")} className="text-muted-foreground hover:text-foreground transition-colors">
                                     Home
@@ -114,9 +114,9 @@ export function Footer() {
                     </div>
 
                     {/* Treatments */}
-                    <div className="space-y-4 flex flex-col items-center md:items-start">
+                    <div className="space-y-4 flex flex-col items-start">
                         <h3 className="font-semibold text-foreground">Treatments</h3>
-                        <ul className="space-y-2 text-sm text-center md:text-left">
+                        <ul className="space-y-2 text-sm text-left">
                             <li>
                                 <Link href={demoLink("/treatments/general")} className="text-muted-foreground hover:text-foreground transition-colors">
                                     General Checkups
@@ -151,10 +151,10 @@ export function Footer() {
                     </div>
 
                     {/* Contact Info */}
-                    <div className="space-y-4 flex flex-col items-center md:items-start">
+                    <div className="space-y-4 flex flex-col items-start">
                         <h3 className="font-semibold text-foreground">Contact</h3>
-                        <ul className="space-y-3 text-sm text-center md:text-left flex flex-col items-center md:items-start">
-                            <li className="flex items-start justify-center md:justify-start space-x-2 text-muted-foreground">
+                        <ul className="space-y-3 text-sm text-left flex flex-col items-start">
+                            <li className="flex items-start justify-start space-x-2 text-muted-foreground">
                                 <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
                                 <span>
                                     {business?.address || "Medical Square"}<br />
@@ -162,7 +162,7 @@ export function Footer() {
                                 </span>
                             </li>
                             {business?.phone && (
-                                <li className="flex items-center justify-center md:justify-start space-x-2 text-muted-foreground">
+                                <li className="flex items-center justify-start space-x-2 text-muted-foreground">
                                     <Phone className="h-4 w-4 shrink-0" />
                                     <a href={`tel:${business.phone}`} className="hover:text-foreground transition-colors">
                                         {business.phone}
@@ -170,7 +170,7 @@ export function Footer() {
                                 </li>
                             )}
                             {whatsappUrl && (
-                                <li className="flex items-center justify-center md:justify-start space-x-2 text-muted-foreground">
+                                <li className="flex items-center justify-start space-x-2 text-muted-foreground">
                                     <Icons.whatsapp className="h-4 w-4 shrink-0" />
                                     <a
                                         href={whatsappUrl}
@@ -183,7 +183,7 @@ export function Footer() {
                                 </li>
                             )}
                             {business?.email && (
-                                <li className="flex items-center justify-center md:justify-start space-x-2 text-muted-foreground">
+                                <li className="flex items-center justify-start space-x-2 text-muted-foreground">
                                     <Mail className="h-4 w-4 shrink-0" />
                                     <a href={`mailto:${business.email}`} className="hover:text-foreground transition-colors">
                                         {business.email}
@@ -199,7 +199,7 @@ export function Footer() {
                     </div>
                 </div>
 
-                <div className="mt-12 pt-8 border-t text-center text-sm text-muted-foreground">
+                <div className="mt-12 pt-8 border-t text-left md:text-center text-sm text-muted-foreground">
                     <p>&copy; {new Date().getFullYear()} {clinicName}. All rights reserved.</p>
                 </div>
             </div>
