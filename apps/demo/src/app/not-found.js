@@ -15,9 +15,9 @@ export default function NotFound() {
           The page you requested does not exist or the link has expired.
         </p>
         <div className="pt-4 flex justify-center">
-          <Link href="/">
+          <Link href="https://fastui.in">
             <Button size="lg" className="rounded-full px-6 font-medium">
-              Home
+              Back to FastUI
             </Button>
           </Link>
         </div>

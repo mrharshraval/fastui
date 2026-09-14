@@ -52,7 +52,7 @@ function getApiBaseUrl() {
   return (
     process.env.NEXT_PUBLIC_API_URL ||
     process.env.FASTUI_API_URL ||
-    "http://localhost:8000"
+    (process.env.NODE_ENV === "production" ? "https://api.fastui.in" : "http://localhost:8000")
   ).replace(/\/+$/, "")
 }
 
@@ -70,7 +70,7 @@ export async function getDemoData(token) {
 
   const apiUrl = getApiBaseUrl()
   try {
-    const res = await fetch(`${apiUrl}/public/v1/demos/${encodeURIComponent(token)}`, {
+    const res = await fetch(`${apiUrl}/v1/demos/${encodeURIComponent(token)}`, {
       next: { revalidate: 300 }, // 5 min ISR cache
       headers: {
         Accept: "application/json",
@@ -106,7 +106,7 @@ export async function trackDemoEvent(token, { event_type, session_id, page_path,
 
   const apiUrl = getApiBaseUrl()
   try {
-    await fetch(`${apiUrl}/public/v1/demos/${encodeURIComponent(token)}/events`, {
+    await fetch(`${apiUrl}/v1/demos/${encodeURIComponent(token)}/events`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -123,3 +123,4 @@ export async function trackDemoEvent(token, { event_type, session_id, page_path,
     // Non-blocking analytics telemetry failure
   }
 }
+
