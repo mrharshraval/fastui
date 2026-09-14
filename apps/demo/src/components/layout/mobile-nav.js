@@ -27,7 +27,7 @@ export function MobileNav() {
                     <span className="sr-only">Toggle Menu</span>
                 </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="pr-0">
+            <SheetContent side="right" className="w-[80vw] max-w-[80vw] pr-0">
                 <MobileLink
                     href="/"
                     className="flex items-center"

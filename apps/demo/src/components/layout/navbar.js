@@ -239,7 +239,7 @@ export function Navbar() {
                                 <span className="sr-only">Toggle Menu</span>
                             </Button>
                         </SheetTrigger>
-                        <SheetContent side="right" className="p-0 [&>button]:hidden">
+                        <SheetContent side="right" className="w-[80vw] max-w-[80vw] p-0 [&>button]:hidden">
                             <SheetTitle className="sr-only">Mobile Menu</SheetTitle>
                             <SheetDescription className="sr-only">Navigation menu for mobile devices</SheetDescription>
                             <MobileMenu setOpen={setMobileMenuOpen} />
