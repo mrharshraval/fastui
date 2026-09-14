@@ -9,12 +9,12 @@ export default function TokenSmileGallery() {
     const { demoLink } = useDemo()
 
     const cases = [
-        { title: "Full Mouth Reconstruction", type: "Implants & Veneers", desc: "Complete restoration of function and aesthetics." },
-        { title: "Smile Makeover", type: "Porcelain Veneers", desc: "Correcting discoloration, chips, and spacing issues." },
-        { title: "Clear Aligner Transformation", type: "Orthodontics", desc: "Gentle teeth alignment without traditional metal braces." },
-        { title: "Single Tooth Replacement", type: "Dental Implant", desc: "Seamless, permanent replacement of a missing front tooth." },
-        { title: "In-Office Teeth Whitening", type: "Laser Whitening", desc: "Brightening a smile by multiple shades in a single visit." },
-        { title: "Aesthetic Gum Contouring", type: "Laser Contouring", desc: "Reshaping the gum line for a harmonious, confident smile." }
+        { title: "Gap Teeth Correction", type: "Cosmetic Bonding", desc: "Comprehensive alignment and aesthetic bonding for a seamless, confident smile.", image: "/before-after/gap-teeth.png" },
+        { title: "Chipped Tooth Restoration", type: "Restorative Bonding", desc: "Composite bonding restores natural tooth shape, contour, and aesthetic symmetry.", image: "/before-after/chipped-tooth.png" },
+        { title: "Crooked Teeth Alignment", type: "Clear Aligners", desc: "Gentle teeth alignment without traditional metal braces.", image: "/before-after/crooked-teeth.png" },
+        { title: "Missing Tooth Replacement", type: "Dental Implant", desc: "Seamless, permanent replacement of a missing tooth with natural look and feel.", image: "/before-after/missing-tooth.png" },
+        { title: "In-Office Teeth Whitening", type: "Laser Whitening", desc: "Brightening a smile by multiple shades in a single clinical visit.", image: "/before-after/discolored-teeth.png" },
+        { title: "Aesthetic Gum Contouring", type: "Laser Contouring", desc: "Reshaping the gum line for a harmonious, confident, balanced smile.", image: "/before-after/uneven-gums.png" }
     ]
 
     return (
@@ -42,9 +42,18 @@ export default function TokenSmileGallery() {
                     <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-3">
                         {cases.map((item, index) => (
                             <div key={index} className="flex flex-col items-center text-center md:items-start md:text-left space-y-4 group">
-                                <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-muted/50 border border-border">
-                                    <div className="absolute inset-0 flex items-center justify-center text-muted-foreground font-medium">
-                                        Clinical Case Photo
+                                <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-muted border border-border">
+                                    <img
+                                        src={item.image}
+                                        alt={item.title}
+                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                        loading="lazy"
+                                    />
+                                    <div className="absolute top-3 left-3 bg-white/90 text-neutral-900 border border-black/10 text-[10px] font-bold px-2.5 py-1 rounded-full backdrop-blur-sm z-10 shadow-sm">
+                                        BEFORE
+                                    </div>
+                                    <div className="absolute top-3 right-3 bg-primary text-primary-foreground text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm z-10">
+                                        AFTER
                                     </div>
                                 </div>
                                 <div className="space-y-2">
