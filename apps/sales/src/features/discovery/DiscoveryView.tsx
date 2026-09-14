@@ -80,44 +80,38 @@ export function DiscoveryView() {
       }
     } catch (err) {
       console.error("[DiscoveryView] Failed to create prospecting job:", err);
+      setStep(1);
+      setLocationError("Failed to start discovery. Please try again.");
     }
   };
 
-  // Poll discovery job until completion, then route to /prospects
+  // Poll discovery job until completion and committed results, then route to /prospects
   React.useEffect(() => {
-    if (step !== 2) return;
+    if (step !== 2 || !jobId) return;
 
     let isSubscribed = true;
-    const startTime = Date.now();
 
     const interval = setInterval(async () => {
-      // Extended safety timeout after 180s (3 minutes) for live web scraping
-      if (Date.now() - startTime > 180000) {
-        clearInterval(interval);
-        if (isSubscribed) {
-          router.push("/prospects");
-          router.refresh();
-        }
-        return;
-      }
-
-      if (!jobId) return;
-
       try {
         const job = await discoveryApi.getJobStatus(jobId);
         if (!isSubscribed) return;
 
-        if (job && (job.status === "completed" || job.status === "failed")) {
+        // Redirect only when discovery is completed and results are committed to DB
+        if (job && job.status === "completed") {
           clearInterval(interval);
-          setTimeout(() => {
-            if (isSubscribed) {
-              router.push("/prospects");
-              router.refresh();
-            }
-          }, 600);
+          if (isSubscribed) {
+            router.push("/prospects");
+            router.refresh();
+          }
+        } else if (job && job.status === "failed") {
+          clearInterval(interval);
+          if (isSubscribed) {
+            setStep(1);
+            setLocationError(job.error_message || "Discovery failed. Try again.");
+          }
         }
-      } catch {
-        // Continue polling until timeout
+      } catch (err) {
+        console.error("[DiscoveryView] Error polling job status:", err);
       }
     }, 1500);
 

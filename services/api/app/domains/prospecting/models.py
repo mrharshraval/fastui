@@ -60,3 +60,34 @@ class DiscoveryJob(Base, TimestampMixin):
 
     user = relationship("User")
     sources = relationship("BusinessSource", back_populates="discovery_job")
+
+
+class TaskStatus(str, enum.Enum):
+    PENDING = "pending"
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    RETRYING = "retrying"
+    FAILED = "failed"
+    DEAD_LETTER = "dead_letter"
+
+
+class DiscoveryTask(Base, TimestampMixin):
+    """A durable unit of scraper work linked to a DiscoveryJob."""
+
+    __tablename__ = "discovery_tasks"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    job_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("discovery_jobs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    status: Mapped[TaskStatus] = mapped_column(
+        Enum(TaskStatus, native_enum=False, length=32),
+        default=TaskStatus.PENDING,
+        nullable=False,
+        index=True,
+    )
+    params: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    error_message: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    job = relationship("DiscoveryJob")

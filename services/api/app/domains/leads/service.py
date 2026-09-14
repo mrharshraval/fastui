@@ -7,7 +7,7 @@ import logging
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import asc, desc, or_, select, update
+from sqlalchemy import and_, asc, desc, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domains.businesses.mapping import map_business_response
@@ -31,13 +31,14 @@ class LeadService:
     async def list_leads(
         session: AsyncSession,
         skip: int = 0,
-        limit: int = 100,
+        limit: int = 20,
         stage: str | None = None,
         search: str | None = None,
         sort_by: str = "created_at",
         sort_order: str = "desc",
+        cursor: str | None = None,
     ) -> list[BusinessResponse]:
-        """Fetches all businesses that have an active sales Lead record."""
+        """Fetches all businesses that have an active sales Lead record with cursor or offset pagination."""
         query = select(Business, Lead).join(Lead, Business.id == Lead.business_id)
 
         if stage and stage.lower() != "all":
@@ -73,7 +74,48 @@ class LeadService:
         else:
             query = query.order_by(desc(col), desc(Business.id))
 
-        query = query.offset(skip).limit(limit)
+        if cursor:
+            cursor_dt = None
+            cursor_id = None
+            if "_" in cursor:
+                parts = cursor.rsplit("_", 1)
+                try:
+                    cursor_dt = datetime.fromisoformat(parts[0])
+                    cursor_id = int(parts[1])
+                except (ValueError, TypeError):
+                    pass
+            else:
+                try:
+                    cursor_id = int(cursor)
+                except (ValueError, TypeError):
+                    pass
+
+            if cursor_dt is not None and cursor_id is not None:
+                if sort_order.lower() == "asc":
+                    query = query.where(
+                        or_(
+                            Business.created_at > cursor_dt,
+                            and_(Business.created_at == cursor_dt, Business.id > cursor_id),
+                        )
+                    )
+                else:
+                    query = query.where(
+                        or_(
+                            Business.created_at < cursor_dt,
+                            and_(Business.created_at == cursor_dt, Business.id < cursor_id),
+                        )
+                    )
+            elif cursor_id is not None:
+                if sort_order.lower() == "asc":
+                    query = query.where(Business.id > cursor_id)
+                else:
+                    query = query.where(Business.id < cursor_id)
+            else:
+                query = query.offset(skip)
+        else:
+            query = query.offset(skip)
+
+        query = query.limit(limit)
         result = await session.execute(query)
         rows = result.all()
 

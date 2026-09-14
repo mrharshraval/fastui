@@ -16,3 +16,13 @@ DEFAULT_USER_AGENT: str = (
 DEFAULT_SCRAPE_LIMIT: int = 20
 MAX_SCRAPE_LIMIT: int = 100
 PAGE_NAVIGATION_TIMEOUT_MS: int = 30000
+
+# Redis Stream & Consumer Group Names (Aligned with API Producers)
+STREAM_DISCOVERY_TASKS: str = "fastui:discover:tasks"
+GROUP_DISCOVERY_WORKERS: str = "scraper-workers"
+
+STREAM_DISCOVERY_RESULTS: str = "fastui:discover:results"
+GROUP_RESULT_PROCESSORS: str = "persistence-workers"
+
+STREAM_ENRICHMENT_TASKS: str = "fastui:enrich:tasks"
+GROUP_ENRICHMENT_WORKERS: str = "enrichment-workers"

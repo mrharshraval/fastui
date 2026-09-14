@@ -26,7 +26,8 @@ from app.domains.enrichment.models import CrawledWebsite
 from app.domains.exports.models import ExportJob, ExportStatus
 from app.domains.leads.models import Lead, LeadPriority, LeadSignal, PipelineStage
 from app.domains.notifications.models import PushSubscription
-from app.domains.prospecting.models import DiscoveryJob, JobStatus
+from app.domains.prospecting.models import DiscoveryJob, DiscoveryTask, JobStatus
+from app.domains.prospecting.models import TaskStatus as DiscoveryTaskStatus
 from app.infrastructure.database.base import Base, TimestampMixin
 
 __all__ = [
@@ -65,7 +66,9 @@ __all__ = [
     "CrawledWebsite",
     # Prospecting
     "DiscoveryJob",
+    "DiscoveryTask",
     "JobStatus",
+    "DiscoveryTaskStatus",
     # Exports
     "ExportJob",
     "ExportStatus",

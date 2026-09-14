@@ -66,8 +66,15 @@ POSTGRES_MIGRATIONS = [
     "ALTER TABLE reminders ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;",
     "ALTER TABLE reminders ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;",
     "ALTER TABLE reminders ADD COLUMN IF NOT EXISTS notification_sent_at TIMESTAMPTZ;",
+    "ALTER TABLE reminders ADD COLUMN IF NOT EXISTS notification_processing_at TIMESTAMPTZ;",
     "ALTER TABLE reminders ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL;",
     "ALTER TABLE reminders ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL;",
+    # Business Sources table — ensure server defaults exist on timestamp columns
+    "CREATE TABLE IF NOT EXISTS business_sources (id SERIAL PRIMARY KEY, business_id INTEGER NOT NULL REFERENCES businesses(id) ON DELETE CASCADE, discovery_job_id INTEGER REFERENCES discovery_jobs(id) ON DELETE SET NULL, platform VARCHAR(100) NOT NULL, source_url VARCHAR(500), external_id VARCHAR(255), raw_payload JSON, last_seen_at TIMESTAMPTZ DEFAULT NOW() NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL);",
+    "ALTER TABLE business_sources ALTER COLUMN created_at SET DEFAULT NOW();",
+    "ALTER TABLE business_sources ALTER COLUMN last_seen_at SET DEFAULT NOW();",
+    "CREATE UNIQUE INDEX IF NOT EXISTS uq_business_source_platform_external_id ON business_sources (platform, external_id) WHERE external_id IS NOT NULL;",
+
     # Outreaches table
     "ALTER TABLE outreaches ADD COLUMN IF NOT EXISTS contact_id INTEGER REFERENCES contacts(id) ON DELETE SET NULL;",
     "ALTER TABLE outreaches ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;",

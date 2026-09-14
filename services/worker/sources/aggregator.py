@@ -9,12 +9,12 @@ import logging
 import threading
 from typing import Dict, List, Optional, Tuple
 
-from contracts import DiscoveredLead, DiscoverySearchParams
-from deduplication import LeadDeduplicator
+from contracts.discovery import DiscoveredLead, DiscoverySearchParams
+from domain.identity import same_business
+from shared.memory import memory_tracker
 from sources.base import DiscoverySourceAdapter
 from sources.google_maps import GoogleMapsScraper
 from sources.web_search import WebSearchScraper
-from utils.memory import memory_tracker
 
 logger = logging.getLogger(__name__)
 
@@ -145,7 +145,7 @@ class MultiSourceDiscoveryAggregator(DiscoverySourceAdapter):
             matched_existing: Optional[DiscoveredLead] = None
 
             for existing in merged_leads:
-                if LeadDeduplicator.is_duplicate_lead(lead, existing):
+                if same_business(lead, existing):
                     matched_existing = existing
                     break
 

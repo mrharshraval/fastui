@@ -58,20 +58,20 @@ export function VerifyOtpForm({
     setError("");
 
     try {
-      const res = await authApi.verifyOtp({
+      await authApi.verifyOtp({
         email: email.trim().toLowerCase(),
         otp: code,
       });
 
-      if (res && res.user) {
-        localStorage.setItem("fastui_user", JSON.stringify(res.user));
-      }
-
       if (onSuccess) {
         onSuccess();
       } else {
-        router.push("/");
-        router.refresh();
+        const returnUrl = searchParams?.get("returnUrl");
+        const targetUrl =
+          returnUrl && returnUrl.startsWith("/") && !returnUrl.startsWith("//")
+            ? returnUrl
+            : "/";
+        router.push(targetUrl);
       }
     } catch (err: unknown) {
       const msg =

@@ -466,7 +466,8 @@ class ExportService:
                 detail=f"Export is not ready for download (current status: {job.status.value})",
             )
 
-        date_tag = (job.created_at or datetime.now()).strftime("%Y-%m-%d")
+        date_tag = (job.created_at or datetime.now(UTC)).strftime("%Y-%m-%d")
+
         entity_name = job.export_type or "leads"
         filename = f"fastui_{entity_name}_{date_tag}.csv"
 

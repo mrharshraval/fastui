@@ -3,7 +3,7 @@
 Exposes endpoints for initiating and monitoring automated business lead discovery jobs.
 """
 
-from fastapi import APIRouter, BackgroundTasks, Depends, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user, get_db
@@ -27,17 +27,15 @@ router = APIRouter(prefix="/prospecting", tags=["Prospecting"])
 )
 async def create_discovery_job(
     query: ProspectingQuery,
-    background_tasks: BackgroundTasks,
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> JobCreateResponse:
-    """Creates a lead discovery scraping job and enqueues background processing."""
+    """Creates a lead discovery scraping job and enqueues background processing via Redis streams."""
     res = await ProspectingService.create_job(
         session=session,
         query=query,
         user=current_user,
     )
-    background_tasks.add_task(ProspectingService.process_job, int(res.job_id))
     return res
 
 

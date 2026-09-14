@@ -197,6 +197,9 @@ class Reminder(Base, TimestampMixin):
     notification_sent_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, index=True
     )
+    notification_processing_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
 
     business = relationship("Business", back_populates="reminders")
     contact = relationship("Contact", back_populates="reminders")

@@ -7,8 +7,8 @@ import { ActivitiesSection } from "./components/ActivitiesSection";
 import { DashboardMobileList } from "./components/DashboardMobileList";
 import { TouchpointModal } from "./components/TouchpointModal";
 import { dashboardApi } from "./api";
-import { formatReminderDisplay, getReminderUrgency } from "@/shared/lib/date";
 import type { StatsModel, FollowUpAction, ActivityFeedModel } from "./types";
+
 
 interface DashboardViewProps {
   initialStats?: StatsModel;
@@ -31,54 +31,9 @@ export function DashboardView({
   const [activities, setActivities] = React.useState<ActivityFeedModel[]>(initialActivities);
   const [selectedAction, setSelectedAction] = React.useState<FollowUpAction | null>(null);
 
-  React.useEffect(() => {
-    if (!initialFollowUps.length && !initialActivities.length) {
-      dashboardApi
-        .getStats()
-        .then((res) => {
-          if (res) {
-            setStats({
-              total_leads: res.new_leads ?? 0,
-              pipeline_value: res.proposals_sent ? res.proposals_sent * 45000 : 0,
-              active_companies: res.follow_ups ? res.follow_ups * 12 : 0,
-              conversion_rate: 0,
-            });
+  // No client-side data fetch on mount — DashboardPage SSR-prefetches all initial data.
+  // This component only handles mutations (save touchpoint, delete reminder/activity).
 
-            if (Array.isArray(res.recent_activities) && res.recent_activities.length > 0) {
-              const mappedActs: ActivityFeedModel[] = res.recent_activities.map((a, idx) => ({
-                id: `act-live-${idx}`,
-                action: a.outcome || a.notes || "Activity logged",
-                type: a.type?.includes("call") ? "calls" : "emails",
-                lead: a.target || "Business Activity",
-                company: "Client",
-                time: a.time || "Recently",
-              }));
-              setActivities(mappedActs);
-            }
-          }
-        })
-        .catch(() => {});
-
-      dashboardApi
-        .getReminders()
-        .then((res) => {
-          if (Array.isArray(res)) {
-            const mapped: FollowUpAction[] = res.map((f) => ({
-              id: String(f.id),
-              contactName: f.contact_name || f.title || "Contact",
-              company: "Company",
-              lastInteraction: f.notes || f.title || "Pending touchpoint",
-              nextAction: f.notes || f.title || "Follow up",
-              dueDate: f.due_at ? formatReminderDisplay(f.due_at) : "Upcoming",
-              bucket: getReminderUrgency(f.due_at),
-              done: f.status?.toLowerCase() === "completed" || f.status?.toLowerCase() === "done",
-            }));
-            setFollowUps(mapped);
-          }
-        })
-        .catch(() => {});
-    }
-  }, [initialFollowUps.length, initialActivities.length]);
 
   const handleSaveTouchpoint = async (
     action: FollowUpAction,

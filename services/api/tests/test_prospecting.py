@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import AsyncClient
@@ -15,12 +15,13 @@ async def test_create_and_poll_discovery_job(auth_client: AsyncClient):
         "website_status": "any",
     }
 
-    with patch("app.domains.prospecting.service.ProspectingService.process_job"):
+    with patch("app.domains.prospecting.service.redis_client.xadd", new_callable=AsyncMock) as mock_xadd:
         create_res = await auth_client.post("/v1/prospecting/jobs", json=payload)
         assert create_res.status_code in (200, 202)
         data = create_res.json()
         assert "job_id" in data
         job_id = int(data["job_id"])
+        mock_xadd.assert_called_once()
 
         # Poll status
         status_res = await auth_client.get(f"/v1/prospecting/jobs/{job_id}")

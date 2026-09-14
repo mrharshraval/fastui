@@ -1,49 +1,31 @@
-"use client"
+import * as React from "react";
+import { requireSession } from "@/core/auth/server-session";
+import { SessionProvider } from "@/providers/session-provider";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/app-sidebar";
+import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 
-import * as React from "react"
-import { usePathname, useRouter } from "next/navigation"
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/app-sidebar"
-import { MobileBottomNav } from "@/components/mobile-bottom-nav"
-import { authApi } from "@/features/auth/api"
+/**
+ * Server Component dashboard layout.
+ * Authoritatively resolves the authenticated session server-side before rendering.
+ * Passes the server-resolved session to SessionProvider for distribution to
+ * interactive client leaves.
+ */
+export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const session = await requireSession();
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
- const pathname = usePathname()
- const router = useRouter()
-
- React.useEffect(() => {
- // Graceful background session verification
- authApi
- .getMe()
- .then((user) => {
- if (user && user.email) {
-  try {
-  localStorage.setItem("fastui_user", JSON.stringify(user))
-  } catch {}
- }
- })
- .catch((err: any) => {
- // Only redirect to login if explicitly unauthorized (401)
- if (err?.status === 401) {
-  try {
-  localStorage.removeItem("fastui_user")
-  } catch {}
-  router.replace("/login")
- }
- })
- }, [router])
-
- return (
- <SidebarProvider>
- <AppSidebar />
- <SidebarInset className="bg-background flex flex-col flex-1 min-w-0">
-
- {/* Main content area with bottom clearance for mobile nav */}
- <div className="flex flex-1 flex-col pb-20 md:pb-0">
-  {children}
- </div>
- </SidebarInset>
- <MobileBottomNav />
- </SidebarProvider>
- )
+  return (
+    <SessionProvider session={session}>
+      <SidebarProvider>
+        <AppSidebar />
+        <SidebarInset className="bg-background flex flex-col flex-1 min-w-0">
+          {/* Main content area with bottom clearance for mobile nav */}
+          <div className="flex flex-1 flex-col pb-20 md:pb-0">
+            {children}
+          </div>
+        </SidebarInset>
+        <MobileBottomNav />
+      </SidebarProvider>
+    </SessionProvider>
+  );
 }

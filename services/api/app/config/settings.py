@@ -40,9 +40,13 @@ class Settings(BaseSettings):
         return self.ENVIRONMENT == "test"
 
     # ─────────────────────────────────────────────────────────────
-    # Database Connection
+    # Database Connection & Pool
     # ─────────────────────────────────────────────────────────────
     DATABASE_URL: str = "sqlite+aiosqlite:///./fastui_sales.db"
+    DB_POOL_SIZE: int = 5
+    DB_MAX_OVERFLOW: int = 2
+    DB_POOL_TIMEOUT: float = 30.0
+    DB_POOL_RECYCLE: int = 1800
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
@@ -135,6 +139,8 @@ class Settings(BaseSettings):
     WORKER_URL: str | None = None
     WORKER_TOKEN: str | None = None
     GCP_SERVICE_ACCOUNT_KEY: str | None = None
+    REDIS_URL: str = "redis://localhost:6379/0"
+
 
     # ─────────────────────────────────────────────────────────────
     # Web Push (VAPID)
@@ -143,11 +149,11 @@ class Settings(BaseSettings):
     VAPID_PRIVATE_KEY: str | None = None
     VAPID_CLAIM_EMAIL: str = "notifications@fastui.in"
 
-    # Pydantic v2 Config: Cascading file resolution
+    # Pydantic v2 Config: Cascading file resolution (Service .env overrides Root .env)
     model_config = SettingsConfigDict(
         env_file=[
-            str(SERVICE_DIR / ".env"),
             str(ROOT_DIR / ".env"),
+            str(SERVICE_DIR / ".env"),
         ],
         env_file_encoding="utf-8",
         extra="ignore",

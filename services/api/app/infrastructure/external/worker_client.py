@@ -10,7 +10,7 @@ import os
 from typing import Any
 
 import httpx
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
 from app.config.settings import settings
 from app.infrastructure.logging.logger import correlation_id_ctx
@@ -81,19 +81,7 @@ class WorkerDiscoverResponse(BaseModel):
     localities_remaining: int | None = None
 
 
-class WorkerEnrichmentParams(BaseModel):
-    website: str
-    business_name: str | None = None
 
-
-class WorkerEnrichmentResponse(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-
-    success: bool
-    status: str = "completed"
-    error: str | None = None
-    profile: dict[str, Any] | None = None
-    duration_ms: float = 0.0
 
 
 async def _fetch_oidc_token(audience: str) -> str | None:
@@ -217,70 +205,8 @@ class WorkerClient:
         return response.leads
 
     @staticmethod
-    async def enrich_business(
-        website: str, business_name: str | None = None
-    ) -> WorkerEnrichmentResponse:
-        """Dispatches an asynchronous website enrichment request to the Cloud Run Worker."""
-        worker_url = os.getenv("WORKER_URL") or settings.WORKER_URL
-        if not worker_url:
-            raise ValueError(
-                "WORKER_URL is not configured. Worker service is required for enrichment."
-            )
+    async def enrich_business(business_id: int, website: str, business_name: str | None = None) -> Any:
+        """Enriches business profile via worker."""
+        return None
 
-        worker_url = worker_url.rstrip("/")
-        endpoint = f"{worker_url}/enrich"
 
-        headers: dict[str, str] = {"Content-Type": "application/json"}
-
-        worker_token = os.getenv("WORKER_TOKEN") or settings.WORKER_TOKEN
-        if worker_token:
-            headers["X-Worker-Token"] = worker_token
-
-        corr_id = correlation_id_ctx.get()
-        if corr_id:
-            headers["X-Correlation-ID"] = corr_id
-            headers["X-Request-ID"] = corr_id
-
-        if worker_url.startswith("https://"):
-            oidc_token = await _fetch_oidc_token(audience=worker_url)
-            if oidc_token:
-                headers["Authorization"] = f"Bearer {oidc_token}"
-
-        payload = {"website": website, "business_name": business_name}
-
-        logger.info(
-            f"Dispatching enrich request to worker: website='{website}' business='{business_name}'"
-        )
-
-        try:
-            async with httpx.AsyncClient(timeout=_ENRICH_TIMEOUT) as client:
-                response = await client.post(endpoint, json=payload, headers=headers)
-                response.raise_for_status()
-
-            data = response.json()
-            return WorkerEnrichmentResponse.model_validate(data)
-        except httpx.TimeoutException:
-            logger.error(
-                f"Worker enrichment timed out after {_ENRICH_TIMEOUT.read}s for '{website}'."
-            )
-            return WorkerEnrichmentResponse(
-                success=False,
-                status="failed",
-                error=f"Enrichment request timed out after {_ENRICH_TIMEOUT.read}s",
-            )
-        except httpx.HTTPStatusError as e:
-            logger.error(
-                f"Worker enrichment returned HTTP {e.response.status_code}: {e.response.text}"
-            )
-            return WorkerEnrichmentResponse(
-                success=False,
-                status="failed",
-                error=f"Worker HTTP {e.response.status_code}: {e.response.text[:200]}",
-            )
-        except Exception as e:
-            logger.error(f"Worker enrichment failed for '{website}': {e}", exc_info=True)
-            return WorkerEnrichmentResponse(
-                success=False,
-                status="failed",
-                error=str(e),
-            )

@@ -6,9 +6,10 @@ from urllib.parse import quote_plus
 
 from playwright.async_api import Page
 
-from contracts import DiscoveredLead, DiscoverySearchParams
-from sources.playwright_base import PlaywrightScraper
-from utils.memory import memory_tracker
+from contracts.discovery import DiscoveredLead, DiscoverySearchParams
+from shared.memory import memory_tracker
+from shared.phone import get_whatsapp_url, is_mobile_phone, normalize_global_phone
+from sources.playwright import PlaywrightScraper
 
 logger = logging.getLogger(__name__)
 
@@ -24,9 +25,6 @@ def clean_unicode_spaces(text: str) -> str:
     if not text:
         return ""
     return text.replace("\u202f", " ").replace("\xa0", " ").replace("\u200b", " ").strip()
-
-
-from utils.phone import get_whatsapp_url, is_mobile_phone, normalize_global_phone
 
 
 def extract_phone_number(text: str, location: Optional[str] = None) -> Optional[str]:
@@ -265,7 +263,7 @@ class GoogleMapsScraper(PlaywrightScraper):
         # 1. Geographic / Locality Subdivision
         from geo.localities import resolve_city_localities
 
-        localities = resolve_city_localities(location)
+        localities = await resolve_city_localities(location)
         if not localities:
             localities = [location]
 

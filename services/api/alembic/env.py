@@ -14,13 +14,14 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 load_dotenv(os.path.join(root_dir, '.env'))
 
+from app.config.settings import settings
 from app.domains.models import Base
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
 
-db_url = os.getenv("DATABASE_URL")
+db_url = settings.DATABASE_URL or os.getenv("DATABASE_URL")
 if db_url:
     # Alembic sync runner requires sync driver
     if "asyncpg" in db_url:

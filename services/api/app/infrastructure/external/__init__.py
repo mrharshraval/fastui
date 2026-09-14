@@ -3,8 +3,6 @@ from app.infrastructure.external.worker_client import (
     WorkerDiscoveredLead,
     WorkerDiscoverResponse,
     WorkerDiscoveryParams,
-    WorkerEnrichmentParams,
-    WorkerEnrichmentResponse,
 )
 
 __all__ = [
@@ -12,6 +10,4 @@ __all__ = [
     "WorkerDiscoverResponse",
     "WorkerDiscoveredLead",
     "WorkerDiscoveryParams",
-    "WorkerEnrichmentParams",
-    "WorkerEnrichmentResponse",
 ]

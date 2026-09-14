@@ -3,7 +3,7 @@
 Exposes asynchronous website intelligence extraction and audit inspection endpoints.
 """
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user, get_db
@@ -26,7 +26,6 @@ router = APIRouter(tags=["Enrichment"])
 )
 async def trigger_business_enrichment(
     business_id: int,
-    background_tasks: BackgroundTasks,
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> EnrichmentTriggerResponse:
@@ -44,8 +43,7 @@ async def trigger_business_enrichment(
             detail="Business does not have a website URL to enrich",
         )
 
-    background_tasks.add_task(
-        EnrichmentService.enrich_business_background,
+    await EnrichmentService.enrich_business_background(
         business_id=business.id,
     )
 

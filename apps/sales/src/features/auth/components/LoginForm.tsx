@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,6 +25,7 @@ function FieldError({ message }: { message: string }) {
 
 export function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -45,12 +46,13 @@ export function LoginForm() {
     if (!valid) return;
     setLoading(true);
     try {
-      const res = await authApi.login({ email: identifier, password });
-      if (res && res.user) {
-        localStorage.setItem("fastui_user", JSON.stringify(res.user));
-      }
-      router.push("/");
-      router.refresh();
+      await authApi.login({ email: identifier, password });
+      const returnUrl = searchParams?.get("returnUrl");
+      const targetUrl =
+        returnUrl && returnUrl.startsWith("/") && !returnUrl.startsWith("//")
+          ? returnUrl
+          : "/";
+      router.push(targetUrl);
     } catch (err: unknown) {
       setPasswordError(
         err instanceof Error ? err.message : "Invalid email or password"

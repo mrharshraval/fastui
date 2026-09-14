@@ -9,7 +9,6 @@ FROM python:3.11-slim
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
-    PORT=8001 \
     ENVIRONMENT=production \
     HEADLESS_BROWSER=true
 
@@ -33,9 +32,5 @@ RUN playwright install --with-deps chromium
 # Copy application source code
 COPY . .
 
-# Expose the worker port
-EXPOSE 8001
-
-# Start the FastAPI worker with a single worker process
-# Cloud Run scales by spinning up more container instances
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8001} --workers 1"]
+# Run the Redis-driven worker runtime entrypoint
+CMD ["python", "main.py"]

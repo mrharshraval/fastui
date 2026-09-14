@@ -4,6 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import Image from "next/image"
+import { useSession } from "@/providers/session-provider"
 import { authApi } from "@/features/auth/api"
 import {
   LayoutDashboard,
@@ -61,47 +62,15 @@ function getUserInitials(name?: string | null, email?: string | null) {
   return "FA"
 }
 
-interface AuthUser {
-  user_id?: number
-  email?: string
-  role?: string
-}
-
 export function AppSidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const { state, setOpen, setOpenMobile, isMobile } = useSidebar()
   const { resolvedTheme, setTheme } = useTheme()
-  const [currentUser, setCurrentUser] = React.useState<AuthUser | null>(null)
+  const { session, clearSession } = useSession()
 
-  React.useEffect(() => {
-    // 1. Instant hydration from client storage if available
-    try {
-      const stored = localStorage.getItem("fastui_user")
-      if (stored) {
-        const parsed = JSON.parse(stored)
-        if (parsed?.email) {
-          setCurrentUser(parsed)
-        }
-      }
-    } catch {}
-
-    // 2. Authoritative sync from backend session
-    authApi
-      .getMe()
-      .then((data) => {
-        if (data && data.email) {
-          setCurrentUser(data)
-          try {
-            localStorage.setItem("fastui_user", JSON.stringify(data))
-          } catch {}
-        }
-      })
-      .catch(() => {})
-  }, [])
-
-  const userEmail = currentUser?.email ?? ""
-  const rawUsername = userEmail ? userEmail.split("@")[0] : "Account"
+  const userEmail = session?.email ?? ""
+  const rawUsername = (session as any)?.name || (userEmail ? userEmail.split("@")[0] : "Account")
   const displayName = rawUsername.charAt(0).toUpperCase() + rawUsername.slice(1)
   const initials = getUserInitials(displayName || null, userEmail || null)
 
@@ -118,7 +87,7 @@ export function AppSidebar() {
 
   const handleLogout = async () => {
     try {
-      localStorage.removeItem("fastui_user")
+      clearSession()
       await authApi.logout()
     } catch {}
     router.push("/login")
@@ -185,19 +154,17 @@ export function AppSidebar() {
             <Image
               src="/assets/brand/wordmark/monochrome/black.svg"
               alt="fastui"
-              width={43}
-              height={18}
-              style={{ width: "auto", height: "auto" }}
-              className="dark:hidden object-contain max-h-[18px]"
+              width={1820}
+              height={752}
+              className="dark:hidden object-contain h-[18px] w-auto"
               priority
             />
             <Image
               src="/assets/brand/wordmark/monochrome/white.svg"
               alt="fastui"
-              width={43}
-              height={18}
-              style={{ width: "auto", height: "auto" }}
-              className="hidden dark:block object-contain max-h-[18px]"
+              width={1820}
+              height={752}
+              className="hidden dark:block object-contain h-[18px] w-auto"
               priority
             />
           </div>

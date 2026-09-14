@@ -1,20 +1,17 @@
 import { Suspense } from "react";
-import { settingsApi } from "@/features/settings/api";
 import { SettingsView } from "@/features/settings/SettingsView";
 
 export const dynamic = "force-dynamic";
 
-export default async function SettingsPage() {
-  let initialUser = null;
-  try {
-    initialUser = await settingsApi.getCurrentUser();
-  } catch (err) {
-    console.error("[SettingsPage] SSR prefetch failed:", err);
-  }
-
+/**
+ * Settings Page.
+ * Consumes the authoritative session already resolved by DashboardLayout and
+ * distributed by SessionProvider without initiating redundant backend queries.
+ */
+export default function SettingsPage() {
   return (
     <Suspense fallback={null}>
-      <SettingsView initialUser={initialUser as any} />
+      <SettingsView />
     </Suspense>
   );
 }

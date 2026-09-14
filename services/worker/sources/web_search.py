@@ -5,9 +5,10 @@ from urllib.parse import quote_plus, unquote
 
 from playwright.async_api import Page
 
-from contracts import DiscoveredLead, DiscoverySearchParams
-from sources.playwright_base import PlaywrightScraper
-from utils.memory import memory_tracker
+from contracts.discovery import DiscoveredLead, DiscoverySearchParams
+from shared.memory import memory_tracker
+from shared.phone import get_whatsapp_url, is_mobile_phone, normalize_global_phone
+from sources.playwright import PlaywrightScraper
 
 logger = logging.getLogger(__name__)
 
@@ -17,9 +18,6 @@ PHONE_REGEX = re.compile(
     r"(?:\(?\d{2,5}\)?[\s.-]*)?"
     r"\d{3,5}[\s.-]?\d{3,5}"
 )
-
-
-from utils.phone import get_whatsapp_url, is_mobile_phone, normalize_global_phone
 
 
 def clean_text(text: Optional[str]) -> str:

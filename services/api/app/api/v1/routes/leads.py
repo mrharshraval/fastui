@@ -23,7 +23,8 @@ router = APIRouter(tags=["leads"])
 @router.get("/leads", response_model=list[BusinessResponse])
 async def list_leads(
     skip: int = Query(0, ge=0, description="Offset for pagination"),
-    limit: int = Query(100, ge=1, le=500, description="Max records to return"),
+    limit: int = Query(20, ge=1, le=500, description="Max records to return"),
+    cursor: str | None = Query(None, description="Cursor for pagination (encoded as created_at_id)"),
     stage: str | None = Query(None, description="Filter by pipeline stage"),
     search: str | None = Query(None, description="Search across business name, category, and city"),
     sort_by: str = Query("created_at", description="Field to sort by"),
@@ -40,6 +41,7 @@ async def list_leads(
         search=search,
         sort_by=sort_by,
         sort_order=sort_order,
+        cursor=cursor,
     )
 
 

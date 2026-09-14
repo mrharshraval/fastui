@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "tsc --noEmit"
+    "test": "tsc --noEmit && node --test tests/auth-architecture.test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
@@ -20,7 +20,6 @@
     "date-fns": "^4.4.0",
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",
-    "ionicons": "^8.1.0",
     "lucide-react": "^1.18.0",
     "next": "16.3.2",
     "next-themes": "^0.4.6",
@@ -28,7 +27,6 @@
     "react": "19.2.4",
     "react-day-picker": "^10.0.1",
     "react-dom": "19.2.4",
-    "react-icons": "^5.7.0",
     "react-resizable-panels": "^4.11.2",
     "recharts": "3.8.0",
     "shadcn": "^4.11.0",

@@ -18,8 +18,11 @@ export default async function DashboardPage() {
 
   try {
     const [statsRes, remindersRes] = await Promise.all([
-      dashboardApi.getStats().catch(() => null),
-      dashboardApi.getReminders().catch(() => null),
+      // Stats are aggregate counts — 30-second stale-while-revalidate is safe and
+      // eliminates a cold backend round-trip on every dashboard render.
+      dashboardApi.getStats({ next: { revalidate: 30 } }).catch(() => null),
+      // Reminders are user-specific action items — always fresh.
+      dashboardApi.getReminders({ cache: "no-store" }).catch(() => null),
     ]);
 
     if (statsRes) {

@@ -5,11 +5,12 @@ Secure, lightweight asynchronous HTTP client with SSRF protection,
 redirect limits, response size limits, and robust error handling.
 """
 
+import asyncio
 import ipaddress
 import logging
 import socket
 from typing import Optional, Tuple
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 import httpx
 
@@ -69,25 +70,43 @@ def validate_target_url(url: str) -> Tuple[bool, Optional[str]]:
 
 class EnrichmentHttpClient:
     """
-    Asynchronous HTTP client for retrieving prospect website HTML.
+    Asynchronous HTTP client for retrieving prospect website HTML with connection pooling
+    and per-hop SSRF validation across all redirects.
     """
 
     def __init__(self, timeout_sec: float = DEFAULT_TIMEOUT_SEC):
         self.timeout = httpx.Timeout(timeout_sec, connect=4.0)
+        self._client: Optional[httpx.AsyncClient] = None
+
+    async def _get_client(self) -> httpx.AsyncClient:
+        if self._client is None or self._client.is_closed:
+            self._client = httpx.AsyncClient(
+                timeout=self.timeout,
+                follow_redirects=False,
+                verify=False,  # Allow sites with minor self-signed cert issues for public discovery
+            )
+        return self._client
+
+    async def aclose(self) -> None:
+        if self._client and not self._client.is_closed:
+            await self._client.aclose()
+            self._client = None
+
+    async def __aenter__(self) -> "EnrichmentHttpClient":
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        await self.aclose()
 
     async def fetch_html(self, url: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         """
-        Fetches website HTML safely.
+        Fetches website HTML safely with per-hop redirect SSRF inspection.
         Returns: (html_text, canonical_url, error_message)
         """
+
         # Normalize protocol if missing
         if not url.startswith(("http://", "https://")):
             url = f"https://{url}"
-
-        is_safe, err_msg = validate_target_url(url)
-        if not is_safe:
-            logger.warning(f"Aborting fetch for '{url}': {err_msg}")
-            return None, None, err_msg
 
         headers = {
             "User-Agent": USER_AGENT,
@@ -98,14 +117,31 @@ class EnrichmentHttpClient:
             "Sec-Fetch-Mode": "navigate",
         }
 
-        try:
-            async with httpx.AsyncClient(
-                timeout=self.timeout,
-                follow_redirects=True,
-                max_redirects=MAX_REDIRECTS,
-                verify=False,  # Allow sites with minor self-signed cert issues for public discovery
-            ) as client:
-                response = await client.get(url, headers=headers)
+        current_url = url
+        redirect_count = 0
+
+        while redirect_count <= MAX_REDIRECTS:
+            # Offload synchronous DNS/socket inspection to worker thread
+            is_safe, err_msg = await asyncio.to_thread(validate_target_url, current_url)
+            if not is_safe:
+                logger.warning(f"Aborting fetch for '{current_url}': {err_msg}")
+                return None, current_url, err_msg
+
+            try:
+                client = await self._get_client()
+                response = await client.get(current_url, headers=headers)
+
+                # Check for HTTP redirects and re-validate destination before following
+                if response.is_redirect:
+                    location = response.headers.get("Location")
+                    if not location:
+                        return None, str(response.url), "Redirect without Location header"
+                    next_url = urljoin(current_url, location)
+                    redirect_count += 1
+                    if redirect_count > MAX_REDIRECTS:
+                        return None, next_url, "Too many redirects"
+                    current_url = next_url
+                    continue
 
                 # Check status code
                 if response.status_code >= 400:
@@ -123,14 +159,15 @@ class EnrichmentHttpClient:
                 if len(content_bytes) > MAX_RESPONSE_BYTES:
                     content_bytes = content_bytes[:MAX_RESPONSE_BYTES]
 
-                # Decode encoding
                 html = response.text
                 canonical_url = str(response.url)
                 return html, canonical_url, None
 
-        except httpx.TimeoutException:
-            return None, url, "Connection timeout"
-        except httpx.RequestError as e:
-            return None, url, f"Request error: {str(e)}"
-        except Exception as e:
-            return None, url, f"Unexpected error: {str(e)}"
+            except httpx.TimeoutException:
+                return None, current_url, "Connection timeout"
+            except httpx.RequestError as e:
+                return None, current_url, f"Request error: {str(e)}"
+            except Exception as e:
+                return None, current_url, f"Unexpected error: {str(e)}"
+
+        return None, current_url, "Too many redirects"

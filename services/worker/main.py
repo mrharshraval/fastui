@@ -1,238 +1,87 @@
 """
-FastUI Discovery Worker
-=======================
-Standalone FastAPI service exposing lead discovery endpoints.
-Deployed as a private Google Cloud Run service with application-level token authentication.
-
-Endpoints:
-  GET  /health   — unauthenticated liveness probe
-  POST /discover — authenticated MultiSource Playwright scraping pipeline (requires X-Worker-Token)
+FastUI Worker Runtime Entrypoint
+================================
+Thin composition root managing Redis-driven consumer lifecycles, graceful
+shutdown signals, and connection pool cleanup.
 """
 
-import logging
-import os
-import sys
-
-# Ensure the worker root is on sys.path so all local modules resolve correctly
-sys.path.insert(0, os.path.dirname(__file__))
-
 import asyncio
-import threading
-from contextlib import asynccontextmanager
+import logging
+import signal
 
-from fastapi import Depends, FastAPI, HTTPException, Request, status
-from fastapi.responses import JSONResponse
-
-from contracts import DiscoverResponse, DiscoverySearchParams, EnrichmentParams, EnrichmentResponse
-from core.config import settings
-from core.logger import setup_worker_logging
-from core.security import verify_worker_token
-from enrichment import WebsiteEnrichmentEngine
-from sources.aggregator import MultiSourceDiscoveryAggregator
+from core.logging import setup_worker_logging
+from infrastructure.redis.client import close_redis_client
+from infrastructure.redis.streams import RedisStreams
+from orchestration.discovery import DiscoveryConsumer
+from orchestration.enrichment import EnrichmentConsumer
+from orchestration.recovery import TaskRecoveryService
+from orchestration.results import ResultProcessor
+from persistence.db import close_db_engine
 
 setup_worker_logging(service_name="fastui-worker")
 logger = logging.getLogger("fastui.worker")
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    logger.info(
-        f"FastUI Discovery Worker starting "
-        f"(env={settings.ENVIRONMENT}, headless={settings.HEADLESS_BROWSER}, "
-        f"concurrency={settings.MAX_CONCURRENT_SCRAPERS})"
-    )
-    yield
-    logger.info("FastUI Discovery Worker shutting down.")
+async def main() -> None:
+    logger.info("Initializing Redis streams and consumer groups...")
+    streams = RedisStreams()
+    await streams.ensure_groups()
 
+    discovery_consumer = DiscoveryConsumer(streams=streams)
+    result_processor = ResultProcessor(streams=streams)
+    enrichment_consumer = EnrichmentConsumer(streams=streams)
+    recovery_service = TaskRecoveryService(streams=streams)
 
-app = FastAPI(
-    title="FastUI Discovery Worker",
-    version="1.0.0",
-    description="Private Cloud Run service — Playwright-based lead discovery.",
-    lifespan=lifespan,
-    # Disable docs in production to reduce attack surface
-    docs_url="/docs" if os.getenv("ENVIRONMENT", "development") != "production" else None,
-    redoc_url=None,
-)
+    consumers = [discovery_consumer, result_processor, enrichment_consumer, recovery_service]
+    stop_event = asyncio.Event()
 
-import uuid
+    def _trigger_shutdown(sig_name: str) -> None:
+        logger.info(f"Received signal {sig_name}; initiating graceful shutdown...")
+        stop_event.set()
+        for c in consumers:
+            c.running = False
 
-from core.logger import correlation_id_ctx
-
-
-@app.middleware("http")
-async def correlation_middleware(request: Request, call_next):
-    corr_id = (
-        request.headers.get("X-Correlation-ID")
-        or request.headers.get("X-Request-ID")
-        or str(uuid.uuid4())
-    )
-    token = correlation_id_ctx.set(corr_id)
-    try:
-        response = await call_next(request)
-        response.headers["X-Correlation-ID"] = corr_id
-        return response
-    finally:
-        correlation_id_ctx.reset(token)
-
-
-@app.exception_handler(HTTPException)
-async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
-    """Pass-through for standard HTTP exceptions like 401 Unauthorized."""
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"detail": exc.detail},
-    )
-
-
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    logger.error(f"Unhandled exception: {exc}", exc_info=True)
-    return JSONResponse(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={"error": exc.__class__.__name__, "detail": str(exc)},
-    )
-
-
-@app.get("/health", tags=["system"])
-async def health() -> dict:
-    """Unauthenticated liveness probe for Cloud Run and health checks."""
-    return {"status": "ok", "service": "fastui-worker"}
-
-
-def _run_discovery_in_proactor(
-    params: DiscoverySearchParams,
-    headless: bool,
-    cancel_event: threading.Event | None = None,
-):
-    """
-    Executes the Playwright scraping pipeline inside a dedicated event loop thread.
-    Uses asyncio.Runner with loop_factory for supported, deterministic lifecycle management.
-    """
-    loop_factory = asyncio.ProactorEventLoop if sys.platform == "win32" else None
-    with asyncio.Runner(loop_factory=loop_factory) as runner:
-        aggregator = MultiSourceDiscoveryAggregator(headless=headless)
-        return runner.run(aggregator.discover_with_meta(params, cancel_event=cancel_event))
-
-
-@app.post(
-    "/discover",
-    response_model=DiscoverResponse,
-    tags=["discovery"],
-    dependencies=[Depends(verify_worker_token)],
-)
-async def discover(request: Request, params: DiscoverySearchParams) -> DiscoverResponse:
-    """
-    Runs multi-source Playwright scraping and returns discovered business leads.
-    Requires a valid 'X-Worker-Token' authentication header.
-    Supports cooperative HTTP cancellation when clients abort connections.
-    """
-    logger.info(
-        f"Received discover request: audience='{params.target_audience}' "
-        f"location='{params.location}' limit={params.limit}"
-    )
-
-    cancel_event = threading.Event()
-
-    async def _monitor_disconnect():
+    # Register OS signals
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGINT, signal.SIGTERM):
         try:
-            while not cancel_event.is_set():
-                if await request.is_disconnected():
-                    logger.info(
-                        "Client disconnected during discovery; signaling cooperative abort."
-                    )
-                    cancel_event.set()
-                    break
-                await asyncio.sleep(0.5)
-        except asyncio.CancelledError:
-            pass
+            loop.add_signal_handler(sig, lambda s=sig.name: _trigger_shutdown(s))
+        except NotImplementedError:
+            signal.signal(sig, lambda _signum, _frame, s=sig.name: _trigger_shutdown(s))
 
-    disconnect_task = asyncio.create_task(_monitor_disconnect())
+    logger.info("Starting workers: DiscoveryConsumer | ResultProcessor | EnrichmentConsumer | TaskRecoveryService")
+
+    consumer_tasks = [
+        asyncio.create_task(discovery_consumer.run(), name="DiscoveryConsumer"),
+        asyncio.create_task(result_processor.run(), name="ResultProcessor"),
+        asyncio.create_task(enrichment_consumer.run(), name="EnrichmentConsumer"),
+        asyncio.create_task(recovery_service.run(), name="TaskRecoveryService"),
+    ]
 
     try:
-        (
-            leads,
-            exhausted,
-            sources_exhausted,
-            peak_rss,
-            next_cursor,
-            current_locality,
-            localities_remaining,
-        ) = await asyncio.to_thread(
-            _run_discovery_in_proactor,
-            params,
-            settings.HEADLESS_BROWSER,
-            cancel_event,
+        done, pending = await asyncio.wait(
+            [asyncio.create_task(stop_event.wait()), *consumer_tasks],
+            return_when=asyncio.FIRST_COMPLETED,
         )
-        logger.info(
-            f"Discovery complete: {len(leads)} leads returned "
-            f"(exhausted={exhausted}, peak_rss={peak_rss:.1f}MB, next_cursor={next_cursor}, locality={current_locality})."
-        )
-        return DiscoverResponse(
-            leads=leads,
-            count=len(leads),
-            exhausted=exhausted,
-            sources_exhausted=sources_exhausted,
-            peak_rss_mb=peak_rss,
-            next_cursor=next_cursor,
-            current_locality=current_locality,
-            localities_remaining=localities_remaining,
-        )
-    except asyncio.CancelledError:
-        cancel_event.set()
-        logger.info("Discover request was cancelled; cooperative abort signaled to worker thread.")
-        raise
-    except Exception as e:
-        logger.error(f"Discovery failed: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Discovery failed: {str(e)}",
-        )
+
+        for t in pending:
+            t.cancel()
+        await asyncio.gather(*pending, return_exceptions=True)
+
     finally:
-        cancel_event.set()
-        disconnect_task.cancel()
-        try:
-            await disconnect_task
-        except asyncio.CancelledError:
-            pass
-
-
-@app.post(
-    "/enrich",
-    response_model=EnrichmentResponse,
-    tags=["enrichment"],
-    dependencies=[Depends(verify_worker_token)],
-)
-async def enrich(params: EnrichmentParams) -> EnrichmentResponse:
-    """
-    Asynchronously extracts rich branding, doctor credentials, treatments,
-    and website quality signals from a prospect's official website.
-    Requires a valid 'X-Worker-Token' authentication header.
-    """
-    logger.info(
-        f"Received enrich request for website='{params.website}' (business='{params.business_name}')"
-    )
-    try:
-        engine = WebsiteEnrichmentEngine()
-        response = await engine.enrich_website(params)
-        return response
-    except Exception as e:
-        logger.error(f"Enrichment failed for '{params.website}': {e}", exc_info=True)
-        return EnrichmentResponse(
-            success=False,
-            status="failed",
-            error=str(e),
-            profile=None,
-            duration_ms=0.0,
+        logger.info("Draining active tasks and closing resource pools...")
+        await asyncio.gather(
+            discovery_consumer.drain(),
+            enrichment_consumer.drain(),
+            return_exceptions=True,
         )
+        await close_db_engine()
+        await close_redis_client()
+        logger.info("FastUI Worker shutdown complete.")
 
 
 if __name__ == "__main__":
-    import uvicorn
-
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=settings.PORT,
-        log_level=settings.LOG_LEVEL.lower(),
-    )
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("Shutting down worker from keyboard interrupt.")

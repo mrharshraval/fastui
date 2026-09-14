@@ -25,6 +25,7 @@ import {
   sendTestPushNotification,
 } from "@/features/notifications/api";
 import { settingsApi } from "./api";
+import { useSession } from "@/providers/session-provider";
 import {
   ChevronRight,
   User,
@@ -100,15 +101,28 @@ interface SettingsViewProps {
 export function SettingsView({ initialUser = null }: SettingsViewProps) {
   const router = useRouter();
   const { resolvedTheme, setTheme } = useTheme();
+  const { session, updateSession, clearSession } = useSession();
 
-  // User state
-  const [currentUser, setCurrentUser] = React.useState<AuthUser | null>(initialUser);
-  const [displayName, setDisplayName] = React.useState(initialUser?.name || "");
-  const [email, setEmail] = React.useState(initialUser?.email || "");
+  // User state derived from authoritative distributed session
+  const [displayName, setDisplayName] = React.useState(
+    (session as any)?.name || initialUser?.name || ""
+  );
+  const [email, setEmail] = React.useState(session?.email || initialUser?.email || "");
   const [currentPassword, setCurrentPassword] = React.useState("");
   const [newPassword, setNewPassword] = React.useState("");
   const [savingProfile, setSavingProfile] = React.useState(false);
   const [updatingPassword, setUpdatingPassword] = React.useState(false);
+
+  // Sync state when session is resolved or updated
+  React.useEffect(() => {
+    if (session) {
+      setEmail(session.email || "");
+      const nameVal = (session as any).name || (session.email ? session.email.split("@")[0] : "");
+      if (nameVal) {
+        setDisplayName(nameVal.charAt(0).toUpperCase() + nameVal.slice(1));
+      }
+    }
+  }, [session]);
 
   // Mobile sub-sheets / modals
   const [activeModal, setActiveModal] = React.useState<
@@ -123,35 +137,6 @@ export function SettingsView({ initialUser = null }: SettingsViewProps) {
   const [pushLoading, setPushLoading] = React.useState<boolean>(false);
 
   React.useEffect(() => {
-    if (!initialUser) {
-      try {
-        const stored = localStorage.getItem("fastui_user");
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (parsed?.email) {
-            setCurrentUser(parsed);
-            setEmail(parsed.email || "");
-            setDisplayName(parsed.name || parsed.email.split("@")[0]);
-          }
-        }
-      } catch {}
-
-      settingsApi
-        .getCurrentUser()
-        .then((data: any) => {
-          if (data && data.email) {
-            setCurrentUser(data);
-            setEmail(data.email || "");
-            const nameVal = data.name || data.email.split("@")[0];
-            setDisplayName(nameVal.charAt(0).toUpperCase() + nameVal.slice(1));
-            try {
-              localStorage.setItem("fastui_user", JSON.stringify(data));
-            } catch {}
-          }
-        })
-        .catch(() => {});
-    }
-
     const isSupp = isPushNotificationSupported();
     setPushSupported(isSupp);
     if (isSupp) {
@@ -160,7 +145,7 @@ export function SettingsView({ initialUser = null }: SettingsViewProps) {
         setPushSubscribed(!!sub && perm === "granted");
       });
     }
-  }, [initialUser]);
+  }, []);
 
   const userEmailDisplay = email;
   const userNameDisplay =
@@ -173,10 +158,7 @@ export function SettingsView({ initialUser = null }: SettingsViewProps) {
       setSavingProfile(true);
       const res: any = await settingsApi.updateProfile({ name: displayName.trim() });
       if (res) {
-        setCurrentUser(res);
-        try {
-          localStorage.setItem("fastui_user", JSON.stringify(res));
-        } catch {}
+        updateSession(res);
       }
       setStatusMessage("Profile updated.");
       setTimeout(() => {
@@ -214,7 +196,7 @@ export function SettingsView({ initialUser = null }: SettingsViewProps) {
 
   const handleLogout = async () => {
     try {
-      localStorage.removeItem("fastui_user");
+      clearSession();
       await settingsApi.logout();
     } catch {}
     router.push("/login");
@@ -226,7 +208,7 @@ export function SettingsView({ initialUser = null }: SettingsViewProps) {
 
   const confirmDeleteAccount = async () => {
     try {
-      localStorage.removeItem("fastui_user");
+      clearSession();
       await settingsApi.deleteAccount();
     } catch {}
     router.push("/login");

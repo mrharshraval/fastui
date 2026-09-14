@@ -101,15 +101,28 @@ class DemoService:
 
         profile = None
         if business.website:
+            from app.domains.businesses.deduplication import LeadDeduplicator
             from app.domains.enrichment.service import EnrichmentService
 
+            # Read-only enrichment lookup: use cached intelligence if present.
+            # Demo creation must never enqueue an enrichment task as a side effect.
             try:
-                profile, _ = await EnrichmentService.get_or_enrich_website(
-                    prospect=business,
-                    session=session,
-                )
+                norm_domain = LeadDeduplicator.normalize_website(business.website)
+                if norm_domain:
+                    cached_record = await EnrichmentService.find_matching_cached_intelligence(
+                        prospect=business,
+                        normalized_domain=norm_domain,
+                        session=session,
+                    )
+                    if cached_record and cached_record.extracted_data:
+                        from app.domains.enrichment.schemas import EnrichedBusinessProfile
+                        profile = EnrichedBusinessProfile.model_validate(
+                            cached_record.extracted_data
+                        )
+                if profile is None:
+                    profile = EnrichmentService.extract_enrichment_from_business(business)
             except Exception as e:
-                logger.warning(f"Could not retrieve website enrichment for demo: {e}")
+                logger.warning(f"Could not retrieve cached enrichment for demo: {e}")
 
         base_overrides = req.custom_overrides if req and req.custom_overrides else {}
         if profile:

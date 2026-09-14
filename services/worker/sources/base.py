@@ -1,17 +1,16 @@
-from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Protocol, runtime_checkable
 
-from contracts import DiscoveredLead, DiscoverySearchParams
+from contracts.discovery import DiscoveredLead, DiscoverySearchParams
 
 
-class DiscoverySourceAdapter(ABC):
+@runtime_checkable
+class DiscoverySourceAdapter(Protocol):
     """
-    Abstract interface for all Lead Discovery source adapters (Google Maps, web search, etc.).
+    Structural protocol for all Lead Discovery source adapters (Google Maps, Web Search, etc.).
+    Favors composition over inheritance.
     """
 
-    @abstractmethod
     async def discover(self, params: DiscoverySearchParams) -> List[DiscoveredLead]:
-        """
-        Discovers and extracts leads matching the given search parameters.
-        """
-        pass
+        """Discovers and extracts leads matching the given search parameters."""
+        ...
+

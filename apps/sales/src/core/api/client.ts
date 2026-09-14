@@ -9,6 +9,8 @@ const API_BASE =
 export interface RequestOptions extends Omit<RequestInit, "body"> {
   params?: QueryParams;
   body?: unknown;
+  /** Next.js extended fetch options (server-side data cache / ISR). */
+  next?: NextFetchRequestConfig;
 }
 
 /**
@@ -38,7 +40,11 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     try {
       const { cookies } = await import("next/headers");
       const cookieStore = await cookies();
-      const cookieHeader = cookieStore.toString();
+      const allCookies = cookieStore.getAll();
+      const cookieHeader =
+        allCookies.length > 0
+          ? allCookies.map((c) => `${c.name}=${c.value}`).join("; ")
+          : cookieStore.toString();
       if (cookieHeader) {
         headers["Cookie"] = cookieHeader;
       }
@@ -57,11 +63,15 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     }
   }
 
+  // Default cache strategy:
+  // Always use "no-store" for dynamic CRM API endpoints so callers always receive fresh server state.
+  const defaultCache: RequestCache = "no-store";
+
   const response = await fetch(url, {
     ...init,
     body: serializedBody,
     credentials: "include",
-    cache: init.cache ?? "no-store",
+    cache: init.cache ?? defaultCache,
     headers: {
       ...headers,
       ...(customHeaders as Record<string, string> | undefined),
