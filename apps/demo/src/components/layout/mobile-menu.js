@@ -50,20 +50,20 @@ export function MobileMenu({ setOpen }) {
             </div>
 
             {/* Navigation Links */}
-            <nav className="flex flex-col space-y-1 px-4 py-6 overflow-y-auto no-scrollbar items-center text-center">
+            <nav className="flex flex-col space-y-1 px-4 py-6 overflow-y-auto no-scrollbar text-left">
                 <Link
                     href={demoLink("/")}
-                    className="flex w-full items-center justify-center rounded-lg py-2.5 px-3 text-sm font-medium transition-colors hover:bg-muted hover:text-primary"
+                    className="flex w-full items-center justify-start rounded-lg py-2.5 px-3 text-sm font-medium transition-colors hover:bg-muted hover:text-primary"
                     onClick={() => setOpen(false)}
                 >
                     Home
                 </Link>
 
                 {/* Treatments Accordion */}
-                <div className="py-1 w-full flex flex-col items-center">
+                <div className="py-1 w-full flex flex-col">
                     <button
                         onClick={() => setTreatmentsOpen(!treatmentsOpen)}
-                        className="flex w-full items-center justify-center gap-1.5 rounded-lg py-2.5 px-3 text-sm font-medium transition-colors hover:bg-muted hover:text-primary group"
+                        className="flex w-full items-center justify-between rounded-lg py-2.5 px-3 text-sm font-medium transition-colors hover:bg-muted hover:text-primary group"
                     >
                         <span>Treatments</span>
                         <ChevronDown
@@ -74,45 +74,45 @@ export function MobileMenu({ setOpen }) {
                         />
                     </button>
                     {treatmentsOpen && (
-                        <div className="flex flex-col items-center space-y-1 pt-1 pb-2 w-full animate-in slide-in-from-top-1 fade-in duration-200">
+                        <div className="flex flex-col space-y-1 pl-3 pt-1 pb-2 w-full border-l-2 border-border/60 ml-3 animate-in slide-in-from-top-1 fade-in duration-200">
                             <Link
                                 href={demoLink("/treatments/general")}
-                                className="flex w-full items-center justify-center rounded-lg py-2 px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
+                                className="flex w-full items-center justify-start rounded-lg py-2 px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
                                 onClick={() => setOpen(false)}
                             >
                                 General Dentistry
                             </Link>
                             <Link
                                 href={demoLink("/treatments/cosmetic")}
-                                className="flex w-full items-center justify-center rounded-lg py-2 px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
+                                className="flex w-full items-center justify-start rounded-lg py-2 px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
                                 onClick={() => setOpen(false)}
                             >
                                 Cosmetic Dentistry
                             </Link>
                             <Link
                                 href={demoLink("/treatments/orthodontics")}
-                                className="flex w-full items-center justify-center rounded-lg py-2 px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
+                                className="flex w-full items-center justify-start rounded-lg py-2 px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
                                 onClick={() => setOpen(false)}
                             >
                                 Orthodontics
                             </Link>
                             <Link
                                 href={demoLink("/treatments/surgical")}
-                                className="flex w-full items-center justify-center rounded-lg py-2 px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
+                                className="flex w-full items-center justify-start rounded-lg py-2 px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
                                 onClick={() => setOpen(false)}
                             >
                                 Surgical
                             </Link>
                             <Link
                                 href={demoLink("/treatments/implants")}
-                                className="flex w-full items-center justify-center rounded-lg py-2 px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
+                                className="flex w-full items-center justify-start rounded-lg py-2 px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
                                 onClick={() => setOpen(false)}
                             >
                                 Dental Implants
                             </Link>
                             <Link
                                 href={demoLink("/treatments/pediatric")}
-                                className="flex w-full items-center justify-center rounded-lg py-2 px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
+                                className="flex w-full items-center justify-start rounded-lg py-2 px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
                                 onClick={() => setOpen(false)}
                             >
                                 Pediatric Dentistry
@@ -123,14 +123,14 @@ export function MobileMenu({ setOpen }) {
 
                 <Link
                     href={demoLink("/gallery")}
-                    className="flex w-full items-center justify-center rounded-lg py-2.5 px-3 text-sm font-medium transition-colors hover:bg-muted hover:text-primary"
+                    className="flex w-full items-center justify-start rounded-lg py-2.5 px-3 text-sm font-medium transition-colors hover:bg-muted hover:text-primary"
                     onClick={() => setOpen(false)}
                 >
                     Gallery
                 </Link>
                 <Link
                     href={demoLink("/insurance")}
-                    className="flex w-full items-center justify-center rounded-lg py-2.5 px-3 text-sm font-medium transition-colors hover:bg-muted hover:text-primary"
+                    className="flex w-full items-center justify-start rounded-lg py-2.5 px-3 text-sm font-medium transition-colors hover:bg-muted hover:text-primary"
                     onClick={() => setOpen(false)}
                 >
                     Insurance
@@ -138,14 +138,14 @@ export function MobileMenu({ setOpen }) {
 
                 <Link
                     href={demoLink("/about")}
-                    className="flex w-full items-center justify-center rounded-lg py-2.5 px-3 text-sm font-medium transition-colors hover:bg-muted hover:text-primary"
+                    className="flex w-full items-center justify-start rounded-lg py-2.5 px-3 text-sm font-medium transition-colors hover:bg-muted hover:text-primary"
                     onClick={() => setOpen(false)}
                 >
                     About
                 </Link>
                 <Link
                     href={demoLink("/contact")}
-                    className="flex w-full items-center justify-center rounded-lg py-2.5 px-3 text-sm font-medium transition-colors hover:bg-muted hover:text-primary"
+                    className="flex w-full items-center justify-start rounded-lg py-2.5 px-3 text-sm font-medium transition-colors hover:bg-muted hover:text-primary"
                     onClick={() => setOpen(false)}
                 >
                     Contact Us
