@@ -9,8 +9,8 @@ import { useDemo } from "@/lib/demo-context"
 import {
     ChevronDown,
     X,
-    Asterisk
 } from "lucide-react"
+import { Icons } from "@/components/icons"
 import { ThemeToggle } from "@/components/layout/theme-toggle"
 
 export function MobileMenu({ setOpen }) {
@@ -32,7 +32,7 @@ export function MobileMenu({ setOpen }) {
                         />
                     ) : (
                         <>
-                            <Asterisk className="h-6 w-6" />
+                            <Icons.logo className="h-6 w-auto text-primary" />
                             <span className="font-bold text-lg tracking-tight">{clinicName}</span>
                         </>
                     )}

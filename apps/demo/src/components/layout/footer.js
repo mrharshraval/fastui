@@ -30,7 +30,7 @@ export function Footer() {
                                 />
                             ) : (
                                 <>
-                                    <Icons.logo className="h-6 w-6" />
+                                    <Icons.logo className="h-6 w-auto text-primary" />
                                     <span className="font-bold text-lg">{clinicName}</span>
                                 </>
                             )}

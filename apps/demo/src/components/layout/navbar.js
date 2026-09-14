@@ -28,7 +28,7 @@ import {
     NavigationMenuTrigger,
     navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu"
-import { Asterisk, ArrowRight } from "lucide-react"
+import { ArrowRight } from "lucide-react"
 
 export function Navbar() {
     const [open, setOpen] = React.useState(false) // Search dialog
@@ -68,7 +68,7 @@ export function Navbar() {
                             />
                         ) : (
                             <>
-                                <Asterisk className="h-6 w-6" />
+                                <Icons.logo className="h-6 w-auto text-primary" />
                                 <span className="hidden font-bold sm:inline-block">
                                     {clinicName}
                                 </span>
